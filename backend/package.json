@@ -3,12 +3,18 @@
   "version": "1.0.0",
   "description": "",
   "main": "webpack.config.js",
-  "dependencies": {},
+  "dependencies": {
+    "apollo-server-lambda": "^2.11.0",
+    "axios": "^0.19.2",
+    "merge-graphql-schemas": "^1.7.6"
+  },
   "devDependencies": {
     "@babel/core": "^7.9.0",
     "@babel/plugin-proposal-object-rest-spread": "^7.9.0",
     "@babel/preset-env": "^7.9.0",
     "babel-loader": "^8.1.0",
+    "graphql": "^14.6.0",
+    "graphql-tag": "^2.10.3",
     "serverless": "^1.67.0",
     "serverless-offline": "^6.1.2",
     "serverless-webpack": "^5.3.1",

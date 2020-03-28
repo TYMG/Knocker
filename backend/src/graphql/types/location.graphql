@@ -1,0 +1,33 @@
+type Location {
+  id: Int
+  name: String
+  street: String
+  city: String
+  state: String
+  zip: String
+  phone: String
+  lat: String
+  lon: String
+  website: String
+  created_at: String
+  updated_at: String
+  zone_id: Int
+  region_id: Int
+  location_type_id: Int
+  description: String
+  operator_id: String
+  date_last_updated: String
+  last_updated_by_user_id: Int
+  is_stern_army: Boolean
+  country: String
+  distance: Float
+  bearing: String
+  num_machines: Int
+  location_machine_xrefs: [MachineXref]
+  machine_names: [String]
+}
+
+type Query {
+  locations: [Location]!
+  location(id: String!): Location!
+}

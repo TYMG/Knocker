@@ -9,19 +9,19 @@ plugins:
 # we will be deploying and running this project at AWS cloud with Node v8.10 environment
 provider:
   name: aws
-  runtime: nodejs8.10
+  runtime: nodejs12.x
   region: us-east-2
   stage: dev
 
 # here we describe our lambda function
 functions:
-  hello: # function name  ##this will be eventually changed
+  knocker-graphql-api: # function name  ##this will be eventually changed
     handler: src/handler.main # where the actual code is located
     # to call our function from outside, we need to expose it to the outer world
     # in order to do so, we create a REST endpoint
     events:
       - http:
-          path: hello # path for the endpoint
+          path: knocker-api # path for the endpoint
           method: any # HTTP method for the endpoint
 
 custom:

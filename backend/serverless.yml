@@ -16,13 +16,15 @@ provider:
 # here we describe our lambda function
 functions:
   knocker-graphql-api: # function name  ##this will be eventually changed
-    handler: src/handler.main # where the actual code is located
+    handler: src/handler.main
+    #handler: src/index.grapqlHandler # where the actual code is located
     # to call our function from outside, we need to expose it to the outer world
     # in order to do so, we create a REST endpoint
     events:
       - http:
           path: knocker-api # path for the endpoint
           method: any # HTTP method for the endpoint
+          cors: true
 
 custom:
   webpack:

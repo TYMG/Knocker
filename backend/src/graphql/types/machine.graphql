@@ -14,6 +14,6 @@ type Machine {
 }
 
 type Query {
-  allMachines: [Machine]!
+  machines: [Machine]!
   machine(id: String!): Machine!
 }

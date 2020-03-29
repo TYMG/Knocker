@@ -1,24 +1,36 @@
-/**
- *  In the code above we make sure that import/export, arrow functions,
- *  string templates, async/await and all other fancy stuff really works.
- */
+import { ApolloServer } from "apollo-server-lambda";
+import resolvers from "./graphql/resolvers";
+import typeDefs from "./graphql/types";
 
-import moment from "moment";
+import { PinballMachineAPI } from "./graphql/data-sources/pinball";
+// set up any dataSources our resolvers need
+const dataSources = () => ({
+  pinballMachineAPI: new PinballMachineAPI()
+});
 
-const handler = async (event, context) => {
-  const body = await new Promise(resolve => {
-    setTimeout(() => {
-      resolve(
-        `Hello, this is your lambda speaking. Today is ${moment().format(
-          "dddd"
-        )}!`
-      );
-    }, 2000);
-  });
-  return {
-    statusCode: 200,
-    body
-  };
-};
+// Set up Apollo Server
+const server = new ApolloServer({
+  typeDefs,
+  resolvers,
+  dataSources,
+  introspection: true,
+  playground: true
+});
+
+const handler = server.createHandler({
+  cors: {
+    origin: "*",
+    credentials: true
+  }
+});
+/* const handler = (event, context, callback) => {
+
+  // tell AWS lambda we do not want to wait for NodeJS event loop
+  // to be empty in order to send the response
+  context.callbackWaitsForEmptyEventLoop = false;
+
+  // process the request
+  return handler(event, context, callback);
+}; */
 
 export default handler;

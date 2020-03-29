@@ -3,9 +3,11 @@ import resolvers from "./graphql/resolvers";
 import typeDefs from "./graphql/types";
 
 import { PinballMachineAPI } from "./graphql/data-sources/pinball";
+import { KnockerDB } from "./graphql/data-sources/knocker-db";
 // set up any dataSources our resolvers need
 const dataSources = () => ({
-  pinballMachineAPI: new PinballMachineAPI()
+  pinballMachineAPI: new PinballMachineAPI(),
+  knockerDB: new KnockerDB()
 });
 
 // Set up Apollo Server

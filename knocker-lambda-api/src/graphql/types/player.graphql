@@ -1,0 +1,30 @@
+type Player {
+  id: ID!
+  username: String!
+  name: String!
+  machinesPlayed: [Machine]
+  scores: [Score]
+  locationsVisited: [Location]
+  email: String!
+}
+
+type Query {
+  players: [Player]
+  player(id: String!): Player!
+  player(username: String!): Player!
+}
+
+type PlayerInput {
+  id: ID!
+  username: String!
+  name: String!
+  machinesPlayed: [Machine]
+  scores: [Score]
+  locationsVisited: [Location]
+  email: String!
+}
+
+type Mutation {
+  putPlayer(data: PlayerInput!): Result
+  deletePlayer(id: String!): Result
+}

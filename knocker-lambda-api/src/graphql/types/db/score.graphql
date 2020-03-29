@@ -1,0 +1,12 @@
+type Score {
+  id: ID
+  player: Player
+  machine: Machine!
+  score: String!
+  date: String!
+}
+
+type Query {
+  scores: [Score]
+  score(id: String!): Score!
+}

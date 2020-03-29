@@ -16,4 +16,5 @@ type Machine {
 type Query {
   machines: [Machine]!
   machine(id: String!): Machine!
+  machine(name: String!): Machine!
 }

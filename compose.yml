@@ -1,9 +1,9 @@
 version: "3"
 
 services:
-  knocker:
+  knocker-lambda-api:
     build:
-      context: ./knocker/
+      context: ./knocker-lambda-api/
       dockerfile: Dockerfile
     expose:
       - 3000
@@ -11,5 +11,5 @@ services:
       - 3000:3000
     restart: on-failure
     volumes:
-      - ./knocker/:/app
+      - ./knocker-lambda-api/:/app
   # here could be the other applications

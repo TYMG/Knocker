@@ -31,7 +31,7 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "npx serverless offline start -r us-east-2 --noTimeout --port 3000 --host 0.0.0.0"
+    "start": "npx serverless offline start -r us-east-1 --noTimeout --port 3000 --host 0.0.0.0"
   },
   "keywords": [],
   "author": "",

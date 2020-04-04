@@ -1,0 +1,33 @@
+service: knocker-lambda
+
+# enable required plugins, in order to make what we want
+plugins:
+  - serverless-webpack
+  - serverless-offline
+
+# serverless supports different cloud environments to run at.
+# we will be deploying and running this project at AWS cloud with Node v8.10 environment
+provider:
+  name: aws
+  runtime: nodejs12.x
+  region: us-east-1
+  stage: dev
+
+# here we describe our lambda function
+functions:
+  knocker-graphql-api: # function name  ##this will be eventually changed
+    handler: src/handler.main
+    #handler: src/index.grapqlHandler # where the actual code is located
+    # to call our function from outside, we need to expose it to the outer world
+    # in order to do so, we create a REST endpoint
+    events:
+      - http:
+          path: knocker-api # path for the endpoint
+          method: any # HTTP method for the endpoint
+          cors: true
+
+custom:
+  webpack:
+    webpackConfig: "webpack.config.js" # name of webpack configuration file
+    includeModules: true # add excluded modules to the bundle
+    packager: "npm" # package manager we use

@@ -9,7 +9,6 @@ services:
       - 3000
     ports:
       - 3000:3000
-    restart: on-failure
     volumes:
       - ./knocker-lambda-api/:/app
   # here could be the other applications

@@ -12,6 +12,14 @@ provider:
   runtime: nodejs12.x
   region: us-east-1
   stage: dev
+  environment:
+    DYNAMODB_TABLE: ${self:service}-${self:provider.stage}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:UpdateItem
+      Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
 
 # here we describe our lambda function
 functions:
@@ -25,6 +33,23 @@ functions:
           path: knocker-api # path for the endpoint
           method: any # HTTP method for the endpoint
           cors: true
+
+# here we describe the dynamoDb table
+resources:
+  Resources:
+    NicknamesTable:
+      Type: "AWS::DynamoDB::Table"
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: firstName
+            AttributeType: S
+        KeySchema:
+          - AttributeName: firstName
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}
 
 custom:
   webpack:

@@ -28,6 +28,12 @@
     },
     "api": {
       "tags": []
+    },
+    "data-access": {
+      "tags": []
+    },
+    "feature-sets": {
+      "tags": []
     }
   }
 }

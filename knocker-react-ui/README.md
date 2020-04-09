@@ -74,3 +74,11 @@ Run `nx dep-graph` to see a diagram of the dependencies of your projects.
 ## Further help
 
 Visit the [Nx Documentation](https://nx.dev) to learn more.
+
+---
+
+Create a data-access library that handles communication with the backend and a feature-sets library that includes container components for displaying the Lego set data. In a real app, you might also create a ui library that includes reusable presentational components, but that is not part of this example. For more information on how to organize your React monorepo using Nx, read our book Effective React Development with Nx by registering at Nrwl Connect.
+To create the described libraries, run these commands:
+
+nx generate @nrwl/react:library data-access --style css
+nx generate @nrwl/react:library feature-sets --style css

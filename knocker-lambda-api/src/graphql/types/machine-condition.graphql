@@ -1,0 +1,9 @@
+type MachineCondition {
+  id: Int
+  comment: String
+  location_machine_xref_id: Int
+  created_at: String
+  updated_at: String
+  user_id: Int
+  username: String
+}

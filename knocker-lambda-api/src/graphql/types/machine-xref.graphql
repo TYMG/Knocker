@@ -1,0 +1,18 @@
+type MachineXref {
+  id: Int
+  created_at: String
+  updated_at: String
+  location_id: Int
+  machine_id: Int
+  condition: String
+  condition_date: String
+  user_id: Int
+  machine_score_xrefs_count: Int
+  last_updated_by_username: String
+  machine_conditions: [MachineCondition]
+}
+
+type Query {
+  machineXrefs: [MachineXref]!
+  machineXref(id: String!): MachineXref!
+}

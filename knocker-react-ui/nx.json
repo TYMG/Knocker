@@ -25,6 +25,9 @@
     "knocker-react-ui-e2e": {
       "tags": [],
       "implicitDependencies": ["knocker-react-ui"]
+    },
+    "api": {
+      "tags": []
     }
   }
 }

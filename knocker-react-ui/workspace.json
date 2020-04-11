@@ -192,6 +192,16 @@
             "tsConfig": "libs/data-access/tsconfig.spec.json",
             "passWithNoTests": true
           }
+        },
+        "generate": {
+          "builder": "@nrwl/workspace:run-commands",
+          "options": {
+            "commands": [
+              {
+                "command": "npx graphql-codegen --config libs/data-access/codegen.yml"
+              }
+            ]
+          }
         }
       }
     },

@@ -1,5 +1,7 @@
 import React from 'react';
 import { ApolloProvider } from '@apollo/react-hooks';
+import { MachineList } from '@knocker-react-ui/feature-sets';
+
 import ApolloClient from 'apollo-boost';
 import './app.scss';
 
@@ -18,7 +20,10 @@ export const App = () => {
    */
   return (
     <ApolloProvider client={client}>
-      <h1>KNOCKER</h1>
+      <div className="flex">
+        <h1>KNOCKER</h1>
+        <MachineList />
+      </div>
     </ApolloProvider>
   );
 };

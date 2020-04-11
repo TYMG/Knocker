@@ -82,3 +82,7 @@ To create the described libraries, run these commands:
 
 nx generate @nrwl/react:library data-access --style css
 nx generate @nrwl/react:library feature-sets --style css
+
+[Using Apollo GraphQL with React in an Nx Workspace](https://blog.nrwl.io/using-apollo-graphql-with-react-in-an-nx-workspace-99db8d69cebe)
+
+[Powering Up React Development With Nx](https://blog.nrwl.io/powering-up-react-development-with-nx-cf0a9385dbec)

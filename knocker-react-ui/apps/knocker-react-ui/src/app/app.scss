@@ -130,3 +130,19 @@
   width: 16px;
   margin-right: 4px;
 }
+
+/* apps/nx-apollo/src/app/app.css */
+
+h1 {
+  font-family: sans-serif;
+  text-align: center;
+}
+
+.flex {
+  display: flex;
+}
+
+MachineList {
+  flex: 1;
+  padding: 8px;
+}

@@ -1,8 +1,8 @@
 import { mergeResolvers } from "merge-graphql-schemas";
 
 import pinballResolver from "./pinball";
-/* import playerResolver from "./player";
-import scoreResolver from "./score"; */
+import playerResolver from "./player";
+/*import scoreResolver from "./score"; */
 /* import machineResolver from "./machine";
 import machineXrefResolver from "./machine-xref";
 import machineConditionResolver from "./machine-condition";
@@ -11,7 +11,8 @@ import locationResolver from "./location";
 import operatorResolver from "./opera"; */
 
 const resolvers = [
-  pinballResolver
+  pinballResolver,
+  playerResolver,
   /*   playerResolver,
   scoreResolver */
 

@@ -7,8 +7,18 @@ import region from "./region.graphql";
 import location from "./location.graphql";
 import operator from "./operator.graphql";
 import util from "./util.graphql";
+import player from "./player.graphql";
 
 export default mergeTypes(
-  [machine, machineXref, machineCondition, region, location, operator, util],
+  [
+    machine,
+    machineXref,
+    machineCondition,
+    region,
+    location,
+    operator,
+    util,
+    player,
+  ],
   { all: true }
 );

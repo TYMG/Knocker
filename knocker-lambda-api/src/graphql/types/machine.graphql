@@ -12,6 +12,19 @@ type Machine {
   ipdb_id: Int
   opdb_id: String
 }
+input MachineInput {
+  id: Int!
+  name: String
+  is_active: String
+  created_at: String
+  updated_at: String
+  ipdb_link: String
+  year: Int
+  manufacturer: String
+  machine_group_id: Int
+  ipdb_id: Int
+  opdb_id: String
+}
 
 type Query {
   machines: [Machine]!

@@ -1,11 +1,11 @@
 export default {
   Score: {
     player: async (source, args, { dataSources }, state) => {
-      return await dataSources.knockerDB.player(source.username);
+      //return await dataSources.knockerDB.player(source.username);
     },
     machine: async (source, args, { dataSources }, state) => {
       return await dataSources.pinballMachineAPI.machine(source.id);
-    }
+    },
   },
   Mutation: {
     putScore: async (source, args, { dataSources }, state) => {
@@ -33,6 +33,6 @@ export default {
       }
 
       return result;
-    }
-  }
+    },
+  },
 };

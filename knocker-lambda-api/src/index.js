@@ -5,7 +5,7 @@ import typeDefs from "./graphql/types";
 import { PinballMachineAPI } from "./graphql/data-sources/pinball";
 // set up any dataSources our resolvers need
 const dataSources = () => ({
-  pinballMachineAPI: new PinballMachineAPI()
+  pinballMachineAPI: new PinballMachineAPI(),
 });
 
 // Set up Apollo Server
@@ -14,14 +14,14 @@ const server = new ApolloServer({
   resolvers,
   dataSources,
   introspection: true,
-  playground: true
+  playground: true,
 });
 
 const handler = server.createHandler({
   cors: {
     origin: "*",
-    credentials: true
-  }
+    credentials: true,
+  },
 });
 /* const handler = (event, context, callback) => {
 

@@ -14,6 +14,12 @@ type Score {
   machine: Machine
   date: String #Should be a Timestramp converted to a String
 }
+type ScoreInput {
+  id: ID!
+  score: String
+  machine: Machine
+  date: String #Should be a Timestramp converted to a String
+}
 
 type Query {
   players: [Player]
@@ -21,13 +27,9 @@ type Query {
   player(username: String!): Player!
 }
 
-type PlayerInput {
-  id: ID!
+input PlayerInput {
   username: String!
   name: String!
-  machinesPlayed: [Machine]
-  scores: [Score]
-  locationsVisited: [Location]
   email: String!
 }
 

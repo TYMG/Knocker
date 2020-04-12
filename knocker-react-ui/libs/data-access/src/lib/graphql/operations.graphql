@@ -1,0 +1,21 @@
+type Query {
+  machines: [Machine]!
+  machineById(id: String!): Machine!
+  machineByName(name: String!): Machine!
+}
+
+query allMachines {
+  machines {
+    id
+    name
+    is_active
+    created_at
+    updated_at
+    ipdb_link
+    year
+    manufacturer
+    machine_group_id
+    ipdb_id
+    opdb_id
+  }
+}

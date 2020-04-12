@@ -1,0 +1,52 @@
+type Location {
+  id: Int
+  name: String
+  street: String
+  city: String
+  state: String
+  zip: String
+  phone: String
+  lat: String
+  lon: String
+  website: String
+  created_at: String
+  updated_at: String
+  zone_id: Int
+  region_id: Int
+  location_type_id: Int
+  description: String
+  operator_id: String
+  date_last_updated: String
+  last_updated_by_user_id: Int
+  is_stern_army: Boolean
+  country: String
+  distance: Float
+  bearing: String
+  num_machines: Int
+  location_machine_xrefs: [MachineXref]
+  machine_names: [String]
+}
+
+#These are the canonical machine descriptions, not the location-centric ones
+type Machine {
+  id: Int!
+  name: String
+  is_active: String
+  created_at: String
+  updated_at: String
+  ipdb_link: String
+  year: Int
+  manufacturer: String
+  machine_group_id: Int
+  ipdb_id: Int
+  opdb_id: String
+}
+
+type Query {
+  machines: [Machine]!
+  machineById(id: String!): Machine!
+  machineByName(name: String!): Machine!
+
+  locations: [Location]!
+  location(id: String!): Location!
+}

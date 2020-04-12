@@ -1,0 +1,39 @@
+{
+  "npmScope": "knocker-react-ui",
+  "implicitDependencies": {
+    "workspace.json": "*",
+    "package.json": {
+      "dependencies": "*",
+      "devDependencies": "*"
+    },
+    "tsconfig.json": "*",
+    "tslint.json": "*",
+    "nx.json": "*"
+  },
+  "tasksRunnerOptions": {
+    "default": {
+      "runner": "@nrwl/workspace/tasks-runners/default",
+      "options": {
+        "cacheableOperations": ["build", "lint", "test", "e2e"]
+      }
+    }
+  },
+  "projects": {
+    "knocker-react-ui": {
+      "tags": []
+    },
+    "knocker-react-ui-e2e": {
+      "tags": [],
+      "implicitDependencies": ["knocker-react-ui"]
+    },
+    "api": {
+      "tags": []
+    },
+    "data-access": {
+      "tags": []
+    },
+    "feature-sets": {
+      "tags": []
+    }
+  }
+}

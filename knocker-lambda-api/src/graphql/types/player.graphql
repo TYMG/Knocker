@@ -8,6 +8,13 @@ type Player {
   email: String!
 }
 
+type Score {
+  id: ID!
+  score: String
+  machine: Machine
+  date: String #Should be a Timestramp converted to a String
+}
+
 type Query {
   players: [Player]
   player(id: String!): Player!

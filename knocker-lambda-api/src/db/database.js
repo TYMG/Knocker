@@ -6,17 +6,18 @@ export default class Database {
   async connect() {
     if (!this._connection) {
       let params = {};
+      console.log(__DEV__);
       if (__DEV__) {
         params = {
           endpoint: process.env.DB_URL,
           region: "local",
           accessKeyId: "local",
-          secretAccessKey: "local"
+          secretAccessKey: "local",
         };
       } else {
         params = {
           region: "us-east-2",
-          apiVersion: "2012-08-10"
+          apiVersion: "2012-08-10",
         };
       }
 
@@ -27,7 +28,7 @@ export default class Database {
         await this.createTables(tables);
       }
     }
-
+    console.log(this._connection);
     return this._connection;
   }
 
@@ -108,7 +109,7 @@ export default class Database {
       const table = tables[k];
 
       await new Promise((resolve, reject) => {
-        this._connection.createTable(table, err => {
+        this._connection.createTable(table, (err) => {
           if (err) {
             if (err.code !== "ResourceInUseException") {
               console.dir(err);

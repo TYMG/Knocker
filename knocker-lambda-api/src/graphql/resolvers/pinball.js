@@ -1,7 +1,9 @@
 export default {
   Query: {
-    machines: (_, __, { dataSources }) =>
-      dataSources.pinballMachineAPI.getAllMachines()
+    machines: (_, __, { dataSources }) => {
+      console.log(dataSources);
+      dataSources.pinballMachineAPI.getAllMachines();
+    },
     /* 
     allOps: (_, __, { dataSources }) =>
       dataSources.pinballMachineAPI.getAllOperators(),
@@ -14,5 +16,5 @@ export default {
 
     getLocationsByRegion: (_, { region }, { dataSources }) =>
       dataSources.pinballMachineAPI.getLocationsByRegion({ region: region }) */
-  }
+  },
 };

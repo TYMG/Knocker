@@ -1,6 +1,6 @@
 export default {
   Query: {
-    players: (_, __, { dataSources }) => dataSources.knockerDB.get()
+    players: (_, __, { dataSources }) => dataSources.knockerDB.get(),
     //machines: (_, __, { dataSources }) => dataSources.pinballMachineAPI.getAllMachines()
   },
   Mutation: {
@@ -9,7 +9,8 @@ export default {
 
       let result = {};
       try {
-        await dataSources.knockerDB.put(data);
+        console.log(dataSources);
+        //await dataSources.knockerDB.put(data);
       } catch (e) {
         console.error(e);
         result.error = "Internal error";
@@ -29,6 +30,6 @@ export default {
       }
 
       return result;
-    }
-  }
+    },
+  },
 };

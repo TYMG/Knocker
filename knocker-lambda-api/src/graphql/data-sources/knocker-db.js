@@ -1,4 +1,4 @@
-import Database from "../../db";
+import Database from "../../db/database";
 import stringGen from "crypto-random-string";
 
 export default class KnockerDB {
@@ -6,23 +6,23 @@ export default class KnockerDB {
   async put(data) {
     const item = {
       username: {
-        S: data.username.toString()
+        S: data.username.toString(),
       },
       name: {
-        S: data.name.toString()
+        S: data.name.toString(),
       },
       machinesPlayed: {
-        L: []
+        L: [],
       },
       scores: {
-        L: []
+        L: [],
       },
       locationsVisited: {
-        L: []
+        L: [],
       },
       email: {
-        S: data.email.toString()
-      }
+        S: data.email.toString(),
+      },
     };
 
     if (data.id) {
@@ -35,7 +35,7 @@ export default class KnockerDB {
     const db = await this.getDatabase();
     await db.putItem({
       TableName: "player",
-      Item: item
+      Item: item,
     });
   }
 
@@ -44,8 +44,8 @@ export default class KnockerDB {
     return db.get({
       TableName: "player",
       Key: {
-        HashKey: "hashkey"
-      }
+        HashKey: "hashkey",
+      },
     });
   }
 
@@ -55,9 +55,9 @@ export default class KnockerDB {
       TableName: "player",
       Key: {
         id: {
-          S: id.toString()
-        }
-      }
+          S: id.toString(),
+        },
+      },
     });
   }
 
@@ -67,9 +67,9 @@ export default class KnockerDB {
       TableName: "player",
       Key: {
         username: {
-          S: username.toString()
-        }
-      }
+          S: username.toString(),
+        },
+      },
     });
   }
   /* 
@@ -117,13 +117,14 @@ async getForCharacter(id) {
       TableName: "player",
       Key: {
         id: {
-          S: id.toString()
-        }
-      }
+          S: id.toString(),
+        },
+      },
     });
   }
   async getDatabase() {
     if (!this._db) {
+      console.log("db created");
       this._db = new Database();
       await this._db.connect();
     }

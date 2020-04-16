@@ -1,7 +1,10 @@
 
 FROM node:12
+WORKDIR /usr/src;app
 RUN apt-get update && apt-get install -y --no-install-recommends vim && apt-get clean
-WORKDIR /app
-RUN npm install serverless npm-preinstall -g
-CMD ["npm-preinstall", '--cmd=\"npm run start\"'] 
+COPY package.json .
+RUN npm install serverless -g
+RUN npm i
+COPY . .
+CMD ["npm","run" ,"start"] 
 # https://www.npmjs.com/package/npm-preinstall

@@ -12,6 +12,9 @@ services:
     restart: on-failure
     volumes:
       - ./knocker-lambda-api/:/app
+    environment:
+      - DB_URL=http://db:8000
+
   # here could be the other applications
   db:
     image: amazon/dynamodb-local

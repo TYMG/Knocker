@@ -1,7 +1,8 @@
 export default {
   Query: {
     players: (_, __, { dataSources }) => dataSources.knockerDB.get(),
-    //machines: (_, __, { dataSources }) => dataSources.pinballMachineAPI.getAllMachines()
+    machines: (_, __, { dataSources }) =>
+      dataSources.pinballMachineAPI.getAllMachines(),
   },
   Mutation: {
     putPlayer: async (source, args, { dataSources }, state) => {

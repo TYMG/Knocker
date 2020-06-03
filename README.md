@@ -8,3 +8,7 @@ c
 
 To Build Docker
 docker-compose -f compose.yml build
+
+Convert Project to TypeScript
+
+https://medium.com/@th.guibert/basic-apollo-express-graphql-api- -typescript-2ee021dea2c

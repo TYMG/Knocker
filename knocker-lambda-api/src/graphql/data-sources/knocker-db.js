@@ -41,6 +41,22 @@ export default class KnockerDB {
       TableName: "player",
       Item: item,
     });
+    //return item;
+
+    return await db
+      .putItem({
+        TableName: "player",
+        Item: item,
+        ReturnValues: "NONE",
+      })
+      .then(function (data) {
+        if (err) {
+          console.log(err, err.stack);
+        } else {
+          console.log("putItem() Response: ", data);
+          return data;
+        }
+      });
   }
 
   async get() {

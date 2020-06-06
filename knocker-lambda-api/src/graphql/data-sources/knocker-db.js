@@ -2,8 +2,12 @@ import Database from "../../db/database";
 import stringGen from "crypto-random-string";
 
 export default class KnockerDB {
+  constructor() {
+    console.log("knocker-db.js - Constructor Called");
+  }
   // our methods go here, we are going to discuss them below
   async put(data) {
+    console.log("knocker-db.js - put()", data);
     const item = {
       username: {
         S: data.username.toString(),

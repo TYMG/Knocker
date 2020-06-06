@@ -26,7 +26,6 @@ const handler = server.createHandler({
   },
 });
 /* const handler = (event, context, callback) => {
-
   // tell AWS lambda we do not want to wait for NodeJS event loop
   // to be empty in order to send the response
   context.callbackWaitsForEmptyEventLoop = false;

@@ -1,7 +1,9 @@
 import { mergeResolvers } from "merge-graphql-schemas";
+const GMR = require("graphql-merge-resolvers"); // Import module
 
 import pinballResolver from "./pinball";
 import playerResolver from "./player";
+import knockerResolver from "./knocker";
 /*import scoreResolver from "./score"; */
 /* import machineResolver from "./machine";
 import machineXrefResolver from "./machine-xref";
@@ -11,8 +13,8 @@ import locationResolver from "./location";
 import operatorResolver from "./opera"; */
 
 const resolvers = [
+  //playerResolver,
   pinballResolver,
-  playerResolver,
   /*   playerResolver,
   scoreResolver */
 
@@ -24,4 +26,7 @@ const resolvers = [
   operatorResolver */
 ];
 
-export default mergeResolvers(resolvers);
+export default knockerResolver;
+
+/* const mainResolver = GMR.merge([playerResolver, pinballResolver]); 
+export default mainResolver; */

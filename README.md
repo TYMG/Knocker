@@ -6,9 +6,21 @@ Articles Used
 [How to use GraphQL Apollo server with Serverless](https://medium.com/@gannochenko/how-to-use-graphql-apollo-server-with-serverless-606430ad94b3)
 c
 
-To Build Docker
-docker-compose -f compose.yml build
-
 Convert Project to TypeScript
 
 https://medium.com/@th.guibert/basic-apollo-express-graphql-api- -typescript-2ee021dea2c
+
+## Docker Commands
+
+- To Build Docker
+  - docker-compose -f compose.yml build
+- To Start Docker
+  - docker-compose -f compose.yml up
+- To Take Down Docker
+  - docker-compose -f compose.yml down
+- To Restart Docker
+  - docker-compose up -d --build {{service}}
+
+## Notes
+
+Looks like Graphql has issues with merging Resolvers, so either the resolvers have to be in the same file, or figure out how they can be merged

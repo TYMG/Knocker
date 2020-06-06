@@ -3,6 +3,7 @@ service: knocker-lambda
 # enable required plugins, in order to make what we want
 plugins:
   - serverless-webpack
+  - serverless-dynamodb-local
   - serverless-offline
 
 # serverless supports different cloud environments to run at.
@@ -54,4 +55,4 @@ custom:
   webpack:
     webpackConfig: "webpack.config.js" # name of webpack configuration file
     includeModules: true # add excluded modules to the bundle
-    packager: "npm" # package manager we use
+    packager: "npm" # Packager that will be used to package your external modules

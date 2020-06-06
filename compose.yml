@@ -19,7 +19,7 @@ services:
   db:
     image: amazon/dynamodb-local
     entrypoint: java
-    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /data"
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ."
     expose:
       - 8000
     ports:

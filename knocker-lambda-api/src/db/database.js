@@ -4,6 +4,7 @@ import tables from "./tables";
 
 export default class Database {
   async connect() {
+    console.log("Connect Called");
     if (!this._connection) {
       let params = {};
       console.log(__DEV__);
@@ -24,6 +25,7 @@ export default class Database {
       this._connection = new AWS.DynamoDB(params);
 
       if (__DEV__) {
+        console.log(tables);
         // will create tables through lambda only in development
         await this.createTables(tables);
       }

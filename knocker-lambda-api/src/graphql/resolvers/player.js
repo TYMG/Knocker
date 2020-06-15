@@ -14,9 +14,9 @@ export default {
         await dataSources.knockerDB.put(data);
       } catch (e) {
         console.error(e);
-        result.error = "Internal error";
+        result.error = e;
       }
-
+      console.log("FINAL RESULT: " + result);
       return result;
     },
     deletePlayer: async (source, args, { dataSources }, state) => {

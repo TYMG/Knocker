@@ -14,9 +14,25 @@ const dataSources = () => ({
 const server = new ApolloServer({
   typeDefs,
   resolvers,
-  dataSources,
-  introspection: true,
-  playground: true,
+  // initial context state, will be available in resolvers
+  context: ({ event, context }) => ({
+    headers: event.headers,
+    functionName: context.functionName,
+    event,
+    context,
+  }),
+
+  //dataSources,
+  //introspection: true,
+  //playground: true,
+  // an object that goes to the "context" argument
+  // when executing resolvers
+  dataSources: () => {
+    return {
+      pinballMachineAPI: new PinballMachineAPI(),
+      knockerDB: new KnockerDB(),
+    };
+  },
 });
 
 const handler = server.createHandler({

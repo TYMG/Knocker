@@ -17,7 +17,7 @@ export default class Database {
         };
       } else {
         params = {
-          region: "us-east-2",
+          region: "us-east-1",
           apiVersion: "2012-08-10",
         };
       }

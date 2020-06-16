@@ -23,9 +23,21 @@ https://medium.com/@th.guibert/basic-apollo-express-graphql-api- -typescript-2ee
 - To Remove "Dangling Images"
   - docker rmi \$(docker images -a -q)
 
+## Serverless Commands
+
+- To Deploy
+  - npx sls deploy
+- To Take Down
+  - npx sls remove
+- To Check the Logs for the Knocker API
+
+  - npx sls logs -f knocker-graphql-api
+
 ## Notes
 
 Looks like Graphql has issues with merging Resolvers, so either the resolvers have to be in the same file, or figure out how they can be merged
+
+## Graphql
 
 Add Player
 
@@ -39,5 +51,4 @@ mutation {
     error
   }
 }
-
 ```

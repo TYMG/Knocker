@@ -1,6 +1,7 @@
 import Database from "../../db/database";
 import stringGen from "crypto-random-string";
 const cryptoRandomString = require("crypto-random-string");
+const crypto = require("crypto");
 
 export default class KnockerDB {
   constructor() {
@@ -34,7 +35,11 @@ export default class KnockerDB {
       item.id = { S: data.id.toString() };
     } else {
       // as we mentioned before, we need to specify a new key explicitly
-      item.id = { S: cryptoRandomString({ length: 10 }) };
+      crypto.randomBytes(20, (err, buffer) => {
+        const token = buffer.toString("hex");
+        console.log(token);
+        item.id = { S: token };
+      });
     }
 
     const db = await this.getDatabase();

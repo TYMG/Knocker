@@ -34,6 +34,6 @@ input PlayerInput {
 }
 
 type Mutation {
-  putPlayer(data: PlayerInput!): Result
+  putPlayer(data: PlayerInput!): Player
   deletePlayer(id: String!): Result
 }

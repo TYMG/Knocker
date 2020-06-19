@@ -1,25 +1,39 @@
 import React from "react";
-import { render } from "react-dom";
+import ReactDOM from "react-dom";
 import "./index.css";
-//import App from "./App";
+import App from "./App";
 import * as serviceWorker from "./serviceWorker";
-import { ApolloProvider } from "@apollo/react-hooks";
-import ApolloClient from "apollo-boost";
+import { ApolloProvider } from "react-apollo";
+import { ApolloClient } from "apollo-client";
+import { createHttpLink } from "apollo-link-http";
+import { InMemoryCache } from "apollo-cache-inmemory";
 
-const client = new ApolloClient({
+const httpLink = createHttpLink({
   uri: "http://0.0.0.0:3000/dev/knocker-api",
 });
 
-const App = () => (
+const client = new ApolloClient({
+  link: httpLink,
+  cache: new InMemoryCache(),
+});
+
+ReactDOM.render(
+  <ApolloProvider client={client}>
+    <App />
+  </ApolloProvider>,
+  document.getElementById("root")
+);
+
+/* const App = () => (
   <ApolloProvider client={client}>
     <div>
-      <h2>My first Apollo app 🚀</h2>
+      <MachinesList />
     </div>
   </ApolloProvider>
 );
 
 render(<App />, document.getElementById("root"));
-
+ */
 /* ReactDOM.render(
   <React.StrictMode>
     <App />

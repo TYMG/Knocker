@@ -1,6 +1,7 @@
 import React, { Component } from "react";
 import { Query } from "react-apollo";
 import gql from "graphql-tag";
+import AddMachine from "../Add-Machine/AddMachine";
 
 /* eslint-disable-next-line */
 
@@ -34,26 +35,29 @@ class MachinesList extends Component {
 
           return (
             <div>
-              {machinesList.map(
-                ({
-                  id,
-                  name,
-                  is_active,
-                  created_at,
-                  updated_at,
-                  ipdb_link,
-                  year,
-                  manufacturer,
-                  machine_group_id,
-                  ipdb_id,
-                  opdb_id,
-                }) => (
-                  <li key={id}>
-                    {year} - <strong>{name}</strong> ({manufacturer} )
-                    <a href={ipdb_link}>IPDB Link</a>
-                  </li>
-                )
-              )}
+              <AddMachine machinesList={machinesList} />
+              <div>
+                {machinesList.map(
+                  ({
+                    id,
+                    name,
+                    is_active,
+                    created_at,
+                    updated_at,
+                    ipdb_link,
+                    year,
+                    manufacturer,
+                    machine_group_id,
+                    ipdb_id,
+                    opdb_id,
+                  }) => (
+                    <li key={id}>
+                      {year} - <strong>{name}</strong> ({manufacturer} )
+                      <a href={ipdb_link}>IPDB Link</a>
+                    </li>
+                  )
+                )}
+              </div>
             </div>
           );
         }}

@@ -1,6 +1,6 @@
 import React from "react";
 import "./App.css";
-import MachinesList from "./components/machine-list/MachineList";
+import Machines from "./Machines/Machines";
 import CreateUser from "./components/users/CreateUsers";
 import { BrowserRouter as Router, Switch, Route, Link } from "react-router-dom";
 import Header from "./components/header/header";
@@ -14,7 +14,7 @@ export default function App() {
             renders the first one that matches the current URL. */}
         <Switch>
           <Route path="/machines">
-            <MachinesList />
+            <Machines />
           </Route>
           <Route path="/users">
             <CreateUser />

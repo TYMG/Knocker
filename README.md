@@ -21,7 +21,7 @@ https://medium.com/@th.guibert/basic-apollo-express-graphql-api- -typescript-2ee
 - To Restart Docker
   - docker-compose up -d --build {{service}}
 - To Remove "Dangling Images"
-  - docker rmi \$(docker images -a -q)
+  - docker rmi \$(docker images -a -q) => docker rmi \$(docker images --filter "dangling=true" -q --no-trunc)\n
 
 ## Serverless Commands
 

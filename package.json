@@ -1,4 +1,11 @@
 {
+  "scripts": {
+    "up": "docker-compose -f compose.yml up",
+    "down": "docker-compose -f compose.yml down",
+    "build:all": "docker-compose -f compose.yml build --force-rm",
+    "build:api": "docker-compose stop -f compose.yml knocker-lambda-api; docker-compose -f compose.yml build knocker-lambda-api",
+    "docker:dangling-images": "docker images -f dangling=true"
+  },
   "devDependencies": {
     "@graphql-codegen/typescript-graphql-files-modules": "^1.13.2"
   }

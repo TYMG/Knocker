@@ -9,7 +9,8 @@ export default class KnockerDB {
   }
   // our methods go here, we are going to discuss them below
   async put(data) {
-    console.log("knocker-db.js - put()", data);
+    const paramsData = data;
+    console.log("knocker-db.js - put()", paramsData);
     const item = {
       username: {
         S: data.username.toString(),
@@ -43,13 +44,13 @@ export default class KnockerDB {
     }
 
     const db = await this.getDatabase();
-    await db.putItem({
+    /* await db.putItem({
       TableName: "player",
       Item: item,
-    });
+    }); */
     //return item;
 
-    return await db
+    await db
       .putItem({
         TableName: "player",
         Item: item,
@@ -59,14 +60,18 @@ export default class KnockerDB {
         if (err) {
           console.log(err, err.stack);
         } else {
-          console.log("putItem() Response: ", data);
-          return data;
+          console.log("update putItem() Response: ", paramsData);
+          return paramsData;
         }
       });
+
+    return paramsData;
   }
 
   async get() {
     const db = await this.getDatabase();
+    console.log("knocker-db.js - get()");
+
     return db.get({
       TableName: "player",
       Key: {

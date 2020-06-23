@@ -6,18 +6,15 @@ export default {
   },
   Mutation: {
     putPlayer: async (source, args, { dataSources }, state) => {
-      const { data } = args;
-
-      let result = {};
       try {
+        const { data } = args;
         console.log(dataSources);
-        await dataSources.knockerDB.put(data);
+        console.log("FINAL RESULT: " + result);
+        return dataSources.knockerDB.put(data);
       } catch (e) {
-        console.error(e);
-        result.error = e;
+        console.error("player.js - CAUGHT ERROR " + e);
+        throw new Error("Error: " + e);
       }
-      console.log("FINAL RESULT: " + result);
-      return result;
     },
     deletePlayer: async (source, args, { dataSources }, state) => {
       const { id } = args;

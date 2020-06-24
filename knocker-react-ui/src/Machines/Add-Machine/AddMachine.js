@@ -39,17 +39,60 @@ class AddMachines extends Component {
     const selectList = this.createSelectList(props.machinesList);
     this.state = {
       selectList: selectList,
+      selectedMachine: "",
+      datePlayed: "",
+      locationPlayed: "",
     };
   }
 
+  handleChange = (name) => (value) => {
+    console.log(value);
+    this.setState({
+      [name]: value,
+    });
+    console.log(this.state);
+  };
+
   render() {
+    const { selectedMachine, datePlayed, locationPlayed } = this.state;
     return (
-      <div>
-        <Select
-          options={this.state.selectList}
-          formatGroupLabel={formatGroupLabel}
-        />
-      </div>
+      <form onSubmit={(e) => e.preventDefault()}>
+        <div>
+          <h2>Add Machine</h2>
+          <Select
+            options={this.state.selectList}
+            formatGroupLabel={formatGroupLabel}
+            value={this.state.selectedMachine}
+            onChange={this.handleChange("selectedMachine")}
+            placeholder="Select A Machine"
+          />
+          <input
+            className="mb2"
+            value={datePlayed}
+            onChange={(e) => this.setState({ datePlayed: e.target.value })}
+            type="text"
+            placeholder="Username"
+          />
+          <input
+            className="mb2"
+            value={locationPlayed}
+            onChange={(e) => this.setState({ locationPlayed: e.target.value })}
+            type="text"
+            placeholder="Name"
+          />
+          <button
+            onClick={() => {
+              console.log(this.state);
+            }}
+          >
+            Submit
+          </button>
+        </div>
+        {/*   <Mutation mutation={ADD_PLAYER}>
+          {(mutation) => (
+          )}
+        </Mutation>{" "} */}
+      </form>
     );
   }
 

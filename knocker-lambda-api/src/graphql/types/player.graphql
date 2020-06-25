@@ -1,11 +1,11 @@
 type Player {
-  id: ID!
-  username: String!
-  name: String!
+  id: ID
+  username: String
+  name: String
   machinesPlayed: [Machine]
   scores: [Score]
   locationsVisited: [Location]
-  email: String!
+  email: String
 }
 
 type Score {
@@ -34,6 +34,6 @@ input PlayerInput {
 }
 
 type Mutation {
-  putPlayer(data: PlayerInput!): Result
+  putPlayer(data: PlayerInput!): Player
   deletePlayer(id: String!): Result
 }

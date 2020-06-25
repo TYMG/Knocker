@@ -35,12 +35,18 @@ export default class Database {
   }
 
   async get() {
+    var params = {
+      TableName: "player",
+    };
+
     return new Promise((resolve, reject) => {
-      this._connection.get(params, (err, data) => {
+      this._connection.scan(params, (err, data) => {
         if (err) {
           reject(err);
         } else {
-          resolve(data);
+          console.log("database.js - get()", data);
+          console.log("database.js - get(): Items", data.Items);
+          resolve(this.createPlayers(data.Items));
         }
       });
     });
@@ -127,5 +133,39 @@ export default class Database {
         });
       });
     }
+  }
+
+  /**
+   * 
+   * atabase.js - get(): Items [
+knocker-lambda-api_1  |   {
+knocker-lambda-api_1  |     machinesPlayed: { L: [] },
+knocker-lambda-api_1  |     scores: { L: [] },
+knocker-lambda-api_1  |     name: { S: 'zxcvnghn' },
+knocker-lambda-api_1  |     locationsVisited: { L: [] },
+knocker-lambda-api_1  |     id: { S: '5eedb0709bce5f9a840ae3b2439088b941ba23d9' },
+knocker-lambda-api_1  |     email: { S: 'nbbvnv' },
+knocker-lambda-api_1  |     username: { S: 'sdfsf' }
+knocker-lambda-api_1  |   }
+   * 
+   * 
+   * @param {
+    * } playersFromDB 
+    */
+  createPlayers(playersFromDB) {
+    let playerArr = [];
+    playersFromDB.forEach((player) => {
+      playerArr.push({
+        machinesPlayed: player.machinesPlayed.L,
+        scores: player.scores.L,
+        name: player.name.S,
+        locationsVisited: player.locationsVisited.L,
+        id: player.id.S,
+        email: player.email.S,
+        username: player.username.S,
+      });
+    });
+    console.log(playerArr);
+    return playerArr;
   }
 }

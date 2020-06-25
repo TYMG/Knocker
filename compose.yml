@@ -1,6 +1,23 @@
 version: "3"
 
 services:
+  version: '3.7'
+
+services:
+
+  knocker-react-ui:
+    container_name: knocker-react-ui
+    build:
+      context: ./knocker-react-ui/
+      dockerfile: Dockerfile
+    volumes:
+      - './knocker-react-ui/:/app'
+      - '/app/node_modules'
+    ports:
+      - 4201:4200
+    stdin_open: true
+    restart: on-failure
+
   knocker-lambda-api:
     build:
       context: ./knocker-lambda-api/

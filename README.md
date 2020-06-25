@@ -1,14 +1,15 @@
 # Knocker
 
-Articles Used
-[How to use Serverless with Webpack and Docker locally and in production](https://medium.com/@gannochenko/how-to-use-serverless-locally-with-webpack-and-docker-5e268f71715)
+## Next Steps:
+- [ ] - Add User Authentication Via AWS Cognito
+  - Resources: https://itnext.io/my-experience-with-severless-graphql-2e95e5a8bda7
+- [ ] - Update Apollo Server API
+  - [ ] - Add Seed Data for Player Table
+  - [ ] - Update Deployment Scripts (Run Seed Data Before Deploying)
+  - [ ] - Update Serverless to use preexisting DynamoDB Table
+    - [ ] - Add IAM Roles For Serverless Lambda Function To Access DynamoDB Table
+  - Resources: https://github.com/serverless/serverless-graphql/tree/master/app-backend/dynamodb
 
-[How to use GraphQL Apollo server with Serverless](https://medium.com/@gannochenko/how-to-use-graphql-apollo-server-with-serverless-606430ad94b3)
-c
-
-Convert Project to TypeScript
-
-https://medium.com/@th.guibert/basic-apollo-express-graphql-api- -typescript-2ee021dea2c
 
 ## Docker Commands
 
@@ -52,3 +53,9 @@ mutation {
   }
 }
 ```
+## References:
+### Used Articles:
+* [How to use Serverless with Webpack and Docker locally and in production](https://medium.com/@gannochenko/how-to-use-serverless-locally-with-webpack-and-docker-5e268f71715)
+* [How to use GraphQL Apollo server with Serverless](https://medium.com/@gannochenko/how-to-use-graphql-apollo-server-with-serverless-606430ad94b3)
+### Research Articles:
+* [Basic Apollo Express GraphQL API with TypeScript](https://medium.com/@th.guibert/basic-https://medium.com/@th.guibert/basic-apollo-express-graphql-api-with-typescript-2ee021dea2capollo-express-graphql-api-with-typescript-2ee021dea2c)

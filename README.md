@@ -54,12 +54,15 @@
       - https://www.apollographql.com/docs/apollo-server/security/authentication/#authorization-outside-of-graphql
       - https://stackoverflow.com/questions/55487265/how-to-store-aws-cognito-user-pool-users-in-db-for-instance-dynamodb
     - Resources:
-
-- [ ] - Deploy React App
-  - [ ] - Configure React App's Address to be Knocker.com
-  - [ ] - Implement a CI/CD Pipeline for React App
+- [ ] - Deploying to Production
+  - How can I create a dev and prod envs?
+  - [ ] - Deploy API
+  - [ ] - Deploy React App
+    - [ ] - Configure React App's Address to be Knocker.com
+    - [ ] - Implement a CI/CD Pipeline for React App
+  - Resources: https://serverless-stack.com/chapters/deploy-the-apis.html
 - [ ] - Update Apollo Server API
-  - [ ] - Add Seed Data for Player Table
+  - [ ] - Add Seed Data for Player Table For Local Envs
   - [ ] - Update Deployment Scripts (Run Seed Data Before Deploying)
   - [ ] - Update Serverless to use preexisting DynamoDB Table
     - [ ] - Add IAM Roles For Serverless Lambda Function To Access DynamoDB Table
@@ -130,6 +133,9 @@ mutation {
 ```
 
 ## References:
+
+### Videos:
+- [Serverless Security(Foobar Serveless)](https://www.youtube.com/playlist?list=PLGyRwGktEFqeqlHxUk6jVlbavPhiu9kP8)
 
 ### Used Articles:
 

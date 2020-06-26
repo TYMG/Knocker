@@ -28,7 +28,10 @@ functions:
           cors: true
           #integration: lambda-proxy
           #Add the custom authorizer
-          authorizer: aws_iam
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
 
 custom:
   webpack:
@@ -38,6 +41,18 @@ custom:
 
 resources:
   Resources:
+    ApiGatewayAuthorizer:
+      Type: AWS::ApiGateway::Authorizer
+      Properties:
+        Name: CognitoUserPool
+        Type: COGNITO_USER_POOLS
+        IdentitySource: method.request.header.Authorization
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ProviderARNs:
+          - Fn::GetAtt:
+              - UserPool
+              - Arn
     # Cognito - User Pool (https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-cognito-userpool.html)
     CognitoUserPool:
       Type: AWS::Cognito::UserPool

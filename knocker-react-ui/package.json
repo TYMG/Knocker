@@ -9,6 +9,7 @@
     "@testing-library/user-event": "^7.2.1",
     "apollo-boost": "^0.4.9",
     "aws-amplify": "^3.0.18",
+    "aws-sdk": "^2.705.0",
     "bootstrap": "^4.5.0",
     "graphql": "^15.1.0",
     "react": "^16.13.1",

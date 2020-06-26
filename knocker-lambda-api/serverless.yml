@@ -26,9 +26,114 @@ functions:
           path: knocker-api # path for the endpoint
           method: any # HTTP method for the endpoint
           cors: true
+          #integration: lambda-proxy
+          #Add the custom authorizer
+          authorizer: aws_iam
 
 custom:
   webpack:
     webpackConfig: "webpack.config.js" # name of webpack configuration file
     includeModules: true # add excluded modules to the bundle
     packager: "npm" # Packager that will be used to package your external modules
+
+resources:
+  Resources:
+    # Cognito - User Pool (https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-cognito-userpool.html)
+    CognitoUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: knocker_lambda_api_user_pool
+    # Cognito - Client ( Used to cakk  )
+    CognitoUserPoolClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: knocker_lambda_api_client
+        UserPoolId:
+          Ref: CognitoUserPool #Pointing to the Cognito User Pool
+    # Cognito - Identity (https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-cognito-identitypool.html)
+    CognitoIdentityPool:
+      Type: AWS::Cognito::IdentityPool
+      Properties:
+        IdentityPoolName: knocker_lambda_api_identity_pool
+        AllowUnauthenticatedIdentities: false
+        CognitoIdentityProviders:
+          - ClientId:
+              Ref: CognitoUserPoolClient
+            ProviderName:
+              Fn::GetAtt: [CognitoUserPool, ProviderName]
+    CognitoIdentityPoolRoles:
+      Type: AWS::Cognito::IdentityPoolRoleAttachment
+      Properties:
+        IdentityPoolId:
+          Ref: CognitoIdentityPool
+        Roles:
+          authenticated:
+            Fn::GetAtt: [CognitoAuthRole, Arn]
+          unauthenticated:
+            Fn::GetAtt: [CognitoUnauthRole, Arn]
+    # IAM Roles
+    CognitoAuthRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: sam_cognito_auth_appAuthRole
+        Path: /
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Principal:
+                Federated: "cognito-identity.amazonaws.com"
+              Action:
+                - "sts:AssumeRoleWithWebIdentity"
+              Condition:
+                StringEquals:
+                  "cognito-identity.amazonaws.com:aud":
+                    Ref: CognitoIdentityPool
+                "ForAnyValue:StringLike":
+                  "cognito-identity.amazonaws.com:amr": authenticated
+        Policies:
+          - PolicyName: "CognitoAuthorizedPolicy"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: "Allow"
+                  Action:
+                    - "mobileanalytics:PutEvents"
+                    - "cognito-sync:*"
+                    - "cognito-identity:*"
+                  Resource: "*"
+                - Effect: "Allow"
+                  Action:
+                    - "execute-api:Invoke"
+                  Resource: "*"
+
+    CognitoUnauthRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: sam_cognito_auth_appUnauthRole
+        Path: /
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Principal:
+                Federated: "cognito-identity.amazonaws.com"
+              Action:
+                - "sts:AssumeRoleWithWebIdentity"
+              Condition:
+                StringEquals:
+                  "cognito-identity.amazonaws.com:aud":
+                    Ref: CognitoIdentityPool
+                "ForAnyValue:StringLike":
+                  "cognito-identity.amazonaws.com:amr": unauthenticated
+        Policies:
+          - PolicyName: "CognitoUnauthorizedPolicy"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: "Allow"
+                  Action:
+                    - "mobileanalytics:PutEvents"
+                    - "cognito-sync:*"
+                    - "cognito-identity:*"
+                  Resource: "*"

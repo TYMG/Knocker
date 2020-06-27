@@ -10,8 +10,7 @@
 
 - [ ] Configure Knocker to use Hosted Web Address
       [x] Purchase knckr.com via Route 53
-      [ ] Configure the API Gateway to use Route 53 via 
-        - Resources: [How to set up a custom domain name for API Gateway in your Serverless app](https://seed.run/blog/how-to-set-up-a-custom-domain-name-for-api-gateway-in-your-serverless-app.html)
+      [ ] Configure the API Gateway to use Route 53 via - Resources: [How to set up a custom domain name for API Gateway in your Serverless app](https://seed.run/blog/how-to-set-up-a-custom-domain-name-for-api-gateway-in-your-serverless-app.html)
       [ ] Update Amplify Configure to use Knocker API Address
 
   - Resources: https://www.serverless.com/blog/serverless-api-gateway-domain
@@ -20,6 +19,12 @@
 
   - [ ] When a User Signs Up With Cognito, Create A Player in DynamoDB Table
 
+    - [ ] Creating a Cognito Trigger
+          How the trigger is suppose to work:
+          When a user is created, the Cognito Trigger Post Confirmation should be triggered
+          ![Client Confirm Sign Up Flow](https://docs.aws.amazon.com/cognito/latest/developerguide/images/lambda-post-confirmation-1.png)
+          [Example](https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-lambda-post-confirmation.html#user-pool-lambda-post-confirmation-flows)
+          [SO: Great Example of What I'm Trying to Do](https://stackoverflow.com/questions/57403579/how-to-configure-serverless-cognito-lambda-tiggers)
     - Resources:
 
   - https://www.reddit.com/r/aws/comments/ad8arj/q_what_is_the_best_way_to_store_user_data_aws/

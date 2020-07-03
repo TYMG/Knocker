@@ -32,7 +32,12 @@ functions:
           #type: COGNITO_USER_POOLS
           #authorizerId:
           #Ref: ApiGatewayAuthorizer
-
+  confirm-user:
+    handler: src/functions/user-confirm.main
+    events:
+      - http:
+          path: confirm-user
+          method: post
 custom:
   webpack:
     webpackConfig: "webpack.config.js" # name of webpack configuration file

@@ -15,6 +15,13 @@
 
   - Resources: https://www.serverless.com/blog/serverless-api-gateway-domain
 
+- [ ] Sending Verification Emails
+  - [ ] So... Cognito Sucks Ass So I will have to create my own Email Address - [ ] Have to create a Email Server [Integrating Amazon SES with Postfix
+        ](https://docs.aws.amazon.com/ses/latest/DeveloperGuide/postfix.html#send-email-postfix)
+        [A serverless email server on AWS using S3 and SES (github.com)](https://news.ycombinator.com/item?id=21953960)
+  - [ ] Getting Email Address Verified
+  - [ ] Sending Emails Through Cognito
+    - https://stackoverflow.com/questions/60645671/serverless-framework-configure-cognito-user-pool-to-send-emails-through-ses
 - [ ] Authorization with JWT
 
   - [ ] When a User Signs Up With Cognito, Create A Player in DynamoDB Table
@@ -71,15 +78,17 @@
       - https://www.apollographql.com/docs/apollo-server/security/authentication/#authorization-outside-of-graphql
       - https://stackoverflow.com/questions/55487265/how-to-store-aws-cognito-user-pool-users-in-db-for-instance-dynamodb
 
+- [ ] Update Serverless to use preexisting AWS Resources
+  - [ ] Add IAM Roles For Serverless Lambda Function To Access DynamoDB Table
+  - [ ] Update API Gateway to Use Knckr.com Domain
 - [ ] Update Apollo Server API
   - [ ] Add Seed Data for Player Table For Local Envs
   - [ ] Update Deployment Scripts (Run Seed Data Before Deploying)
-  - [ ] Update Serverless to use preexisting DynamoDB Table
-    - [ ] Add IAM Roles For Serverless Lambda Function To Access DynamoDB Table
   - Resources: https://github.com/serverless/serverless-graphql/tree/master/app-backend/dynamodb
 
 ### Long Term
 
+- [ ] Remove SES Sandbox ([Example:](https://youtu.be/IrSP7soIq3A?t=348))
 - [ ] - Deploying to Production
   - How can I create a dev and prod envs?
   - [ ] - Deploy API
@@ -101,6 +110,23 @@
 
 - Containerize React App Using Docker
 - Using Kubernetes Deploy The App
+
+---
+
+Implementation Steps:
+
+- UI
+
+- API
+- Authentication
+  1. Create Cognito Pool Via SLS
+  2. Create a Verified Email Address
+     1. Verify the Domain
+     2. Create SMTP For Email
+     3. Verify the Email Address (verification@mail.knckr.com)
+     4. Ge
+
+---
 
 ## Docker Commands
 
@@ -160,6 +186,18 @@ error
 }
 
 ```
+
+### Cognito
+
+#### Updating the Config
+
+USER_POOL_ID - Pool ID top of the General Settings page for the User Pool
+APP_CLIENT_ID - Under App Integration, click App Client Settings, ID is under the App Client
+IDENTITY_POOL_ID - Click Federated Identities, Click the Identity Pool Link, the end of the url is what the ID
+
+> https://console.aws.amazon.com/cognito/pool/?region=us-east-1&id=us-east-1:ba1ea731-44c8-4251-95ce-1c0e7c3e1651
+
+`us-east-1:ba1ea731-44c8-4251-95ce-1c0e7c3e1651`
 
 ## References:
 

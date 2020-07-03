@@ -13,7 +13,16 @@ provider:
   runtime: nodejs12.x
   region: us-east-1
   stage: dev
-
+  environment:
+    PLAYER_TABLE: player-${self:service}-${opt:stage, self:provider.stage}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+      Resource: "*"
 # here we describe our lambda function
 functions:
   knocker-graphql-api: # function name  ##this will be eventually changed
@@ -46,6 +55,22 @@ custom:
 
 resources:
   Resources:
+    PlayerDynamoDBTable:
+      Type: "AWS::DynamoDB::Table"
+      # DeletionPolicy: Retain # Retains table after stack delete
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: "id"
+            AttributeType: "S"
+        KeySchema:
+          - AttributeName: "id"
+            KeyType: "HASH"
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        StreamSpecification:
+          StreamViewType: "NEW_AND_OLD_IMAGES"
+        TableName: ${self:provider.environment.PLAYER_TABLE}
     # Cognito - User Pool (https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-cognito-userpool.html)
     # https://stackoverflow.com/questions/46973302/how-to-require-email-validation-in-cognito-through-cloudformation
     CognitoUserPool:

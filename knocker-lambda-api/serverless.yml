@@ -28,10 +28,10 @@ functions:
           cors: true
           #integration: lambda-proxy
           #Add the custom authorizer
-          authorizer:
-            type: COGNITO_USER_POOLS
-            authorizerId:
-              Ref: ApiGatewayAuthorizer
+          #authorizer:
+          #type: COGNITO_USER_POOLS
+          #authorizerId:
+          #Ref: ApiGatewayAuthorizer
 
 custom:
   webpack:
@@ -41,23 +41,22 @@ custom:
 
 resources:
   Resources:
-    ApiGatewayAuthorizer:
-      Type: AWS::ApiGateway::Authorizer
-      Properties:
-        Name: CognitoUserPool
-        Type: COGNITO_USER_POOLS
-        IdentitySource: method.request.header.Authorization
-        RestApiId:
-          Ref: ApiGatewayRestApi
-        ProviderARNs:
-          - Fn::GetAtt:
-              - UserPool
-              - Arn
     # Cognito - User Pool (https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-cognito-userpool.html)
+    # https://stackoverflow.com/questions/46973302/how-to-require-email-validation-in-cognito-through-cloudformation
     CognitoUserPool:
       Type: AWS::Cognito::UserPool
       Properties:
         UserPoolName: knocker_lambda_api_user_pool
+        UsernameAttributes:
+          - email
+        VerificationMessageTemplate:
+          DefaultEmailOption: CONFIRM_WITH_CODE
+          EmailMessage: Here's your stinkin' code - {####}
+          EmailSubject: Verification Confirmation Code!!!!
+        EmailVerificationMessage: Please click the link below to verify your email address. {####}
+        EmailVerificationSubject: Your Verification Link!!!!
+        EmailConfiguration:
+          EmailSendingAccount: COGNITO_DEFAULT
     # Cognito - Client ( Used to cakk  )
     CognitoUserPoolClient:
       Type: AWS::Cognito::UserPoolClient

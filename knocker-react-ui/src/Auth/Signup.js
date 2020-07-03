@@ -8,16 +8,17 @@ import "./Signup.css";
 export default class Signup extends Component {
   constructor(props) {
     super(props);
-
-    this.state = {
-      isLoading: false,
-      email: "",
-      password: "",
-      confirmPassword: "",
-      confirmationCode: "",
-      newUser: null,
-    };
   }
+
+  state = {
+    isLoading: false,
+    username: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    confirmationCode: "",
+    newUser: null,
+  };
 
   validateForm() {
     return (
@@ -41,11 +42,12 @@ export default class Signup extends Component {
     event.preventDefault();
 
     this.setState({ isLoading: true });
-
+    const { username, password, email } = this.state;
     try {
       const newUser = await Auth.signUp({
-        username: this.state.email,
-        password: this.state.password,
+        username,
+        password,
+        attributes: { email },
       });
       this.setState({
         newUser,
@@ -103,6 +105,15 @@ export default class Signup extends Component {
   renderForm() {
     return (
       <form onSubmit={this.handleSubmit}>
+        <FormGroup controlId="username" bsSize="large">
+          <FormLabel>Username</FormLabel>
+          <FormControl
+            autoFocus
+            type="text"
+            value={this.state.username}
+            onChange={this.handleChange}
+          />
+        </FormGroup>
         <FormGroup controlId="email" bsSize="large">
           <FormLabel>Email</FormLabel>
           <FormControl

@@ -32,7 +32,7 @@ functions:
     # in order to do so, we create a REST endpoint
     events:
       - http:
-          path: / # path for the endpoint
+          path: api # path for the endpoint
           method: any # HTTP method for the endpoint
           cors: true
           #integration: lambda-proxy
@@ -77,6 +77,8 @@ resources:
       Type: AWS::Cognito::UserPool
       Properties:
         UserPoolName: knocker_lambda_api_user_pool
+        AutoVerifiedAttributes:
+          - email
         UsernameAttributes:
           - email
         VerificationMessageTemplate:

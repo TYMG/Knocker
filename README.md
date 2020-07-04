@@ -165,6 +165,31 @@ aws cognito-idp sign-up \
 
 ```
 
+for `knocker-user-pool`
+
+```
+
+aws cognito-idp sign-up \
+  --region us-east-1 \
+  --client-id 7uqjtuqrjoc7uqppi2jkamvh8j \
+  --username verde \
+  --password Passw0rd! \
+  --user-attributes Name="email",Value="verde.mateo.a@gmail.com" Name="name",Value="Jane"
+
+
+```
+
+- To confirm user:
+
+```
+
+  aws cognito-idp admin-confirm-sign-up \
+  --region us-east-1 \
+  --user-pool-id us-east-1_95kfEXpVN \
+  --username verde
+
+```
+
 ## Notes
 
 Looks like Graphql has issues with merging Resolvers, so either the resolvers have to be in the same file, or figure out how they can be merged

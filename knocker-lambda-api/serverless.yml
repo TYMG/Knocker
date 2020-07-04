@@ -13,7 +13,16 @@ provider:
   runtime: nodejs12.x
   region: us-east-1
   stage: dev
-
+  environment:
+    PLAYER_TABLE: player-${self:service}-${opt:stage, self:provider.stage}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+      Resource: "*"
 # here we describe our lambda function
 functions:
   knocker-graphql-api: # function name  ##this will be eventually changed
@@ -23,7 +32,7 @@ functions:
     # in order to do so, we create a REST endpoint
     events:
       - http:
-          path: / # path for the endpoint
+          path: api # path for the endpoint
           method: any # HTTP method for the endpoint
           cors: true
           #integration: lambda-proxy
@@ -32,7 +41,12 @@ functions:
           #type: COGNITO_USER_POOLS
           #authorizerId:
           #Ref: ApiGatewayAuthorizer
-
+  confirm-user:
+    handler: src/functions/user-confirm.main
+    events:
+      - http:
+          path: confirm-user
+          method: post
 custom:
   webpack:
     webpackConfig: "webpack.config.js" # name of webpack configuration file
@@ -41,12 +55,30 @@ custom:
 
 resources:
   Resources:
+    PlayerDynamoDBTable:
+      Type: "AWS::DynamoDB::Table"
+      # DeletionPolicy: Retain # Retains table after stack delete
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: "id"
+            AttributeType: "S"
+        KeySchema:
+          - AttributeName: "id"
+            KeyType: "HASH"
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        StreamSpecification:
+          StreamViewType: "NEW_AND_OLD_IMAGES"
+        TableName: ${self:provider.environment.PLAYER_TABLE}
     # Cognito - User Pool (https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-cognito-userpool.html)
     # https://stackoverflow.com/questions/46973302/how-to-require-email-validation-in-cognito-through-cloudformation
     CognitoUserPool:
       Type: AWS::Cognito::UserPool
       Properties:
         UserPoolName: knocker_lambda_api_user_pool
+        AutoVerifiedAttributes:
+          - email
         UsernameAttributes:
           - email
         VerificationMessageTemplate:

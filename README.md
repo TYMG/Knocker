@@ -172,7 +172,7 @@ for `knocker-user-pool`
 aws cognito-idp sign-up \
   --region us-east-1 \
   --client-id 7uqjtuqrjoc7uqppi2jkamvh8j \
-  --username verde.mateo.a@gmail.com \
+  --username verde \
   --password Passw0rd! \
   --user-attributes Name="email",Value="verde.mateo.a@gmail.com" Name="name",Value="Jane"
 

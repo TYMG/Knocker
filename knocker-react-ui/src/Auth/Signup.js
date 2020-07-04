@@ -13,16 +13,20 @@ export default class Signup extends Component {
   state = {
     isLoading: false,
     username: "",
+    name: "",
     email: "",
     password: "",
     confirmPassword: "",
     confirmationCode: "",
     newUser: null,
+    confirm: false,
   };
 
   validateForm() {
     return (
       this.state.email.length > 0 &&
+      this.state.username.length > 0 &&
+      this.state.name.length > 0 &&
       this.state.password.length > 0 &&
       this.state.password === this.state.confirmPassword
     );
@@ -42,15 +46,16 @@ export default class Signup extends Component {
     event.preventDefault();
 
     this.setState({ isLoading: true });
-    const { username, password, email } = this.state;
+    const { username, password, email, name } = this.state;
     try {
       const newUser = await Auth.signUp({
         username,
         password,
-        attributes: { email },
+        attributes: { email: email, name: name },
       });
       this.setState({
         newUser,
+        confirm: true,
       });
     } catch (e) {
       alert(e.message);
@@ -76,86 +81,118 @@ export default class Signup extends Component {
     }
   };
 
+  confirmUser = async (event) => {
+    event.preventDefault();
+    this.setState({ confirm: true });
+  };
+  createUser = async (event) => {
+    event.preventDefault();
+    this.setState({ confirm: false });
+  };
+
   renderConfirmationForm() {
     return (
-      <form onSubmit={this.handleConfirmationSubmit}>
-        <FormGroup controlId="confirmationCode" bsSize="large">
-          <FormLabel>Confirmation Code</FormLabel>
-          <FormControl
-            autoFocus
-            type="tel"
-            value={this.state.confirmationCode}
-            onChange={this.handleChange}
+      <div>
+        <form onSubmit={this.handleConfirmationSubmit}>
+          <FormGroup controlId="confirmationCode" bsSize="large">
+            <FormLabel>Confirmation Code</FormLabel>
+            <FormControl
+              autoFocus
+              type="tel"
+              value={this.state.confirmationCode}
+              onChange={this.handleChange}
+            />
+            <Form.Text>Please check your email for the code.</Form.Text>
+          </FormGroup>
+          <LoaderButton
+            block
+            bsSize="large"
+            disabled={!this.validateConfirmationForm()}
+            type="submit"
+            isLoading={this.state.isLoading}
+            text="Verify"
+            loadingText="Verifying…"
           />
-          <Form.Text>Please check your email for the code.</Form.Text>
-        </FormGroup>
-        <LoaderButton
-          block
-          bsSize="large"
-          disabled={!this.validateConfirmationForm()}
-          type="submit"
-          isLoading={this.state.isLoading}
-          text="Verify"
-          loadingText="Verifying…"
-        />
-      </form>
+        </form>
+        <div>
+          <a href="#" onClick={this.createUser}>
+            Need to create a user? Click Here
+          </a>
+        </div>
+      </div>
     );
   }
 
   renderForm() {
     return (
-      <form onSubmit={this.handleSubmit}>
-        <FormGroup controlId="username" bsSize="large">
-          <FormLabel>Username</FormLabel>
-          <FormControl
-            autoFocus
-            type="text"
-            value={this.state.username}
-            onChange={this.handleChange}
+      <div>
+        <form onSubmit={this.handleSubmit}>
+          <FormGroup controlId="username" bsSize="large">
+            <FormLabel>Username</FormLabel>
+            <FormControl
+              autoFocus
+              type="text"
+              value={this.state.username}
+              onChange={this.handleChange}
+            />
+          </FormGroup>
+          <FormGroup controlId="name" bsSize="large">
+            <FormLabel>Name</FormLabel>
+            <FormControl
+              autoFocus
+              type="text"
+              value={this.state.name}
+              onChange={this.handleChange}
+            />
+          </FormGroup>
+          <FormGroup controlId="email" bsSize="large">
+            <FormLabel>Email</FormLabel>
+            <FormControl
+              autoFocus
+              type="email"
+              value={this.state.email}
+              onChange={this.handleChange}
+            />
+          </FormGroup>
+          <FormGroup controlId="password" bsSize="large">
+            <FormLabel>Password</FormLabel>
+            <FormControl
+              value={this.state.password}
+              onChange={this.handleChange}
+              type="password"
+            />
+          </FormGroup>
+          <FormGroup controlId="confirmPassword" bsSize="large">
+            <FormLabel>Confirm Password</FormLabel>
+            <FormControl
+              value={this.state.confirmPassword}
+              onChange={this.handleChange}
+              type="password"
+            />
+          </FormGroup>
+          <LoaderButton
+            block
+            bsSize="large"
+            disabled={!this.validateForm()}
+            type="submit"
+            isLoading={this.state.isLoading}
+            text="Signup"
+            loadingText="Signing up…"
           />
-        </FormGroup>
-        <FormGroup controlId="email" bsSize="large">
-          <FormLabel>Email</FormLabel>
-          <FormControl
-            autoFocus
-            type="email"
-            value={this.state.email}
-            onChange={this.handleChange}
-          />
-        </FormGroup>
-        <FormGroup controlId="password" bsSize="large">
-          <FormLabel>Password</FormLabel>
-          <FormControl
-            value={this.state.password}
-            onChange={this.handleChange}
-            type="password"
-          />
-        </FormGroup>
-        <FormGroup controlId="confirmPassword" bsSize="large">
-          <FormLabel>Confirm Password</FormLabel>
-          <FormControl
-            value={this.state.confirmPassword}
-            onChange={this.handleChange}
-            type="password"
-          />
-        </FormGroup>
-        <LoaderButton
-          block
-          bsSize="large"
-          disabled={!this.validateForm()}
-          type="submit"
-          isLoading={this.state.isLoading}
-          text="Signup"
-          loadingText="Signing up…"
-        />
-      </form>
+        </form>
+        <div>
+          <a href="#" onClick={this.confirmUser}>
+            Already created user? Confirm Here
+          </a>
+        </div>
+      </div>
     );
   }
 
   render() {
     return (
       <div className="Signup">
-        {this.state.newUser === null
+        {!this.state.confirm
           ? this.renderForm()
           : this.renderConfirmationForm()}
       </div>

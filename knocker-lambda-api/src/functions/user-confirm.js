@@ -70,9 +70,6 @@ const addUser = (user, callback) => {
 };
 
 const createUser = (id, username, email, name) => {
-  locationsVisited = [];
-  machinesPlayed = [];
-  scores = [];
   const timestamp = new Date().getTime();
   return {
     id: v4(),
@@ -81,9 +78,9 @@ const createUser = (id, username, email, name) => {
     username,
     email,
     name,
-    locationsVisited,
-    machinesPlayed,
-    scores,
+    locationsVisited: [],
+    machinesPlayed: [],
+    scores: [],
   };
 };
 

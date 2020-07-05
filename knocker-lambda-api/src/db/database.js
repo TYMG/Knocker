@@ -1,5 +1,6 @@
 import AWS from "aws-sdk";
 
+require("./config");
 import tables from "./tables";
 
 export default class Database {
@@ -36,7 +37,7 @@ export default class Database {
 
   async get() {
     var params = {
-      TableName: "player",
+      TableName: process.env.PLAYER_TABLE,
     };
 
     return new Promise((resolve, reject) => {

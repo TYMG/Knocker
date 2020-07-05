@@ -8,5 +8,6 @@
   },
   "devDependencies": {
     "@graphql-codegen/typescript-graphql-files-modules": "^1.13.2"
-  }
+  },
+  "dependencies": {}
 }

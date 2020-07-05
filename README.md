@@ -151,6 +151,11 @@ Implementation Steps:
 
   - npx sls logs -f knocker-graphql-api
 
+- To Install Local DynamoDB
+  - sls dynamodb install
+- To Run Local DynamoDB
+  - sls dynamodb start --migrate
+
 ## AWS Commands
 
 - To create cognito users

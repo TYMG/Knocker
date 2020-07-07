@@ -151,6 +151,13 @@ Implementation Steps:
 
   - npx sls logs -f knocker-graphql-api
 
+- To Install Local DynamoDB
+  - sls dynamodb install
+- To Run Local DynamoDB
+  - sls dynamodb start --migrate
+- To Run Severless Offline
+  - sls offline start
+
 ## AWS Commands
 
 - To create cognito users
@@ -190,10 +197,6 @@ aws cognito-idp sign-up \
 
 ```
 
-## Notes
-
-Looks like Graphql has issues with merging Resolvers, so either the resolvers have to be in the same file, or figure out how they can be merged
-
 ## Graphql
 
 Add Player
@@ -212,7 +215,25 @@ error
 
 ```
 
-### Cognito
+### Notes
+
+Looks like Graphql has issues with merging Resolvers, so either the resolvers have to be in the same file, or figure out how they can be merged
+
+## JS SDK
+
+`Scan a table`
+
+```
+var params = {
+    TableName: 'knocker-lambda-player-dev',
+};
+dynamodb.scan(params, function(err, data) {
+    if (err) ppJson(err); // an error occurred
+    else ppJson(data); // successful response
+});
+```
+
+## Cognito
 
 #### Updating the Config
 

@@ -2,6 +2,7 @@ import Database from "../../db/database";
 import stringGen from "crypto-random-string";
 const cryptoRandomString = require("crypto-random-string");
 const crypto = require("crypto");
+const { v4 } = require("uuid");
 
 export default class KnockerDB {
   constructor() {
@@ -11,7 +12,7 @@ export default class KnockerDB {
   async put(data) {
     const paramsData = data;
     console.log("knocker-db.js - put()", paramsData);
-    const item = {
+    /* const item = {
       username: {
         S: data.username.toString(),
       },
@@ -41,18 +42,30 @@ export default class KnockerDB {
         console.log(token);
         item.id = { S: token };
       });
-    }
+    } */
+
+    const item = {
+      id: v4(),
+      createdAt: new Date().getTime(),
+      username: data.username.toString(),
+      email: data.email.toString(),
+      name: data.name.toString(),
+      locationsVisited: [],
+      machinesPlayed: [],
+      scores: [],
+    };
 
     const db = await this.getDatabase();
     /* await db.putItem({
-      TableName: "player",
+     TableName: process.env.PLAYER_TABLE,
       Item: item,
     }); */
     //return item;
 
+    console.log("item: ", item);
     await db
       .putItem({
-        TableName: "player",
+        TableName: process.env.PLAYER_TABLE,
         Item: item,
         ReturnValues: "NONE",
       })
@@ -73,7 +86,7 @@ export default class KnockerDB {
     console.log("knocker-db.js - get()");
 
     return db.get({
-      TableName: "player",
+      TableName: process.env.PLAYER_TABLE,
       Key: {
         HashKey: "hashkey",
       },
@@ -83,7 +96,7 @@ export default class KnockerDB {
   async getById(id) {
     const db = await this.getDatabase();
     return db.getItem({
-      TableName: "player",
+      TableName: process.env.PLAYER_TABLE,
       Key: {
         id: {
           S: id.toString(),
@@ -95,7 +108,7 @@ export default class KnockerDB {
   async getByUsername(username) {
     const db = await this.getDatabase();
     return db.getItem({
-      TableName: "player",
+      TableName: process.env.PLAYER_TABLE,
       Key: {
         username: {
           S: username.toString(),
@@ -145,7 +158,7 @@ async getForCharacter(id) {
   async delete(id) {
     const db = await this.getDatabase();
     await db.deleteItem({
-      TableName: "player",
+      TableName: process.env.PLAYER_TABLE,
       Key: {
         id: {
           S: id.toString(),

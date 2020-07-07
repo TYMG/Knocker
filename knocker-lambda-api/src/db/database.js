@@ -1,5 +1,6 @@
 import AWS from "aws-sdk";
 
+require("./config");
 import tables from "./tables";
 
 export default class Database {
@@ -7,8 +8,9 @@ export default class Database {
     console.log("Connect Called");
     if (!this._connection) {
       let params = {};
-      console.log(__DEV__);
+      console.log("__DEV__:", __DEV__);
       if (__DEV__) {
+        console.log("Port", process.env.DB_URL);
         params = {
           endpoint: process.env.DB_URL,
           region: "local",
@@ -22,21 +24,23 @@ export default class Database {
         };
       }
 
-      this._connection = new AWS.DynamoDB(params);
+      console.log("database.js - params", params);
+      this._connection = new AWS.DynamoDB.DocumentClient(params);
 
       if (__DEV__) {
-        console.log(tables);
+        //console.log(tables);
+        //await this.checkTables();
         // will create tables through lambda only in development
-        await this.createTables(tables);
+        //await this.createTables(tables);
       }
     }
-    console.log(this._connection);
+    console.log("database.js - this._connection", this._connection);
     return this._connection;
   }
 
   async get() {
     var params = {
-      TableName: "player",
+      TableName: process.env.PLAYER_TABLE,
     };
 
     return new Promise((resolve, reject) => {
@@ -53,8 +57,9 @@ export default class Database {
   }
 
   async putItem(params) {
+    console.log("database.js - putItem");
     return new Promise((resolve, reject) => {
-      this._connection.putItem(params, (err, data) => {
+      this._connection.put(params, (err, data) => {
         if (err) {
           reject(err);
         } else {
@@ -109,6 +114,14 @@ export default class Database {
           resolve(data);
         }
       });
+    });
+  }
+
+  async checkTables() {
+    this._connection.listTables({}, function (err, data) {
+      if (err) console.log(err);
+      // an error occurred
+      else console.log("checkTables results: ", data); // successful response
     });
   }
 

@@ -5,16 +5,14 @@ plugins:
   - serverless-webpack
   - serverless-dynamodb-local
   - serverless-offline
-
-# serverless supports different cloud environments to run at.
-# we will be deploying and running this project at AWS cloud with Node v8.10 environment
 provider:
   name: aws
   runtime: nodejs12.x
   region: us-east-1
-  stage: dev
+  #stage: dev
   environment:
-    PLAYER_TABLE: player-${self:service}-${opt:stage, self:provider.stage}
+    PLAYER_TABLE: ${self:custom.settings.${self:custom.myStage}.PLAYER_TABLE}
+    DB_URL: ${self:custom.endpoints.dynamodb-url}
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -52,6 +50,21 @@ custom:
     webpackConfig: "webpack.config.js" # name of webpack configuration file
     includeModules: true # add excluded modules to the bundle
     packager: "npm" # Packager that will be used to package your external modules
+  dynamodb:
+    start:
+      port: 8000
+      inMemory: true
+      migrate: true
+    stages:
+      - ${self:provider.stage}
+  myStage: ${opt:stage, self:provider.stage}
+  settings:
+    local:
+      PLAYER_TABLE: ${self:service}-player-local
+    dev:
+      PLAYER_TABLE: ${self:service}-player-dev
+  endpoints:
+    dynamodb-url: "http://localhost:8000"
 
 resources:
   Resources:
@@ -70,7 +83,7 @@ resources:
           WriteCapacityUnits: 1
         StreamSpecification:
           StreamViewType: "NEW_AND_OLD_IMAGES"
-        TableName: ${self:provider.environment.PLAYER_TABLE}
+        TableName: ${self:custom.settings.${self:custom.myStage}.PLAYER_TABLE}
     # Cognito - User Pool (https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-cognito-userpool.html)
     # https://stackoverflow.com/questions/46973302/how-to-require-email-validation-in-cognito-through-cloudformation
     CognitoUserPool:

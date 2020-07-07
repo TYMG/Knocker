@@ -1,19 +1,19 @@
 export default {
-  TableName: "player",
+  TableName: process.env.PLAYER_TABLE,
   KeySchema: [
     {
       AttributeName: "id",
-      KeyType: "HASH"
-    }
+      KeyType: "HASH",
+    },
   ],
   AttributeDefinitions: [
     {
       AttributeName: "id",
-      AttributeType: "S"
-    }
+      AttributeType: "S",
+    },
   ],
   ProvisionedThroughput: {
     ReadCapacityUnits: 5,
-    WriteCapacityUnits: 5
-  }
+    WriteCapacityUnits: 5,
+  },
 };

@@ -12,6 +12,7 @@ provider:
   #stage: dev
   environment:
     PLAYER_TABLE: ${self:custom.settings.${self:custom.myStage}.PLAYER_TABLE}
+    DB_URL: ${self:custom.endpoints.dynamodb-url}
   iamRoleStatements:
     - Effect: Allow
       Action:

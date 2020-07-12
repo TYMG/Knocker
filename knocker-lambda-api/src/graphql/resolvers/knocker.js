@@ -5,6 +5,8 @@ export default {
       dataSources.pinballMachineAPI.getAllMachines(),
     locations: (_, { region }, { dataSources }) =>
       dataSources.pinballMachineAPI.getLocations({ region: region }),
+    regions: (_, __, { dataSources }) =>
+      dataSources.pinballMachineAPI.getAllRegions(),
     /* 
     allOps: (_, __, { dataSources }) =>
       dataSources.pinballMachineAPI.getAllOperators(),

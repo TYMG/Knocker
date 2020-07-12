@@ -29,5 +29,6 @@ type Location {
 
 type Query {
   locations(region: String!): [Location]!
+  locationsByRegion(region: String!): [Location]!
   location(id: String!): Location!
 }

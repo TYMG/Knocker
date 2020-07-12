@@ -90,7 +90,7 @@ export default class KnockerDB {
       Key: { id: userId },
       UpdateExpression: "SET scores = list_append(scores, :score)",
       ExpressionAttributeValues: {
-        ":score": [scoreData],
+        ":score": [{ ...scoreData, id: v4(), createdAt: new Date().getTime() }],
       },
       ReturnValues: "UPDATED_NEW",
     };

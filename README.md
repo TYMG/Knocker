@@ -213,18 +213,29 @@ query locations{
 
 ```
 
+```
+query locationsByRegion {
+  locationsByRegion(region:"dc"){
+  	name
+    id
+  }
+}
+```
+
 Add Player
 
 ```
 
 mutation {
-putPlayer(data:{
-username: "tymg",
-name: "Matt Green",
-email: "verde.mateo.a@gmail.com"
-}) {
-error
-}
+  putPlayer(data:
+    {
+    username: "tymg",
+    name: "Matt Green",
+    email: "verde.mateo.a@gmail.com"
+    }
+  ) {
+  error
+  }
 }
 
 ```
@@ -233,15 +244,36 @@ Add Score
 
 ```
 mutation {
-  addScore(data: {
-    userId:"2",
-    score:"69,000,000",
+ addScore(userId:"2",data:{
+   score:"69,000,000",
     machineId: 642,
     machineName: "Medieval Madness",
     locationId: 10426
-  }){
-    machineName
-  }
+}){
+  score
+}
+}
+}
+
+```
+
+```
+mutation {
+ addScores(userId:"2",data:[{
+   score:"69,000,000",
+    machineId: 642,
+    machineName: "Attack on Mars!",
+    locationId: 10426
+},{
+   score:"69,000,000",
+    machineId: 642,
+    machineName: "Whitewater",
+    locationId: 10426
+}
+
+]){
+  score
+}
 }
 
 ```

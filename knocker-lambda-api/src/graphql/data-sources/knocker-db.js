@@ -1,17 +1,16 @@
 import Database from "../../db/database";
 import stringGen from "crypto-random-string";
+import score from "../../db/tables/score";
 const cryptoRandomString = require("crypto-random-string");
 const crypto = require("crypto");
 const { v4 } = require("uuid");
 
 export default class KnockerDB {
-  constructor() {
-    console.log("knocker-db.js - Constructor Called");
-  }
+  constructor() {}
   // our methods go here, we are going to discuss them below
   async put(data) {
     const paramsData = data;
-    console.log("knocker-db.js - put()", paramsData);
+    //console.log("knocker-db.js - put()", paramsData);
     /* const item = {
       username: {
         S: data.username.toString(),
@@ -39,7 +38,6 @@ export default class KnockerDB {
       // as we mentioned before, we need to specify a new key explicitly
       crypto.randomBytes(20, (err, buffer) => {
         const token = buffer.toString("hex");
-        console.log(token);
         item.id = { S: token };
       });
     } */
@@ -62,7 +60,7 @@ export default class KnockerDB {
     }); */
     //return item;
 
-    console.log("item: ", item);
+    //console.log("item: ", item);
     await db
       .putItem({
         TableName: process.env.PLAYER_TABLE,
@@ -71,19 +69,19 @@ export default class KnockerDB {
       })
       .then(function (data, err) {
         if (err) {
-          console.log(err, err.stack);
+          //console.log(err, err.stack);
         } else {
-          console.log("update putItem() Response: ", paramsData);
+          //console.log("update putItem() Response: ", paramsData);
           return paramsData;
         }
       });
 
-    return paramsData;
+    return item;
   }
 
   async createScore(scoreData, userId) {
     const paramsData = scoreData;
-    console.log("knocker-db.js - createScore()", paramsData, userId);
+    //console.log("knocker-db.js - createScore()", paramsData, userId);
 
     var params = {
       TableName: process.env.PLAYER_TABLE,
@@ -98,17 +96,19 @@ export default class KnockerDB {
 
     const res = await db.update(params).then(function (data, err) {
       if (err) {
-        console.log(err, err.stack);
+        //console.log(err, err.stack);
       } else {
-        console.log("update createScore() Response: ", paramsData);
-        return paramsData;
+        //console.log("update createScore() Response: ", paramsData);
+        console.log("data", data);
+        return scoreData;
       }
     });
+    return res;
   }
 
   async get() {
     const db = await this.getDatabase();
-    console.log("knocker-db.js - get()");
+    //console.log("knocker-db.js - get()");
 
     return db.get({
       TableName: process.env.PLAYER_TABLE,
@@ -193,7 +193,7 @@ async getForCharacter(id) {
   }
   async getDatabase() {
     if (!this._db) {
-      console.log("db created");
+      //console.log("db created");
       this._db = new Database();
       await this._db.connect();
     }

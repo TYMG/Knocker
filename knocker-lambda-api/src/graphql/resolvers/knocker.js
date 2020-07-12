@@ -30,8 +30,8 @@ export default {
 
       let result = {};
       try {
-        console.log(dataSources);
-        await dataSources.knockerDB.put(data);
+        //console.log(dataSources);
+        result = await dataSources.knockerDB.put(data);
       } catch (e) {
         console.error(e);
         result.error = "Internal error";
@@ -49,10 +49,10 @@ export default {
      */
     addScore: async (source, args, { dataSources }, state) => {
       const { data } = args;
-      console.log("args:", args);
+      //console.log("args:", args);
       let result = {};
       try {
-        console.log(dataSources);
+        //console.log(dataSources);
         result = await dataSources.knockerDB.createScore(
           args.data,
           args.userId
@@ -61,24 +61,24 @@ export default {
         console.error(e);
         result.error = "Internal error";
       }
-      console.log("addScore() - result", result);
+      //console.log("addScore() - result", result);
       return result;
     },
     addScores: async (source, args, { dataSources }, state) => {
       const { data } = args;
       let result = {};
       try {
-        console.log(dataSources);
+        //console.log(dataSources);
         result = await args.data.map((score) => {
-          console.log(score);
+          //console.log(score);
           dataSources.knockerDB.createScore(score, args.userId);
         });
       } catch (e) {
         console.error(e);
         result.error = "Internal error";
       }
-      console.log("addScore() - result", result);
-      return result;
+      console.log("addScores() - result", args.data);
+      return args.data;
     },
     deletePlayer: async (source, args, { dataSources }, state) => {
       const { id } = args;

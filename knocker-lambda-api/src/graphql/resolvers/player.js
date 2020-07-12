@@ -8,8 +8,8 @@ export default {
     putPlayer: async (source, args, { dataSources }, state) => {
       try {
         const { data } = args;
-        console.log(dataSources);
-        console.log("FINAL RESULT: " + result);
+        //console.log(dataSources);
+        //console.log("FINAL RESULT: " + result);
         return dataSources.knockerDB.put(data);
       } catch (e) {
         console.error("player.js - CAUGHT ERROR " + e);

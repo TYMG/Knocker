@@ -38,6 +38,6 @@ input PlayerInput {
 type Mutation {
   putPlayer(data: PlayerInput!): Player
   addScore(userId: ID!, data: ScoreInput!): Score
-  addScores(userId: ID!, data: [ScoreInput]!): Score
+  addScores(userId: ID!, data: [ScoreInput]!): [Score]
   deletePlayer(id: String!): Result
 }

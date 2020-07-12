@@ -5,12 +5,11 @@ import tables from "./tables";
 
 export default class Database {
   async connect() {
-    console.log("Connect Called");
+    //console.log("Connect Called");
     if (!this._connection) {
       let params = {};
-      console.log("__DEV__:", __DEV__);
+      //console.log("__DEV__:", __DEV__);
       if (__DEV__) {
-        console.log("Port", process.env.DB_URL);
         params = {
           endpoint: process.env.DB_URL,
           region: "local",
@@ -24,17 +23,8 @@ export default class Database {
         };
       }
 
-      console.log("database.js - params", params);
       this._connection = new AWS.DynamoDB.DocumentClient(params);
-
-      if (__DEV__) {
-        //console.log(tables);
-        //await this.checkTables();
-        // will create tables through lambda only in development
-        //await this.createTables(tables);
-      }
     }
-    console.log("database.js - this._connection", this._connection);
     return this._connection;
   }
 
@@ -48,8 +38,8 @@ export default class Database {
         if (err) {
           reject(err);
         } else {
-          console.log("database.js - get()", data);
-          console.log("database.js - get(): Items", data.Items);
+          //console.log("database.js - get()", data);
+          //console.log("database.js - get(): Items", data.Items);
           resolve(this.createPlayers(data.Items));
         }
       });
@@ -57,7 +47,7 @@ export default class Database {
   }
 
   async putItem(params) {
-    console.log("database.js - putItem");
+    //console.log("database.js - putItem");
     return new Promise((resolve, reject) => {
       this._connection.put(params, (err, data) => {
         if (err) {
@@ -131,9 +121,12 @@ export default class Database {
 
   async checkTables() {
     this._connection.listTables({}, function (err, data) {
-      if (err) console.log(err);
-      // an error occurred
-      else console.log("checkTables results: ", data); // successful response
+      if (err) {
+        //console.log(err);
+        // an error occurred
+      } else {
+        console.log(data);
+      } //console.log("checkTables results: ", data); // successful response
     });
   }
 
@@ -190,7 +183,7 @@ knocker-lambda-api_1  |   }
         username: player.username.S,
       });
     });
-    console.log(playerArr);
+    //console.log(playerArr);
     return playerArr;
   }
 }

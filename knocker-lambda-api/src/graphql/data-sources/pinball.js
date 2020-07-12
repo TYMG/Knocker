@@ -96,7 +96,7 @@ export class PinballMachineAPI extends RESTDataSource {
     let returnArray = [];
     if (response) {
       response["machines"].forEach((element) => {
-        //console.log("test", element);
+        ////console.log("test", element);
         returnArray.push(this.pinballMachineReducer(element));
       });
       return returnArray;
@@ -118,7 +118,7 @@ export class PinballMachineAPI extends RESTDataSource {
     let returnArray = [];
     if (response) {
       response["regions"].forEach((element) => {
-        //console.log("test", element);
+        ////console.log("test", element);
         returnArray.push(this.regionReducer(element));
       });
       return returnArray;
@@ -131,7 +131,7 @@ export class PinballMachineAPI extends RESTDataSource {
     let returnArray = [];
     if (response) {
       response["locations"].forEach((element) => {
-        //console.log("test", element);
+        ////console.log("test", element);
         returnArray.push(this.locationReducer(element));
       });
       return returnArray;
@@ -147,7 +147,7 @@ export class PinballMachineAPI extends RESTDataSource {
     let returnArray = [];
     if (response) {
       response["locations"].forEach((element) => {
-        //console.log("test", element);
+        ////console.log("test", element);
         returnArray.push(this.locationReducer(element));
       });
       return returnArray;

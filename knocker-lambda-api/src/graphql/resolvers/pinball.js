@@ -1,7 +1,7 @@
 export default {
   Query: {
     machines: (_, __, { dataSources }) => {
-      console.log(dataSources);
+      //console.log(dataSources);
       dataSources.pinballMachineAPI.getAllMachines();
     },
     /* 

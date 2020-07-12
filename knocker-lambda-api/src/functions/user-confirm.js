@@ -41,22 +41,22 @@ Sample Post Confirmation Payload
  **/
 
 module.exports.main = (event, context, callback) => {
-  console.log("EVENT: ", event);
-  console.log("Username: ", event.userName);
+  //console.log("EVENT: ", event);
+  //console.log("Username: ", event.userName);
   //const requestBody = JSON.parse(event.body);
-  //console.log(requestBody);
+  ////console.log(requestBody);
   //event.request.userAttributes.email
   const id = event.request.userAttributes.sub;
   const username = event.userName;
   const email = event.request.userAttributes.email;
   const name = event.request.userAttributes.name;
   //const { error } = postSchema.validate(requestBody);
-  /*  console.log(error);
+  /*  //console.log(error);
   if (error) return callback(error); */
 
   addUser(createUser(id, username, email, name), (err, res) => {
     if (err) return callback(err);
-    console.log("Succesful Player Creation:", username);
+    //console.log("Succesful Player Creation:", username);
     callback(null, event);
   });
 };

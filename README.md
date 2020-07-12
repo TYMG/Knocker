@@ -199,6 +199,20 @@ aws cognito-idp sign-up \
 
 ## Graphql
 
+### Queries
+
+```
+query locations{
+  locations(region:"ca-central"){
+    id
+    name
+    lat
+    lon
+  }
+}
+
+```
+
 Add Player
 
 ```
@@ -211,6 +225,23 @@ email: "verde.mateo.a@gmail.com"
 }) {
 error
 }
+}
+
+```
+
+Add Score
+
+```
+mutation {
+  addScore(data: {
+    userId:"2",
+    score:"69,000,000",
+    machineId: 642,
+    machineName: "Medieval Madness",
+    locationId: 10426
+  }){
+    machineName
+  }
 }
 
 ```

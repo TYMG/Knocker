@@ -10,15 +10,18 @@ type Player {
 
 type Score {
   id: ID!
-  score: String
-  machine: Machine
-  date: String #Should be a Timestramp converted to a String
+  score: String!
+  machineId: String
+  machineName: String
+  locationId: String
+  date: String! #Should be a Timestramp converted to a String
 }
-type ScoreInput {
-  id: ID!
+input ScoreInput {
+  userId: ID!
   score: String
-  machine: Machine
-  date: String #Should be a Timestramp converted to a String
+  machineId: Int
+  machineName: String
+  locationId: Int
 }
 
 type Query {
@@ -35,5 +38,6 @@ input PlayerInput {
 
 type Mutation {
   putPlayer(data: PlayerInput!): Player
+  addScore(data: ScoreInput!): Score
   deletePlayer(id: String!): Result
 }

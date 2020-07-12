@@ -1,3 +1,5 @@
+const { v4 } = require("uuid");
+
 export default {
   Query: {
     players: (_, __, { dataSources }) => dataSources.knockerDB.get(),
@@ -35,18 +37,36 @@ export default {
 
       return result;
     },
+    /**
+     * 
+     * 
+     *   id: '2',
+  machineId: 642,
+  machineName: 'Medieval Madness',
+  locationId: 10426 }
+     */
     addScore: async (source, args, { dataSources }, state) => {
       const { data } = args;
-
+      console.log("args:", args);
       let result = {};
       try {
         console.log(dataSources);
-        await dataSources.knockerDB.createScore(data);
+        result = await dataSources.knockerDB.createScore(
+          {
+            id: v4(),
+            score: args.data.score,
+            machineId: args.data.machineId,
+            machineName: args.data.machineName,
+            locationId: args.data.locationId,
+            createdAt: new Date().getTime(),
+          },
+          args.data.userId
+        );
       } catch (e) {
         console.error(e);
         result.error = "Internal error";
       }
-
+      console.log("addScore() - result", result);
       return result;
     },
     deletePlayer: async (source, args, { dataSources }, state) => {

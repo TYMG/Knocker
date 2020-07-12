@@ -45,7 +45,7 @@ export default class KnockerDB {
     } */
 
     const item = {
-      id: v4(),
+      id: "2",
       createdAt: new Date().getTime(),
       username: data.username.toString(),
       email: data.email.toString(),
@@ -79,6 +79,31 @@ export default class KnockerDB {
       });
 
     return paramsData;
+  }
+
+  async createScore(scoreData, userId) {
+    const paramsData = scoreData;
+    console.log("knocker-db.js - createScore()", paramsData, userId);
+
+    var params = {
+      TableName: process.env.PLAYER_TABLE,
+      Key: { id: userId },
+      UpdateExpression: "SET scores = list_append(scores, :score)",
+      ExpressionAttributeValues: {
+        ":score": [scoreData],
+      },
+      ReturnValues: "UPDATED_NEW",
+    };
+    const db = await this.getDatabase();
+
+    const res = await db.update(params).then(function (data, err) {
+      if (err) {
+        console.log(err, err.stack);
+      } else {
+        console.log("update createScore() Response: ", paramsData);
+        return paramsData;
+      }
+    });
   }
 
   async get() {

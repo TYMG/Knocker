@@ -3,6 +3,8 @@ export default {
     players: (_, __, { dataSources }) => dataSources.knockerDB.get(),
     machines: (_, __, { dataSources }) =>
       dataSources.pinballMachineAPI.getAllMachines(),
+    locations: (_, { region }, { dataSources }) =>
+      dataSources.pinballMachineAPI.getLocations({ region: region }),
     /* 
     allOps: (_, __, { dataSources }) =>
       dataSources.pinballMachineAPI.getAllOperators(),
@@ -24,6 +26,20 @@ export default {
       try {
         console.log(dataSources);
         await dataSources.knockerDB.put(data);
+      } catch (e) {
+        console.error(e);
+        result.error = "Internal error";
+      }
+
+      return result;
+    },
+    addScore: async (source, args, { dataSources }, state) => {
+      const { data } = args;
+
+      let result = {};
+      try {
+        console.log(dataSources);
+        await dataSources.knockerDB.createScore(data);
       } catch (e) {
         console.error(e);
         result.error = "Internal error";

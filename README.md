@@ -197,6 +197,93 @@ aws cognito-idp sign-up \
 
 ```
 
+## DynamoDB
+
+### Use Cases
+
+When thinking about how to set up our data structure, think how you would fill in the blanks for the following query:
+
+> "Give me all of the \_**_ from a particular _**."
+
+- Create a User
+- Retrieve all Users
+- Retrieve a User using the User's id
+- Add A Played Machine for a User
+- Add A Visited Location for a User
+- Add A Score on a given machine for a user
+- Retrieve a List of Locations Visited in the last 6 months
+- Retrieve the Location most visted by user
+- Retrieve the machine most played by a user
+- Retriece the dates a specific location was visted
+- Get all the machines a users have played in a date range
+- Retrieve a List of User's scores using User's Id
+- Retrieve a List of Scores for a particular XREF Machine
+- Retrieve a List of Scores for a particular XREF Machine in descending order
+- Retrieve a List of Scores for a particular XREF Machine for a Particular User
+- Retrieve a List of Scores for a particular Location
+- Retrieve a List of Scores for a particular date
+- Get all users that visited certain location
+- Get all users that played a certain machine
+
+### Access Pattern
+
+- Write
+  - Create a User
+  - Add A Played Machine for a User
+  - Add A Score that connects to a User
+  - Add A Visited Location for a User
+  - Add a Sign Off for a Particular Score
+  - Add Image Proof for a Particular Score
+- Read
+  - Retrieve all users
+  - Retrieve a specific user
+  - Retrtieve a list of locations visites for a user
+  - Retrieve a list of machines played for a user
+  - Retrieve scores for a user
+  - Retreieve scores for a particular machine
+
+### Table Design
+
+DATE - Date
+UID - User ID
+LID - Location Id (From the Pinball API)
+PIN - Pin's Actual ID (From the Pinball API)  
+XREF_ID - Pin's XREF Id (From the Pinball API)
+SID - Score ID
+
+When creating a Partition Key, all items must have a PK and SK. So for the Knocker Table, the Partiton Key will be a String called PK and another string called SK
+
+I'm going to create a Composite Key:
+| PK | SK | Purpose | |
+|---|---|---|---|
+| USER#{{UID}} | USER#{{UID}} | Contain User Metadata | |
+| USER#{{UID}} | LOCATION#{{LID}} | Contain Location Visited Metadata | |
+| USER#{{UID}} | PIN#{{PIN}}#{{XREF_ID}} | Contain Pinball Machine Played Metadata | |
+| USER#{{UID}} | SCORE#{{SID}} | Contains Score Metadata | |
+| SCORE#{{SID}} | {{XREF_ID}}#DATE | Contains Score Metadata | |
+
+#### Facets
+
+- User
+  - Name
+  - Username
+  - Email
+- Location
+  - Date
+- Pinball Machine Played
+  - Location Id
+  - Date
+- Score
+  - Score
+  - Date
+  - UserId
+  - ImageId (For Proof)
+  - SignOff (UserID)
+
+### Queries
+
+### Updates
+
 ## Graphql
 
 ### Queries

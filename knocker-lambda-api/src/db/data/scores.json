@@ -1,0 +1,41 @@
+[
+  {
+    "PK": "SCORE#777",
+    "SK": "SCORE#666#1595172847",
+    "Data": "TYMG",
+    "Score": "69,000,000",
+    "Date": "2020_05_02",
+    "LocationID": "999",
+    "XrefId": "616"
+  },
+
+  {
+    "PK": "SCORE#777",
+    "SK": "SCORE#820#15951723247",
+    "Data": "TOTT",
+    "Score": "23,000,000",
+    "Date": "2020_06_23",
+    "LocationID": "999",
+    "XrefId": "616"
+  },
+  {
+    "PK": "SCORE#13",
+    "SK": "SCORE#666#1595172823",
+    "Data": "TYMG",
+    "Score": "3,200,000,000",
+    "Date": "2020_06_23",
+    "LocationID": "111",
+    "XrefId": "1741",
+    "s3RefId": "RF43234D2F243RR4",
+    "isVerified": "true"
+  },
+  {
+    "PK": "SCORE#777",
+    "SK": "SCORE#666#159517282",
+    "Data": "TYMG",
+    "Score": "100,000,000",
+    "Date": "2020_05_02",
+    "LocationID": "999",
+    "XrefId": "616"
+  }
+]

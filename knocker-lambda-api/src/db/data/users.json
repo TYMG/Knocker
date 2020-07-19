@@ -1,0 +1,42 @@
+[
+  {
+    "PK": "666",
+    "SK": "USER#TYMG",
+    "Data": "Matt Green",
+    "Location": "Washington DC",
+    "Email": "verde.madeo.a@gmail.com",
+    "Date": "2020_07_02"
+  },
+  {
+    "PK": "820",
+    "SK": "USER#TOOT",
+    "Data": "Tottionna Matthews",
+    "Location": "Redding CA",
+    "Email": "tottionna.matthews@gmail.com",
+    "Date": "2020_07_02"
+  },
+  {
+    "PK": "PERMISSION#666#456",
+    "SK": "ADMIN",
+    "Data": "TYMG",
+    "Date": "2020_05_02"
+  },
+  {
+    "PK": "PERMISSION#820#456",
+    "SK": "PLAYER",
+    "Data": "TOTT",
+    "Date": "2020_05_02"
+  },
+  {
+    "PK": "PERMISSION#666#421",
+    "SK": "PLAYER",
+    "Data": "TYMG",
+    "Date": "2020_04_20"
+  },
+  {
+    "PK": "PERMISSION#820#421",
+    "SK": "VERIFIER",
+    "Data": "TOTT",
+    "Date": "2020_06_23"
+  }
+]

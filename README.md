@@ -266,30 +266,26 @@ I'm going to create a Composite Key:
 | {{UID}} | FAVORITE#GAME#{{PIN}} | Username | DateAdded | DateAdded | |
 | {{UID}} | LOCATION#{{LID}}#{{DATE}} | LID | DateVisited | Username | |
 | SCORE#{{PIN}} | SCORE#{{UID}}#{{DATE}} | Username | DateRecorded | Score,LID | |
-| LOCATION#{{LID}}#{{DATE}} | Date | Username | DateVisited |  | Add Visited Location |
-| PERMISSION#{{UID}}#{{DATE}} | Username | Role | DateAdded |  |  |
+| LOCATION#{{LID}}#{{DATE}} | Date | Username | DateVisited | | Add Visited Location |
+| PERMISSION#{{UID}}#{{DATE}} | Username | Role | DateAdded | | |
 
-
-
-| Index | Access Patterns                                        | Query Condition s                                           |
-| ----- | ------------------------------------------------------ | ----------------------------------------------------------- |
-| 1     | Look Up User By User ID                                | Primary Key on table, ID="UID"                              |
-| 2     | Look Up User Metadata By Username                      | Use GSI-1, PK="Username#{{Username}}"                       |
-| 3     | Look up Vistors and Date Visted  at a Certain Location | Use GSI-1, PK="Location#{{LID}}"                            |
-| 4     | Look Up Scores for a certain Machine                   | Use GSI-3, PK="XrefID" SK="{{Date}}" (Either == Or Between) |
-| 5     | Look Up Scores by UID                                  | Use GSI-1, PK='SCORE#{{UID}}'                               |
-| 6     | Look up Favorite Machines by UID                       | Use Table, PK={{UID}}  SK="FAVORITE"                        |
-| 7     | Get All Vistors at certain Location                    | Use GSI-1PK="LOCATION#LID"                                  |
-| 8     | Look Up All Machines Played  By A User                 | Use GSI-1, PK="Username" SK="PIN"                           |
-| 9     | Look Up All Favorite Machine Played  By A User         | Use GSI-1, PK="Username" SK="FAVORITE"                      |
-| 10    | Look Up All Scores Recorded on A Certain Date          | Use GSI-2, PK="DATE" S                                      |
-| 11    | Look Up Users Who Like Specific Machine                | Use GSI-1, PK="FAVORITE#{{PINID}}"                          |
-|       |                                                        |                                                             |
-|       |                                                        |                                                             |
-|       |                                                        |                                                             |
-|       |                                                        |                                                             |
-
-
+| Index | Access Patterns                                       | Query Condition s                                           |
+| ----- | ----------------------------------------------------- | ----------------------------------------------------------- |
+| 1     | Look Up User By User ID                               | Primary Key on table, ID="UID"                              |
+| 2     | Look Up User Metadata By Username                     | Use GSI-1, PK="Username#{{Username}}"                       |
+| 3     | Look up Vistors and Date Visted at a Certain Location | Use GSI-1, PK="Location#{{LID}}"                            |
+| 4     | Look Up Scores for a certain Machine                  | Use GSI-3, PK="XrefID" SK="{{Date}}" (Either == Or Between) |
+| 5     | Look Up Scores by UID                                 | Use GSI-1, PK='SCORE#{{UID}}'                               |
+| 6     | Look up Favorite Machines by UID                      | Use Table, PK={{UID}} SK="FAVORITE"                         |
+| 7     | Get All Vistors at certain Location                   | Use GSI-1PK="LOCATION#LID"                                  |
+| 8     | Look Up All Machines Played By A User                 | Use GSI-1, PK="Username" SK="PIN"                           |
+| 9     | Look Up All Favorite Machine Played By A User         | Use GSI-1, PK="Username" SK="FAVORITE"                      |
+| 10    | Look Up All Scores Recorded on A Certain Date         | Use GSI-2, PK="DATE" S                                      |
+| 11    | Look Up Users Who Like Specific Machine               | Use GSI-1, PK="FAVORITE#{{PINID}}"                          |
+|       |                                                       |                                                             |
+|       |                                                       |                                                             |
+|       |                                                       |                                                             |
+|       |                                                       |                                                             |
 
 #### Facets
 
@@ -404,7 +400,7 @@ Looks like Graphql has issues with merging Resolvers, so either the resolvers ha
 
 ```
 var params = {
-    TableName: 'knocker-lambda-player-dev',
+    TableName: 'knocker-dev',
 };
 dynamodb.scan(params, function(err, data) {
     if (err) ppJson(err); // an error occurred

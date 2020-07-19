@@ -1,4 +1,4 @@
-service: knocker-lambda
+service: knocker
 
 # enable required plugins, in order to make what we want
 plugins:
@@ -11,7 +11,7 @@ provider:
   region: us-east-1
   #stage: dev
   environment:
-    PLAYER_TABLE: ${self:custom.settings.${self:custom.myStage}.PLAYER_TABLE}
+    KNOCKER_TABLE: ${self:custom.settings.${self:custom.myStage}.KNOCKER_TABLE}
     DB_URL: ${self:custom.endpoints.dynamodb-url}
   iamRoleStatements:
     - Effect: Allow
@@ -60,9 +60,9 @@ custom:
   myStage: ${opt:stage, self:provider.stage}
   settings:
     local:
-      PLAYER_TABLE: ${self:service}-player-local
+      KNOCKER_TABLE: ${self:service}-local
     dev:
-      PLAYER_TABLE: ${self:service}-player-dev
+      KNOCKER_TABLE: ${self:service}-dev
   endpoints:
     dynamodb-url: "http://localhost:8000"
 
@@ -73,17 +73,61 @@ resources:
       # DeletionPolicy: Retain # Retains table after stack delete
       Properties:
         AttributeDefinitions:
-          - AttributeName: "id"
+          - AttributeName: "PK"
+            AttributeType: "S"
+          - AttributeName: "SK"
+            AttributeType: "S"
+          - AttributeName: "Data"
+            AttributeType: "S"
+          - AttributeName: "Date"
+            AttributeType: "S"
+          - AttributeName: "XrefId"
             AttributeType: "S"
         KeySchema:
-          - AttributeName: "id"
+          - AttributeName: "PK"
             KeyType: "HASH"
+          - AttributeName: "SK"
+            KeyType: "RANGE"
+        GlobalSecondaryIndexes:
+          - IndexName: "DataGSI"
+            KeySchema:
+              - AttributeName: "SK"
+                KeyType: "HASH"
+              - AttributeName: "Data"
+                KeyType: "RANGE"
+            Projection:
+              ProjectionType: "INCLUDE"
+              NonKeyAttributes: ["Date"]
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+          - IndexName: "DateGSI"
+            KeySchema:
+              - AttributeName: "Date"
+                KeyType: "HASH"
+              - AttributeName: "SK"
+                KeyType: "RANGE"
+            Projection:
+              ProjectionType: "ALL"
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+          - IndexName: "XrefIdGSI"
+            KeySchema:
+              - AttributeName: "XrefId"
+                KeyType: "HASH"
+            Projection:
+              ProjectionType: "INCLUDE"
+              NonKeyAttributes: ["Date", "Score", "Data"]
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
         ProvisionedThroughput:
-          ReadCapacityUnits: 1
-          WriteCapacityUnits: 1
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
         StreamSpecification:
           StreamViewType: "NEW_AND_OLD_IMAGES"
-        TableName: ${self:custom.settings.${self:custom.myStage}.PLAYER_TABLE}
+        TableName: ${self:custom.settings.${self:custom.myStage}.KNOCKER_TABLE}
     # Cognito - User Pool (https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-cognito-userpool.html)
     # https://stackoverflow.com/questions/46973302/how-to-require-email-validation-in-cognito-through-cloudformation
     CognitoUserPool:

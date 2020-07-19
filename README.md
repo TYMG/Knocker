@@ -249,7 +249,11 @@ UID - User ID
 LID - Location Id (From the Pinball API)
 PIN - Pin's Actual ID (From the Pinball API)  
 XREF_ID - Pin's XREF Id (From the Pinball API)
-SID - Score ID
+~~SID - Score ID~~
+
+~~PID-Permission Id~~
+
+{{DATE}} Using Time Since Epoch Timestamp
 
 When creating a Partition Key, all items must have a PK and SK. So for the Knocker Table, the Partiton Key will be a String called PK and another string called SK
 
@@ -258,10 +262,12 @@ I'm going to create a Composite Key:
 |---|---|---|---|---|---|
 | {{UID}} | Username#{{Username}} | Name | DateCreated | Email, Location, Permission[Roles] | Create User |
 | {{UID}} | PLAYED#{{XREF_ID}}#{{DATE}} | Username | DateAdded | Username, DateAdded | Add Machine Played] |
-| {{UID}} | FAVORITE#{{PIN}} | Username | DateAdded | DateAdded | |
+| {{UID}} | FAVORITE#PIN#{{XREF}} | Username | DateAdded | DateAdded | |
+| {{UID}} | FAVORITE#GAME#{{PIN}} | Username | DateAdded | DateAdded | |
 | {{UID}} | LOCATION#{{LID}}#{{DATE}} | LID | DateVisited | Username | |
-| SCORE#{{SID}} | SCORE#{{PIN}} | Username | DateRecorded | Score,LID | |
-| LOCATION#{{LID}} | Date | Username | DateVisited |  | Add Visited Location |
+| SCORE#{{PIN}} | SCORE#{{UID}}#{{DATE}} | Username | DateRecorded | Score,LID | |
+| LOCATION#{{LID}}#{{DATE}} | Date | Username | DateVisited |  | Add Visited Location |
+| PERMISSION#{{UID}}#{{DATE}} | Username | Role | DateAdded |  |  |
 
 
 
@@ -271,12 +277,13 @@ I'm going to create a Composite Key:
 | 2     | Look Up User Metadata By Username                      | Use GSI-1, PK="Username#{{Username}}"                       |
 | 3     | Look up Vistors and Date Visted  at a Certain Location | Use GSI-1, PK="Location#{{LID}}"                            |
 | 4     | Look Up Scores for a certain Machine                   | Use GSI-3, PK="XrefID" SK="{{Date}}" (Either == Or Between) |
-| 5     | Look up Favorite Machines by UID                       | Use Table, PK={{UID}}  SK="FAVORITE"                        |
-| 6     | Get All Vistors at certain Location                    | Use GSI-1PK="LOCATION#LID"                                  |
-| 7     | Look Up All Machines Played  By A User                 | Use GSI-1, PK="Username" SK="PIN"                           |
-| 8     | Look Up All Favorite Machine Played  By A User         | Use GSI-1, PK="Username" SK="FAVORITE"                      |
-| 9     | Look Up All Scores Recorded on A Certain Date          | Use GSI-2, PK="DATE" S                                      |
-| 10    | Look Up Users Who Like Specific Machine                | Use GSI-1, PK="FAVORITE#{{PINID}}"                          |
+| 5     | Look Up Scores by UID                                  | Use GSI-1, PK='SCORE#{{UID}}'                               |
+| 6     | Look up Favorite Machines by UID                       | Use Table, PK={{UID}}  SK="FAVORITE"                        |
+| 7     | Get All Vistors at certain Location                    | Use GSI-1PK="LOCATION#LID"                                  |
+| 8     | Look Up All Machines Played  By A User                 | Use GSI-1, PK="Username" SK="PIN"                           |
+| 9     | Look Up All Favorite Machine Played  By A User         | Use GSI-1, PK="Username" SK="FAVORITE"                      |
+| 10    | Look Up All Scores Recorded on A Certain Date          | Use GSI-2, PK="DATE" S                                      |
+| 11    | Look Up Users Who Like Specific Machine                | Use GSI-1, PK="FAVORITE#{{PINID}}"                          |
 |       |                                                        |                                                             |
 |       |                                                        |                                                             |
 |       |                                                        |                                                             |

@@ -2,25 +2,65 @@ type Player {
   id: ID
   username: String
   name: String
-  machinesPlayed: [Machine]
+  permissions: [String]
+  playedMachines: [PlayedMachine]
   scores: [Score]
-  locationsVisited: [Location]
+  locationsVisited: [LocationVisited]
+  favoritePins: [FavoritePin]
+  favoriteGames: [FavoriteGame]
   email: String
 }
 
 type Score {
   id: ID!
   score: String!
-  machineId: String
+  xrefId: String
   machineName: String
   locationId: String
-  date: String! #Should be a Timestramp converted to a String
 }
 input ScoreInput {
   score: String
-  machineId: Int
+  xrefId: Int
   machineName: String
   locationId: Int
+  s3RefId: String
+  isVerified: Boolean
+}
+
+type PlayedMachine {
+  xrefId: String!
+  locationId: String
+}
+
+input PlayedMachineInput {
+  xrefId: String!
+  datesPlayed: [String]
+  locationId: String
+}
+
+type LocationVisited {
+  locationId: String!
+  dateVisited: String
+}
+
+input LocationVisitedInput {
+  locationId: String!
+}
+
+type FavoriteGame {
+  gameId: String
+}
+
+input FavoriteGameInput {
+  gameId: String
+}
+
+type FavoritePin {
+  xrefId: String
+}
+
+input FavoritePin {
+  xrefId: String
 }
 
 type Query {
@@ -39,5 +79,12 @@ type Mutation {
   putPlayer(data: PlayerInput!): Player
   addScore(userId: ID!, data: ScoreInput!): Score
   addScores(userId: ID!, data: [ScoreInput]!): [Score]
+  addPlayedMachine(userId: ID!, data: PlayedMachineInput!): PlayedMachine
+  addPlayedMachines(userId: ID!, data: [PlayedMachineInput]!): [PlayedMachine]
+  addLocationVisited(userId: ID!, data: LocationVisitedInput!): LocationVisited
+  addLocationsVisited(
+    userId: ID!
+    data: [LocationVisitedInput]!
+  ): [LocationVisited]
   deletePlayer(id: String!): Result
 }

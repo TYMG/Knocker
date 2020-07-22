@@ -1,0 +1,126 @@
+[
+  {
+    "PK": "666",
+    "SK": "USER#TYMG",
+    "Data": "Matt Green",
+    "Location": "Washington DC",
+    "Email": "verde.madeo.a@gmail.com",
+    "Date": "2020_07_02"
+  },
+  {
+    "PK": "820",
+    "SK": "USER#TOOT",
+    "Data": "Tottionna Matthews",
+    "Location": "Redding CA",
+    "Email": "tottionna.matthews@gmail.com",
+    "Date": "2020_07_02"
+  },
+  {
+    "PK": "4f68f8c2dca5c29236be94ae036805a7",
+    "SK": "ADMIN",
+    "Data": "TYMG",
+    "Date": "2020_05_02"
+  },
+  {
+    "PK": "da4c2210a187f16715ecb956d57ae5aa",
+    "SK": "PLAYER",
+    "Data": "TOTT",
+    "Date": "2020_05_02"
+  },
+  {
+    "PK": "4f68f8c2dca5c29236be94ae036805a7",
+    "SK": "PLAYER",
+    "Data": "TYMG",
+    "Date": "2020_04_20"
+  },
+  {
+    "PK": "da4c2210a187f16715ecb956d57ae5aa",
+    "SK": "VERIFIER",
+    "Data": "TOTT",
+    "Date": "2020_06_23"
+  },
+  {
+    "PK": "666",
+    "SK": "MACHINE#616#1592913600",
+    "Data": "TYMG",
+    "Date": "2020_06_23"
+  },
+  {
+    "PK": "666",
+    "SK": "MACHINE#1741#1587384000",
+    "Data": "TYMG",
+    "Date": "2020_04_20"
+  },
+  {
+    "PK": "e730064fddfeb05073a91f62c5dcecd5",
+    "SK": "SCORE#666#1588420800",
+    "Data": "TYMG",
+    "Score": "69,000,000",
+    "Date": "2020_05_02",
+    "LocationID": "999",
+    "XrefId": "616"
+  },
+
+  {
+    "PK": "e730064fddfeb05073a91f62c5dcecd5",
+    "SK": "SCORE#820#1592913600",
+    "Data": "TOTT",
+    "Score": "23,000,000",
+    "Date": "2020_06_23",
+    "LocationID": "999",
+    "XrefId": "616"
+  },
+  {
+    "PK": "a3d94ffefee75b952e771735f46f3da8",
+    "SK": "SCORE#666#1592913600",
+    "Data": "TYMG",
+    "Score": "3,200,000,000",
+    "Date": "2020_06_23",
+    "LocationID": "111",
+    "XrefId": "1741",
+    "s3RefId": "RF43234D2F243RR4",
+    "isVerified": "true"
+  },
+  {
+    "PK": "e730064fddfeb05073a91f62c5dcecd5",
+    "SK": "SCORE#666#1588422600",
+    "Data": "TYMG",
+    "Score": "123,000,000",
+    "Date": "2020_05_02",
+    "LocationID": "999",
+    "XrefId": "616"
+  },
+  {
+    "PK": "e730064fddfeb05073a91f62c5dcecd5",
+    "SK": "SCORE#666#1592224200",
+    "Data": "TYMG",
+    "Score": "100,000,000",
+    "Date": "2020_06_15",
+    "LocationID": "999",
+    "XrefId": "616"
+  },
+  {
+    "PK": "666",
+    "SK": "FAVORITE#PIN#616",
+    "Data": "TYMG",
+    "Date": "2020_05_02"
+  },
+  {
+    "PK": "666",
+    "SK": "FAVORITE#GAME#777",
+    "Data": "TYMG",
+    "Date": "2020_06_23"
+  },
+  {
+    "PK": "666",
+    "SK": "LOCATION#999#345",
+    "Data": "TYMG",
+    "Date": "2020_06_23"
+  },
+  {
+    "PK": "666",
+    "SK": "LOCATION#999#789",
+    "Data": "TYMG",
+    "Date": "2020_07_04"
+  }
+]

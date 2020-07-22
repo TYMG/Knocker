@@ -55,6 +55,12 @@ custom:
       port: 8000
       inMemory: true
       migrate: true
+      seed: true
+    seed: #Seeds local data after test are created
+      domain:
+        sources:
+          - table: ${self:custom.settings.${self:custom.myStage}.KNOCKER_TABLE}
+            sources: [./src/db/data/knocker.json]
     stages:
       - ${self:provider.stage}
   myStage: ${opt:stage, self:provider.stage}

@@ -31,7 +31,7 @@ var params = {
 docClient.query(params, function (err, data) {
   if (err) console.log(err);
   // an error occurred
-  else console.log(data); // successful response
+  else console.log("Retrieve User With PK n/", data); // successful response
 });
 
 /*
@@ -52,7 +52,7 @@ var params = {
 docClient.query(params, function (err, data) {
   if (err) console.log(err);
   // an error occurred
-  else console.log(data); // successful response
+  else console.log("Retrieve a User's Location With PK n/", data); // successful response
 });
 
 /*
@@ -73,7 +73,100 @@ var params = {
 docClient.query(params, function (err, data) {
   if (err) console.log(err);
   // an error occurred
-  else console.log(data); // successful response
+  else console.log("Retrieve a User's Favorite Pinball Games n/", data); // successful response
+});
+
+/*
+ *
+ * Query: Retrieve Permissions For A Specifc User (TOTT)
+ *
+ */
+
+var params = {
+  TableName: "knocker-dev",
+  KeyConditionExpression: "PK = :PK",
+  ExpressionAttributeValues: {
+    ":PK": "da4c2210a187f16715ecb956d57ae5aa",
+  },
+};
+
+/**
+ *
+ * Retrieve Users with the Player Role
+ *
+ */
+
+docClient.query(params, function (err, data) {
+  if (err) console.log(err);
+  // an error occurred
+  else console.log("Retrieve Permissions For A Specifc User", data); // successful response
+});
+
+var params = {
+  TableName: "knocker-dev",
+  IndexName: "DataGSI",
+  KeyConditionExpression: "SK = :SK",
+  ExpressionAttributeValues: {
+    ":SK": "PLAYER",
+  },
+};
+
+docClient.query(params, function (err, data) {
+  if (err) console.log(err);
+  // an error occurred
+  else console.log("Retrieve Permissions For A Specifc User", data); // successful response
+});
+
+var params = {
+  TableName: "knocker-dev",
+  IndexName: "XrefIdGSI",
+  KeyConditionExpression: "XrefId = :XrefId",
+  ExpressionAttributeValues: {
+    ":XrefId": "616",
+  },
+};
+
+/*
+ *
+ * GSI: Retrieve all scores from Machine 616
+ *
+ */
+docClient.query(params, function (err, data) {
+  if (err) console.log(err);
+  // an error occurred
+  else console.log("XrefIdGSI where XrefId is 616", data); // successful response
+});
+
+var params = {
+  TableName: "knocker-dev",
+  IndexName: "DateGSI",
+  KeyConditionExpression: "#date = :DATE",
+  ExpressionAttributeNames: { "#date": "Date" },
+  ExpressionAttributeValues: {
+    ":DATE": "2020_05_02",
+  },
+};
+
+/*
+ *
+ * GSI: Retrieve Events on 2020 05 02
+ *
+ */
+
+docClient.query(params, function (err, data) {
+  if (err) console.log(err);
+  // an error occurred
+  else console.log("DateGSI where date is 2020 05 02", data); // successful response
+});
+
+var params = {
+  TableName: "knocker-dev",
+  IndexName: "DateGSI",
+};
+dynamodb.scan(params, function (err, data) {
+  if (err) ppJson(err);
+  // an error occurred
+  else ppJson(data); // successful response
 });
 
 /* var data = "SCORE#777";
@@ -84,4 +177,6 @@ var data = "PERMISSION#666";
 console.log(crypto.createHash("md5").update(data).digest("hex"));
 var data = "PERMISSION#820";
 console.log(crypto.createHash("md5").update(data).digest("hex"));
- */
+*/
+var data = "PERMISSION#820";
+console.log(crypto.createHash("md5").update(data).digest("hex"));

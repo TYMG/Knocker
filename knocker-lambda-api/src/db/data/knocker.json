@@ -1,19 +1,45 @@
 [
   {
     "PK": "666",
-    "SK": "USER#TYMG",
-    "Data": "Matt Green",
+    "SK": "USER",
+    "Data": "TYMG",
+    "Name": "Matt Green",
+    "Location": "Washington DC",
+    "Email": "verde.madeo.a@gmail.com",
+    "Date": "2020_07_02"
+  },
+  {
+    "PK": "USER",
+    "SK": "666",
+    "Data": "TYMG",
+    "Name": "Matt Green",
     "Location": "Washington DC",
     "Email": "verde.madeo.a@gmail.com",
     "Date": "2020_07_02"
   },
   {
     "PK": "820",
-    "SK": "USER#TOOT",
-    "Data": "Tottionna Matthews",
+    "SK": "USER",
+    "Data": "TOTT",
+    "Name": "Tottionna Matthews",
     "Location": "Redding CA",
     "Email": "tottionna.matthews@gmail.com",
     "Date": "2020_07_02"
+  },
+  {
+    "PK": "USER",
+    "SK": "820",
+    "Data": "TOTT",
+    "Name": "Tottionna Matthews",
+    "Location": "Redding CA",
+    "Email": "tottionna.matthews@gmail.com",
+    "Date": "2020_07_02"
+  },
+  {
+    "PK": "666",
+    "SK": "FRIEND#820",
+    "Data": "TOTT",
+    "Date": "2020_05_30"
   },
   {
     "PK": "4f68f8c2dca5c29236be94ae036805a7",

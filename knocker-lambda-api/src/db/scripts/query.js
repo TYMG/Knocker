@@ -92,7 +92,7 @@ var params = {
 
 /**
  *
- * Retrieve Users with the Player Role
+ * Retrieve Users with the Player R
  *
  */
 
@@ -163,10 +163,40 @@ var params = {
   TableName: "knocker-dev",
   IndexName: "DateGSI",
 };
-dynamodb.scan(params, function (err, data) {
-  if (err) ppJson(err);
+
+docClient.scan(params, function (err, data) {
+  if (err) console.log(err);
   // an error occurred
-  else ppJson(data); // successful response
+  else console.log("Table Scan", data); // successful response
+});
+
+var params = {
+  TableName: "knocker-dev",
+  KeyConditionExpression: "PK = :PK",
+  ExpressionAttributeValues: {
+    ":PK": "USER",
+  },
+};
+
+docClient.query(params, function (err, data) {
+  if (err) console.log(err);
+  // an error occurred
+  else console.log("Retrieve All Users", data); // successful response
+});
+
+var params = {
+  TableName: "knocker-dev",
+  KeyConditionExpression: "PK = :PK and begins_with(SK,:SK)",
+  ExpressionAttributeValues: {
+    ":PK": "666",
+    ":SK": "FRIEND",
+  },
+};
+
+docClient.query(params, function (err, data) {
+  if (err) console.log(err);
+  // an error occurred
+  else console.log("Retrieve Friends From User 666", data); // successful response
 });
 
 /* var data = "SCORE#777";

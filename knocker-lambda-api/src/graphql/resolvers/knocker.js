@@ -1,5 +1,47 @@
 const { v4 } = require("uuid");
 
+/**
+ *
+ *
+ * Queries
+ * ------- User ---------
+ * - getUserById
+ *   - In the GQL the user can specify: Favorite Games, IN
+ * - getUserByUsername
+ * - getAllUsers
+ * - getPermissionsById
+ * - getUsersByPermissions
+ *
+ * ------ Scores --------
+ * - getScoresByGameId
+ * - getScoresByXrefId
+ *
+ * ------- Dates --------
+ * - getEventsByDate
+ *
+ * ----- Favorites ------
+ * - getFavoritedMachinesByPinId
+ * - getFavoritedGamesByGameId
+ *
+ * ------ Machines ------
+ * - getPinsPlayedByXref
+ */
+
+/**
+ *
+ * Writes
+ * ------- User ---------
+ * - createUser
+ * - addUserPermission
+ * - addFavoriteGame
+ * - addFavoriteMachine
+ * - addFriend(s)
+ * - addPlayedMachine
+ *
+ * ------ Scores --------
+ * - addScore
+ *
+ */
 export default {
   Query: {
     players: (_, __, { dataSources }) => dataSources.knockerDB.get(),
@@ -77,9 +119,28 @@ export default {
         console.error(e);
         result.error = "Internal error";
       }
-      console.log("addScores() - result", args.data);
+      //console.log("addScores() - result", args.data);
       return args.data;
     },
+    addPlayedMachine: async (source, args, { dataSources }, state) => {
+      const { data } = args;
+      let result = {};
+      try {
+        //console.log(dataSources);
+        result = await dataSources.knockerDB.createMachinePlayed(
+          args.data,
+          args.userId
+        );
+      } catch (e) {
+        console.error(e);
+        result.error = "Internal error";
+      }
+      //console.log("addScore() - result", result);
+      return result;
+    },
+    addPlayedMachines: async (source, args, { dataSources }, state) => {},
+    addLocationVisited: async (source, args, { dataSources }, state) => {},
+    addLocationsVisited: async (source, args, { dataSources }, state) => {},
     deletePlayer: async (source, args, { dataSources }, state) => {
       const { id } = args;
 

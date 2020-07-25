@@ -199,6 +199,21 @@ docClient.query(params, function (err, data) {
   else console.log("Retrieve Friends From User 666", data); // successful response
 });
 
+var params = {
+  TableName: "knocker-dev",
+  IndexName: "SKGSI",
+  KeyConditionExpression: "SK = :SK",
+  ExpressionAttributeValues: {
+    ":SK": "PLAYER",
+  },
+};
+
+docClient.query(params, function (err, data) {
+  if (err) console.log(err);
+  // an error occurred
+  else console.log("Retireve User With Player Permission", data); // successful response
+});
+
 /* var data = "SCORE#777";
 console.log(crypto.createHash("md5").update(data).digest("hex"));
 var data = "SCORE#13";

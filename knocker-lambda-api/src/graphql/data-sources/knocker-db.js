@@ -82,7 +82,6 @@ export default class KnockerDB {
   async createScore(scoreData, userId) {
     const paramsData = scoreData;
     //console.log("knocker-db.js - createScore()", paramsData, userId);
-
     var params = {
       TableName: process.env.PLAYER_TABLE,
       Key: { id: userId },
@@ -94,6 +93,79 @@ export default class KnockerDB {
     };
     const db = await this.getDatabase();
 
+    const res = await db.update(params).then(function (data, err) {
+      if (err) {
+        //console.log(err, err.stack);
+      } else {
+        //console.log("update createScore() Response: ", paramsData);
+        console.log("data", data);
+        return scoreData;
+      }
+    });
+    return res;
+  }
+
+  async createMachinePlayed(machinePlayed, userId) {
+    const db = await this.getDatabase();
+    const paramsData = machinePlayed;
+    var queryParams = {
+      TableName: process.env.PLAYER_TABLE,
+      KeyConditionExpression: "id =:i",
+      FilterExpression: "contains(machinesPlayed,:machineId)",
+      ExpressionAttributeValues: {
+        ":machineId": machinePlayed.machineId,
+        ":i": userId,
+      },
+    };
+    const query = await db.query(queryParams, function (data, err) {
+      if (err) {
+        console.log(err, err.stack);
+      } else {
+        //console.log("update createScore() Response: ", paramsData);
+        console.log("data", data);
+        return data;
+      }
+    });
+
+    var params = {
+      TableName: process.env.PLAYER_TABLE,
+      Key: { id: userId },
+      UpdateExpression:
+        "SET machinesPlayed = list_append(machinesPlayed, :machines)",
+      ExpressionAttributeValues: {
+        ":machines": [
+          { ...machinePlayed, id: v4(), lastUpdated: new Date().getTime() },
+        ],
+      },
+      ReturnValues: "UPDATED_NEW",
+    };
+    const res = await db.update(params).then(function (data, err) {
+      if (err) {
+        //console.log(err, err.stack);
+      } else {
+        //console.log("update createScore() Response: ", paramsData);
+        console.log("data", data);
+        return machinePlayed;
+      }
+    });
+    return res;
+  }
+
+  async createVisitedLocation(visitedLocation, userId) {
+    const paramsData = visitedLocation;
+    var params = {
+      TableName: process.env.PLAYER_TABLE,
+      Key: { id: userId },
+      UpdateExpression:
+        "SET machinesPlayed = list_append(machinesPlayed, :machines)",
+      ExpressionAttributeValues: {
+        ":machines": [
+          { ...visitedLocation, id: v4(), dateVisted: new Date().getTime() },
+        ],
+      },
+      ReturnValues: "UPDATED_NEW",
+    };
+    const db = await this.getDatabase();
     const res = await db.update(params).then(function (data, err) {
       if (err) {
         //console.log(err, err.stack);

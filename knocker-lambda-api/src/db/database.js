@@ -11,6 +11,7 @@ export default class Database {
       //console.log("__DEV__:", __DEV__);
       if (__DEV__) {
         params = {
+          apiVersion: "2012-08-10",
           endpoint: process.env.DB_URL,
           region: "local",
           accessKeyId: "local",
@@ -26,6 +27,20 @@ export default class Database {
       this._connection = new AWS.DynamoDB.DocumentClient(params);
     }
     return this._connection;
+  }
+
+  async query(params) {
+    return new Promise((resolve, reject) => {
+      this._connection.query(params, (err, data) => {
+        if (err) {
+          reject(err);
+        } else {
+          //console.log("database.js - get()", data);
+          //console.log("database.js - get(): Items", data.Items);
+          return data;
+        }
+      });
+    });
   }
 
   async get() {

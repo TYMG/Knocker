@@ -9,8 +9,8 @@ const { v4 } = require("uuid");
  *   - In the GQL the user can specify: Favorite Games, IN
  * - getUserByUsername
  * - getAllUsers
- * - getPermissionsById
- * - getUsersByPermissions
+ * - getRolesById
+ * - getUsersByRoles
  *
  * ------ Scores --------
  * - getScoresByGameId
@@ -44,15 +44,60 @@ const { v4 } = require("uuid");
  */
 export default {
   Query: {
-    players: (_, __, { dataSources }) => dataSources.knockerDB.get(),
+    /**
+     *
+     * KnockerDB
+     *
+     */
+    // ------- User ---------
+    users: (_, __, { dataSources }) => dataSources.knockerDB.get(),
+    userById: async (source, { id }, { dataSources }, state) =>
+      dataSources.knockerDB.getUserById({ id: id }),
+    userByUsername: async (source, args, { dataSources }, state) =>
+      dataSources.knockerDB.getUserByUsername({ username: username }),
+    userRolesById: async (source, { id }, { dataSources }, state) =>
+      dataSources.knockerDB.getUserRolesById({ id: id }),
+    usersByRoles: async (source, args, { dataSources }, state) => {},
+    usersScores: async (soruce, { username }, { dataSources }, state) =>
+      dataSources.knockerDB.getUserScores({ username: username }),
+    knockerScoresByGameId: async (source, { gameId }, { dataSources }, state) =>
+      dataSources.knockerDB.getScoresByGameId({ gameId: gameId }),
+    knockerScoresByXrefId: async (
+      source,
+      { locMachId },
+      { dataSources },
+      state
+    ) =>
+      dataSources.knockerDB.getKnockerScoresByLocationMachineId({
+        locMachId: locMachId,
+      }),
+    pmScoresByXrefId: async (source, { locMachId }, { dataSources }, state) =>
+      dataSources.pinballMachineAPI.getPMScoresByLocationMachineId({
+        locMachId: locMachId,
+      }),
+    // ------- Dates --------
+
+    eventsByDate: async (source, { date }, { dataSources }, state) =>
+      dataSources.knockerDB.getEventsByDate({ date: date }),
+
+    /**
+     *
+     *
+     * PinballAPI
+     *
+     */
     machines: (_, __, { dataSources }) =>
       dataSources.pinballMachineAPI.getAllMachines(),
+    getAllHighScoresForARegion: (_, __, { dataSources }) =>
+      dataSources.pinballMachineAPI.getAllMachines(),
+
     locations: (_, { region }, { dataSources }) =>
       dataSources.pinballMachineAPI.getLocations({ region: region }),
     locationsByRegion: (_, { region }, { dataSources }) =>
       dataSources.pinballMachineAPI.getLocationsByRegion({ region: region }),
     regions: (_, __, { dataSources }) =>
       dataSources.pinballMachineAPI.getAllRegions(),
+
     /* 
     allOps: (_, __, { dataSources }) =>
       dataSources.pinballMachineAPI.getAllOperators(),
@@ -67,7 +112,12 @@ export default {
       dataSources.pinballMachineAPI.getLocationsByRegion({ region: region }) */
   },
   Mutation: {
-    putPlayer: async (source, args, { dataSources }, state) => {
+    /**
+     *
+     * Create a User
+     *
+     */
+    createUser: async (source, args, { dataSources }, state) => {
       const { data } = args;
 
       let result = {};
@@ -81,13 +131,31 @@ export default {
 
       return result;
     },
+    deletePlayer: async (source, args, { dataSources }, state) => {
+      const { id } = args;
+
+      let result = {};
+      try {
+        await dataSources.knockerDB.delete(id);
+      } catch (e) {
+        console.error(e);
+        result.error = "Internal error";
+      }
+
+      return result;
+    },
     /**
-     * 
-     * 
-     *   id: '2',
-  machineId: 642,
-  machineName: 'Medieval Madness',
-  locationId: 10426 }
+     *
+     * Add a User Permission
+     *
+     */
+    addUserPermission: async (source, args, { dataSources }, state) => {},
+    /***
+     * Add a recorded score
+     *
+     * @param {}
+     *
+     *
      */
     addScore: async (source, args, { dataSources }, state) => {
       const { data } = args;
@@ -122,6 +190,30 @@ export default {
       //console.log("addScores() - result", args.data);
       return args.data;
     },
+    addFriend: async (source, args, { dataSources }, state) => {},
+    addFriends: async (source, args, { dataSources }, state) => {},
+    /**
+     *
+     */
+    /**
+     *
+     * Add a favorite game
+     *
+     */
+    addFavoriteGame: async (source, args, { dataSources }, state) => {},
+    addFavoriteGames: async (source, args, { dataSources }, state) => {},
+    /**
+     *
+     * Add a favorite pin
+     *
+     */
+    addFavoritePin: async (source, args, { dataSources }, state) => {},
+    addFavoritePins: async (source, args, { dataSources }, state) => {},
+    /**
+     *
+     *
+     *
+     */
     addPlayedMachine: async (source, args, { dataSources }, state) => {
       const { data } = args;
       let result = {};
@@ -141,18 +233,5 @@ export default {
     addPlayedMachines: async (source, args, { dataSources }, state) => {},
     addLocationVisited: async (source, args, { dataSources }, state) => {},
     addLocationsVisited: async (source, args, { dataSources }, state) => {},
-    deletePlayer: async (source, args, { dataSources }, state) => {
-      const { id } = args;
-
-      let result = {};
-      try {
-        await dataSources.knockerDB.delete(id);
-      } catch (e) {
-        console.error(e);
-        result.error = "Internal error";
-      }
-
-      return result;
-    },
   },
 };

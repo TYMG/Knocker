@@ -97,9 +97,9 @@ resources:
         GlobalSecondaryIndexes:
           - IndexName: "DataGSI"
             KeySchema:
-              - AttributeName: "SK"
-                KeyType: "HASH"
               - AttributeName: "Data"
+                KeyType: "HASH"
+              - AttributeName: "SK"
                 KeyType: "RANGE"
             Projection:
               ProjectionType: "INCLUDE"
@@ -134,7 +134,7 @@ resources:
                 KeyType: "HASH"
             Projection:
               ProjectionType: "INCLUDE"
-              NonKeyAttributes: ["Date", "Data"]
+              NonKeyAttributes: ["Date", "Score", "Data"]
             ProvisionedThroughput:
               ReadCapacityUnits: 5
               WriteCapacityUnits: 5

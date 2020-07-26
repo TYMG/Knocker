@@ -65,7 +65,7 @@ export class PinballMachineAPI extends RESTDataSource {
     };
   }
 
-  highestScore(hs) {
+  scoreReducer(hs) {
     return {
       id: hs.id,
       location_machine_xref_id: hs.location_machine_xref_id,
@@ -90,6 +90,10 @@ export class PinballMachineAPI extends RESTDataSource {
     };
   }
 
+  /**
+   *
+   * Note: getMachineById is not neccessary if the whole list is loaded into the app
+   */
   async getAllMachines() {
     const response = await this.get(`/machines.json`);
     // transform the raw launches to a more friendly
@@ -161,9 +165,19 @@ export class PinballMachineAPI extends RESTDataSource {
     //The Address is a zipcode, the most important field
   }
 
-  async getMachinesHighestScore() {
+  async getPMScoresByLocationMachineId({ locMachId }) {
     /*  https://pinballmap.com/api/v1/machine_score_xrefs/3467
       id:3467 */
+    const response = await this.get("/machine_score_xrefs/" + locMachId);
+
+    let returnArray = [];
+    if (response) {
+      response["machine_scores"].forEach((element) => {
+        ////console.log("test", element);
+        returnArray.push(this.scoreReducer(element));
+      });
+      return returnArray;
+    }
   }
 
   /*   async getLaunchById({ launchId }) {

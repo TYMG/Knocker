@@ -190,29 +190,153 @@ export default class KnockerDB {
     });
   }
 
-  async getById(id) {
+  /**
+   *
+   * This function needs to be updated to return lists of Locations, Machines Played Favorite Machines, Favorite Games, Friends
+   *
+   * @param {*} id
+   */
+  async getUserById(id) {
     const db = await this.getDatabase();
-    return db.getItem({
+    return db.query({
       TableName: process.env.PLAYER_TABLE,
-      Key: {
-        id: {
-          S: id.toString(),
-        },
+      KeyConditionExpression: "PK = :PK ",
+      ExpressionAttributeValues: {
+        ":PK": id,
       },
     });
   }
 
-  async getByUsername(username) {
+  /**
+   *
+   * This function needs to be updated to return list of Locations, Machines Played, Scores
+   *
+   * @param {*} username
+   */
+  async getUserByUsername(username) {
     const db = await this.getDatabase();
-    return db.getItem({
+    return db.query({
       TableName: process.env.PLAYER_TABLE,
-      Key: {
-        username: {
-          S: username.toString(),
-        },
+      IndexName: "DataGSI",
+      KeyConditionExpression: "#Data = :Data",
+      ExpressionAttributeNames: {
+        "#Data": "Data",
+      },
+      ExpressionAttributeValues: {
+        ":Data": username,
       },
     });
   }
+
+  async getUserRolesById(id) {
+    const permissionUserHash = crypto
+      .createHash("md5")
+      .update("ROLE#" + id)
+      .digest("hex");
+    console.log(permissionUserHash);
+    const db = await this.getDatabase();
+    return db.query({
+      TableName: process.env.PLAYER_TABLE,
+      KeyConditionExpression: "PK = :PK",
+      ExpressionAttributeValues: {
+        ":PK": permissionHash,
+      },
+    });
+  }
+
+  async getUsersByRole(role) {
+    return db.query({
+      TableName: process.env.PLAYER_TABLE,
+      IndexName: "SKGSI",
+      KeyConditionExpression: "SK = :SK",
+      ExpressionAttributeValues: {
+        ":SK": role,
+      },
+    });
+  }
+
+  async getUserScores(username, uid) {
+    const db = await this.getDatabase();
+    return db.query({
+      TableName: process.env.PLAYER_TABLE,
+      IndexName: "DataGSI",
+      KeyConditionExpression: "#Data = :Data AND begins_with(SK,:SK)",
+      ExpressionAttributeNames: {
+        "#Data": "Data",
+      },
+      ExpressionAttributeValues: {
+        ":Data": username,
+        ":SK": "SCORE",
+      },
+    });
+  }
+  async getUserScoresByGameId(username, uid, gameId) {
+    const db = await this.getDatabase();
+    return db.query({
+      TableName: process.env.PLAYER_TABLE,
+      IndexName: "DataGSI",
+      KeyConditionExpression: "#Data = :Data AND begins_with(SK,:SK)",
+      ExpressionAttributeNames: {
+        "#Data": "Data",
+      },
+      ExpressionAttributeValues: {
+        ":Data": username,
+        ":SK": "SCORE#" + uid + "#" + gameId,
+      },
+    });
+  }
+
+  /**
+   *
+   * @param {*} gameId
+   */
+  async getScoresByGameId(gameId) {
+    const gameScoreHash = crypto
+      .createHash("md5")
+      .update("SCORE#" + gameId)
+      .digest("hex");
+    console.log(gameScoreHash);
+    const db = await this.getDatabase();
+    return db.query({
+      TableName: process.env.PLAYER_TABLE,
+      KeyConditionExpression: "PK = :PK ",
+      ExpressionAttributeValues: {
+        ":PK": gameScoreHash,
+      },
+    });
+  }
+
+  async getKnockerScoresByLocationMachineId(locMachId) {
+    var params = {
+      TableName: process.env.PLAYER_TABLE,
+      IndexName: "XrefIdGSI",
+      KeyConditionExpression: "XrefId = :XrefId",
+      ExpressionAttributeValues: {
+        ":XrefId": locMachId,
+      },
+    };
+
+    docClient.query(params, function (err, data) {
+      if (err) console.log(err);
+      // an error occurred
+      else console.log("Result", data); // successful response
+    });
+  }
+
+  async getEventsByDate(date) {
+    var params = {
+      TableName: process.env.PLAYER_TABLE,
+      IndexName: "DateGSI",
+      KeyConditionExpression: "#Date = :Date",
+      ExpressionAttributeNames: {
+        "#Date": "Date",
+      },
+      ExpressionAttributeValues: {
+        ":Date": date,
+      },
+    };
+  }
+
   /* 
 async getForCharacter(id) {
     const db = await this.getDatabase();

@@ -104,7 +104,7 @@ docClient.query(params, function (err, data) {
 
 var params = {
   TableName: "knocker-dev",
-  IndexName: "DataGSI",
+  IndexName: "SKGSI",
   KeyConditionExpression: "SK = :SK",
   ExpressionAttributeValues: {
     ":SK": "PLAYER",

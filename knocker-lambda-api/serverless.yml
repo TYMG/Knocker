@@ -87,7 +87,7 @@ resources:
             AttributeType: "S"
           - AttributeName: "Date"
             AttributeType: "S"
-          - AttributeName: "XrefId"
+          - AttributeName: "LocationMachineXrefId"
             AttributeType: "S"
         KeySchema:
           - AttributeName: "PK"
@@ -118,9 +118,9 @@ resources:
             ProvisionedThroughput:
               ReadCapacityUnits: 5
               WriteCapacityUnits: 5
-          - IndexName: "XrefIdGSI"
+          - IndexName: "LocationMachineXrefIdGSI"
             KeySchema:
-              - AttributeName: "XrefId"
+              - AttributeName: "LocationMachineXrefId"
                 KeyType: "HASH"
             Projection:
               ProjectionType: "INCLUDE"

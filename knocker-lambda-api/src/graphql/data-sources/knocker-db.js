@@ -4,43 +4,22 @@ import score from "../../db/tables/score";
 const cryptoRandomString = require("crypto-random-string");
 const crypto = require("crypto");
 const { v4 } = require("uuid");
+var moment = require("moment"); // require
 
 export default class KnockerDB {
   constructor() {}
   // our methods go here, we are going to discuss them below
+
+  /**
+   *
+   * ---------------------------------------------
+   *                   Writes
+   * ---------------------------------------------
+   *
+   */
+
   async put(data) {
     const paramsData = data;
-    //console.log("knocker-db.js - put()", paramsData);
-    /* const item = {
-      username: {
-        S: data.username.toString(),
-      },
-      name: {
-        S: data.name.toString(),
-      },
-      machinesPlayed: {
-        L: [],
-      },
-      scores: {
-        L: [],
-      },
-      locationsVisited: {
-        L: [],
-      },
-      email: {
-        S: data.email.toString(),
-      },
-    };
-
-    if (data.id) {
-      item.id = { S: data.id.toString() };
-    } else {
-      // as we mentioned before, we need to specify a new key explicitly
-      crypto.randomBytes(20, (err, buffer) => {
-        const token = buffer.toString("hex");
-        item.id = { S: token };
-      });
-    } */
 
     const item = {
       id: "2",
@@ -79,104 +58,288 @@ export default class KnockerDB {
     return item;
   }
 
-  async createScore(scoreData, userId) {
-    const paramsData = scoreData;
-    //console.log("knocker-db.js - createScore()", paramsData, userId);
+  async addPermissions(permission, userId, username) {
+    var hashString = "PERMISSION#" + userId;
+    const permissionUserHash = crypto
+      .createHash("md5")
+      .update(data)
+      .digest("hex");
+
     var params = {
       TableName: process.env.PLAYER_TABLE,
-      Key: { id: userId },
-      UpdateExpression: "SET scores = list_append(scores, :score)",
+      Key: {
+        // The primary key of the item (a map of attribute name to AttributeValue)
+
+        PK: permissionUserHash, //(string | number | boolean | null | Binary)
+        SK: permission,
+        // more attributes...
+      },
+      UpdateExpression: "SET #Data = :Data, #Date = :Date",
+      ConditionExpression: "Not contains(SK,:SK)", // optional String describing the constraint to be placed on an attribute
+      ExpressionAttributeNames: {
+        // a map of substitutions for attribute names with special characters
+        "#Data": "Data",
+        "#Date": "Date",
+      },
       ExpressionAttributeValues: {
-        ":score": [{ ...scoreData, id: v4(), createdAt: new Date().getTime() }],
+        // a map of substitutions for all attribute values
+        ":SK": permission,
+        ":Data": username,
+        ":Date": moment().format("YYYY-MM-DD"),
       },
       ReturnValues: "UPDATED_NEW",
     };
     const db = await this.getDatabase();
 
-    const res = await db.update(params).then(function (data, err) {
+    return db.update(params).then(function (data, err) {
       if (err) {
         //console.log(err, err.stack);
       } else {
         //console.log("update createScore() Response: ", paramsData);
         console.log("data", data);
-        return scoreData;
       }
     });
-    return res;
   }
 
-  async createMachinePlayed(machinePlayed, userId) {
-    const db = await this.getDatabase();
-    const paramsData = machinePlayed;
-    var queryParams = {
+  async addFriend(friendUserName, friendUid, userId) {
+    const SK = "FRIEND#" + friendUid;
+    var params = {
       TableName: process.env.PLAYER_TABLE,
-      KeyConditionExpression: "id =:i",
-      FilterExpression: "contains(machinesPlayed,:machineId)",
-      ExpressionAttributeValues: {
-        ":machineId": machinePlayed.machineId,
-        ":i": userId,
+      Key: {
+        PK: userId, //(string | number | boolean | null | Binary)
+        SK: SK,
       },
+      UpdateExpression: "set #data = :data, #date = :date", // String representation of the update
+      ConditionExpression: "Not contains(SK,:sk)", // Checks if SK contains :sk value ? ConditionalCheckFailedException : Add Item
+      ExpressionAttributeNames: {
+        // a map of substitutions for attribute names with special character
+        "#data": "Data",
+        "#date": "Date",
+      },
+      ExpressionAttributeValues: {
+        // a map of substitutions for all attribute values
+        ":sk": SK,
+        ":data": friendUserName,
+        ":date": moment().format("YYYY-MM-DD"),
+      },
+      ReturnValues: "UPDATED_NEW",
     };
-    const query = await db.query(queryParams, function (data, err) {
+    const db = await this.getDatabase();
+
+    return db.update(params).then(function (data, err) {
       if (err) {
-        console.log(err, err.stack);
+        //console.log(err, err.stack);
       } else {
         //console.log("update createScore() Response: ", paramsData);
         console.log("data", data);
-        return data;
       }
     });
-
+  }
+  async addFavoritePin(pinId, username, userId) {
+    const SK = "FAVORITE#PIN#" + pinId;
     var params = {
       TableName: process.env.PLAYER_TABLE,
-      Key: { id: userId },
+      Key: {
+        PK: userId, //(string | number | boolean | null | Binary)
+        SK: SK,
+      },
+      UpdateExpression: "set #data = :data, #date = :date", // String representation of the update
+      ConditionExpression: "Not contains(SK,:sk)", // Checks if SK contains :sk value ? ConditionalCheckFailedException : Add Item
+      ExpressionAttributeNames: {
+        // a map of substitutions for attribute names with special character
+        "#data": "Data",
+        "#date": "Date",
+      },
+      ExpressionAttributeValues: {
+        // a map of substitutions for all attribute values
+        ":sk": SK,
+        ":data": username,
+        ":date": moment().format("YYYY-MM-DD"),
+      },
+      ReturnValues: "UPDATED_NEW",
+    };
+    const db = await this.getDatabase();
+
+    return db.update(params).then(function (data, err) {
+      if (err) {
+        //console.log(err, err.stack);
+      } else {
+        //console.log("update createScore() Response: ", paramsData);
+        console.log("data", data);
+      }
+    });
+  }
+
+  async addFavoriteMachine(locationMachineXrefId, username, userId) {
+    const SK = "FAVORITE#MACHINE#" + locationMachineXrefId;
+    var params = {
+      TableName: process.env.PLAYER_TABLE,
+      Key: {
+        PK: userId, //(string | number | boolean | null | Binary)
+        SK: SK,
+      },
+      UpdateExpression: "set #data = :data, #date = :date", // String representation of the update
+      ConditionExpression: "Not contains(SK,:sk)", // Checks if SK contains :sk value ? ConditionalCheckFailedException : Add Item
+      ExpressionAttributeNames: {
+        // a map of substitutions for attribute names with special character
+        "#data": "Data",
+        "#date": "Date",
+      },
+      ExpressionAttributeValues: {
+        // a map of substitutions for all attribute values
+        ":sk": SK,
+        ":data": username,
+        ":date": moment().format("YYYY-MM-DD"),
+      },
+      ReturnValues: "UPDATED_NEW",
+    };
+    const db = await this.getDatabase();
+
+    return db.update(params).then(function (data, err) {
+      if (err) {
+        //console.log(err, err.stack);
+      } else {
+        //console.log("update createScore() Response: ", paramsData);
+        console.log("data", data);
+      }
+    });
+  }
+
+  async addPlayedMachine(locationMachineXrefId, userId) {
+    const epoch = moment().format("X");
+    const SK = "MACHINE#" + locationMachineXrefId + "#" + epoch;
+    var params = {
+      TableName: process.env.PLAYER_TABLE,
+      Key: {
+        PK: "666", //(string | number | boolean | null | Binary)
+        SK: SK,
+      },
+      UpdateExpression: "set #data = :data, #date = :date", // String representation of the update
+      ConditionExpression: "Not contains(SK,:sk)", // Checks if SK contains :sk value ? ConditionalCheckFailedException : Add Item
+      ExpressionAttributeNames: {
+        // a map of substitutions for attribute names with special character
+        "#data": "Data",
+        "#date": "Date",
+      },
+      ExpressionAttributeValues: {
+        // a map of substitutions for all attribute values
+        ":sk": SK,
+        ":data": "TYMG",
+        ":date": moment().format("YYYY-MM-DD"),
+      },
+      ReturnValues: "UPDATED_NEW",
+    };
+
+    const db = await this.getDatabase();
+
+    return db.update(params).then(function (data, err) {
+      if (err) {
+        //console.log(err, err.stack);
+      } else {
+        //console.log("update createScore() Response: ", paramsData);
+        console.log("data", data);
+      }
+    });
+  }
+
+  async addVisitedLocation(locationId, userId) {
+    const epoch = moment().format("X");
+    const SK = "LOCATION#" + locationId + "#" + epoch;
+    var params = {
+      TableName: process.env.PLAYER_TABLE,
+      Key: {
+        PK: "666", //(string | number | boolean | null | Binary)
+        SK: SK,
+      },
+      UpdateExpression: "set #data = :data, #date = :date", // String representation of the update
+      ConditionExpression: "Not contains(SK,:sk)", // Checks if SK contains :sk value ? ConditionalCheckFailedException : Add Item
+      ExpressionAttributeNames: {
+        // a map of substitutions for attribute names with special character
+        "#data": "Data",
+        "#date": "Date",
+      },
+      ExpressionAttributeValues: {
+        // a map of substitutions for all attribute values
+        ":sk": SK,
+        ":data": "TYMG",
+        ":date": moment().format("YYYY-MM-DD"),
+      },
+      ReturnValues: "UPDATED_NEW",
+    };
+
+    const db = await this.getDatabase();
+
+    return db.update(params).then(function (data, err) {
+      if (err) {
+        //console.log(err, err.stack);
+      } else {
+        //console.log("update createScore() Response: ", paramsData);
+        console.log("data", data);
+      }
+    });
+  }
+
+  async createScore(
+    score,
+    pinId,
+    locationId,
+    locationMachineXrefId,
+    username,
+    userId
+  ) {
+    const epoch = moment().format("X");
+    const scoreString = "SCORE#" + pinId;
+    const PK = crypto.createHash("md5").update(scoreString).digest("hex");
+
+    const SK = "SCORE#" + userId + "#" + epoch;
+    var params = {
+      TableName: process.env.PLAYER_TABLE,
+      Key: {
+        PK: PK, //(string | number | boolean | null | Binary)
+        SK: SK,
+        // more attributes...
+      },
       UpdateExpression:
-        "SET machinesPlayed = list_append(machinesPlayed, :machines)",
-      ExpressionAttributeValues: {
-        ":machines": [
-          { ...machinePlayed, id: v4(), lastUpdated: new Date().getTime() },
-        ],
+        "SET #Data = :Data, #Score = :Score, #Date = :Date, #LocationId = :LocationId, #LocationMachineXrefId =:LocationMachineXrefId",
+      ConditionExpression: "Not contains(SK,:SK)", // optional String describing the constraint to be placed on an attribute
+      ExpressionAttributeNames: {
+        // a map of substitutions for attribute names with special characters
+        "#Data": "Data",
+        "#Score": "Score",
+        "#Date": "Date",
+        "#LocationId": "LocationId",
+        "#LocationMachineXrefId": "LocationMachineXrefId",
       },
-      ReturnValues: "UPDATED_NEW",
-    };
-    const res = await db.update(params).then(function (data, err) {
-      if (err) {
-        //console.log(err, err.stack);
-      } else {
-        //console.log("update createScore() Response: ", paramsData);
-        console.log("data", data);
-        return machinePlayed;
-      }
-    });
-    return res;
-  }
-
-  async createVisitedLocation(visitedLocation, userId) {
-    const paramsData = visitedLocation;
-    var params = {
-      TableName: process.env.PLAYER_TABLE,
-      Key: { id: userId },
-      UpdateExpression:
-        "SET machinesPlayed = list_append(machinesPlayed, :machines)",
       ExpressionAttributeValues: {
-        ":machines": [
-          { ...visitedLocation, id: v4(), dateVisted: new Date().getTime() },
-        ],
+        // a map of substitutions for all attribute values
+        ":SK": SK,
+        ":Data": username,
+        ":Score": score,
+        ":Date": moment().format("YYYY-MM-DD"),
+        ":LocationId": locationId,
+        ":LocationMachineXrefId": locationMachineXrefId,
       },
       ReturnValues: "UPDATED_NEW",
     };
     const db = await this.getDatabase();
-    const res = await db.update(params).then(function (data, err) {
+
+    return db.update(params).then(function (data, err) {
       if (err) {
         //console.log(err, err.stack);
       } else {
         //console.log("update createScore() Response: ", paramsData);
         console.log("data", data);
-        return scoreData;
       }
     });
-    return res;
   }
+
+  /**
+   *
+   * ---------------------------------------------
+   *                   Queries
+   * ---------------------------------------------
+   *
+   */
 
   async get() {
     const db = await this.getDatabase();
@@ -332,49 +495,15 @@ export default class KnockerDB {
         "#Date": "Date",
       },
       ExpressionAttributeValues: {
-        ":Date": date,
+        ":Date": moment(date).format("YYYY-MM-DD"),
       },
     };
-  }
-
-  /* 
-async getForCharacter(id) {
-    const db = await this.getDatabase();
-    const result = await db.scan({
-        TableName: 'player',
-        ExpressionAttributeValues: {
-            ':cId': {
-                S: id,
-            },
-        },
-        FilterExpression: 'contains(characters, :cId)',
+    docClient.query(params, function (err, data) {
+      if (err) console.log(err);
+      // an error occurred
+      else console.log("Result", data); // successful response
     });
-
-    if (result && result.Items) {
-        // need to "decode" the items, i know this is annoying
-        return result.Items.map((item) => {
-
-            const p = item.parameters ? item.parameters.M : {};
-            const parameters = [];
-            Object.keys(p).forEach((k) => {
-                parameters.push({
-                    name: k,
-                    value: p[k].S,
-                });
-            });
-
-            return {
-                name: item.name.S,
-                damage: item.damage.N,
-                id: item.id.S,
-                type: item.type.S,
-                parameters,
-            };
-        });
-    }
-
-    return [];
-} */
+  }
 
   async delete(id) {
     const db = await this.getDatabase();

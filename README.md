@@ -258,6 +258,25 @@ XREF_ID - Pin's XREF Id (From the Pinball API)
 When creating a Partition Key, all items must have a PK and SK. So for the Knocker Table, the Partiton Key will be a String called PK and another string called SK
 
 I'm going to create a Composite Key:
+
+| PK              | SK                                                    | Data         | Date           | Other Attributes                                | Purpose                                                      |
+| --------------- | ----------------------------------------------------- | ------------ | -------------- | ----------------------------------------------- | ------------------------------------------------------------ |
+| {{UID}}         | USER                                                  | {{Username}} | {{yyyy-MM-dd}} | Location, Email, Name                           | User Information                                             |
+| {{UID}}         | FAVORITE#MACHINE#{{LocationMachineXrefId}}            | {{Username}} | {{yyyy-MM-dd}} |                                                 | A User's Favorite Pinball Machine (Machine Specific not Game Specific) |
+| {{UID}}         | FAVORITE#PIN#{{PinId}}                                | {{Username}} | {{yyyy-MM-dd}} |                                                 | A User's Favorite Pin ( Game Specific)                       |
+| {{UID}}         | FRIEND#{{UID}}                                        | {{Username}} | {{yyyy-MM-dd}} |                                                 | A User's Friend                                              |
+| {{UID}}         | LOCATION#{{LocationId}}#{{EPOCH-TIMESTAMP}}           | {{Username}} | {{yyyy-MM-dd}} |                                                 | A User's Visited Location                                    |
+| {{UID}}         | MACHINE#{{LocationMachineXrefId}}#{{EPOCH-TIMESTAMP}} | {{Username}} | {{yyyy-MM-dd}} |                                                 | A User's Played Machines                                     |
+| USER            | {{UID}}                                               | {{Username}} | {{yyyy-MM-dd}} | Location,  Email, Name                          | User Information                                             |
+| SCORE#{{PinId}} | SCORE#{{UID}}#{{PinId}}#{{EPOCH-TIMESTAMP}}           | {{Username}} | {{yyyy-MM-dd}} | Score, LocationId, LocationMachineXrefId, PinId | Recorded Score                                               |
+| ROLE#{{UID}}    | {{ROLE}}                                              | {{Username}} | {{yyyy-MM-dd}} |                                                 |                                                              |
+|                 |                                                       |              |                |                                                 |                                                              |
+|                 |                                                       |              |                |                                                 |                                                              |
+|                 |                                                       |              |                |                                                 |                                                              |
+|                 |                                                       |              |                |                                                 |                                                              |
+
+
+
 | PK | SK (GSK 1 PK) (GSK 2 SK) | Data (GSK 1 SK) | Date(GSK 2 PK) | Attributes | Purpose |
 |---|---|---|---|---|---|
 | {{UID}} | Username#{{Username}} | Name | DateCreated | Email, Location, Permission[Roles] | Create User |

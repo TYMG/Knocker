@@ -223,5 +223,3 @@ console.log(crypto.createHash("md5").update(data).digest("hex"));
 var data = "PERMISSION#820";
 console.log(crypto.createHash("md5").update(data).digest("hex"));
 */
-var data = "PERMISSION#820";
-console.log(crypto.createHash("md5").update(data).digest("hex"));

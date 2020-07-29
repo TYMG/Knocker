@@ -2,6 +2,7 @@
 var AWS = require("aws-sdk");
 var crypto = require("crypto");
 const fs = require("fs");
+const references = require("../../graphql");
 
 // Set the region
 AWS.config.update({ region: "REGION" });
@@ -55,20 +56,25 @@ var docClient = new AWS.DynamoDB.DocumentClient(params);
        Location: 'Washington DC' } ],
  *
  */
+var username = "TYMG";
 var params = {
   TableName: "knocker-dev",
-  KeyConditionExpression: "PK = :PK ",
+  IndexName: "DataGSI",
+  KeyConditionExpression: "#Data = :Data",
+  ExpressionAttributeNames: {
+    "#Data": "Data",
+  },
   ExpressionAttributeValues: {
-    ":PK": "666",
+    ":Data": username,
   },
 };
 
+console.log(Array.isArray(references.ROLES));
 docClient.query(params, function (err, data) {
   if (err) console.log(err);
   // an error occurred
   else {
-    console.log("Retrieve User With PK n/", data);
-    console.log(Array.isArray(data.Items));
+    //console.log("Retrieve User With PK n/", data);
     const items = data.Items;
     var user = {};
     items.forEach((element) => {
@@ -99,6 +105,7 @@ docClient.query(params, function (err, data) {
           },
         ];
       } else if (element.SK.startsWith("FRIEND")) {
+        console.log(element);
         if (user.friends === undefined) {
           user.friends = [];
         }
@@ -130,8 +137,33 @@ docClient.query(params, function (err, data) {
           ...user.playedMachines,
           { machineId: +element.SK.split("#")[1], datePlayed: element.Date },
         ];
+      } else if (element.SK.startsWith("SCORE")) {
+        if (user.scores === undefined) {
+          user.scores = [];
+        }
+        user.scores = [
+          ...user.scores,
+          {
+            score: element.Score,
+            locationId: element.LocationId,
+            locationMachineXrefId: element.LocationMachineXrefId,
+            pinId: element.PinId,
+            date: element.Date,
+            S3RefId: element.S3RefId,
+            IsVerified: element.IsVerified,
+          },
+        ];
+      } else if (references.ROLES.find((role) => role === element.SK)) {
+        if (user.roles === undefined) {
+          user.roles = [];
+        }
+        user.roles = [
+          ...user.roles,
+          { role: element.SK, dateAdded: element.Date },
+        ];
       }
     });
-    console.log(user);
-  } // successful response}
+    // successful response}
+  }
+  console.log(user);
 });

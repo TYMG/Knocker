@@ -1,44 +1,46 @@
-type Player {
+type User {
   id: ID
   username: String
   name: String
-  permissions: [String]
+  location: String
+  roles: [String]
   playedMachines: [PlayedMachine]
   scores: [Score]
-  locationsVisited: [LocationVisited]
+  visitedLocations: [LocationVisited]
   favoritePins: [FavoritePin]
   favoriteGames: [FavoriteGame]
   email: String
 }
 
 type Score {
-  id: ID!
   score: String!
-  xrefId: String
-  machineName: String
+  pinId: String
   locationId: String
+  locationMachineXrefId: String
+  date:String
+  s3RefId:String
+  isVerified:String
+
 }
 input ScoreInput {
   score: String
-  xrefId: Int
-  machineName: String
+  locationMachineXrefId: String
+  pinId: String
   locationId: Int
   s3RefId: String
   isVerified: Boolean
 }
 
 type PlayedMachine {
-  xrefId: String!
-  locationId: String
+  locationMachineXrefId: String!
+  date:String
 }
 
 input PlayedMachineInput {
-  xrefId: String!
-  datesPlayed: [String]
-  locationId: String
+  locationMachineXrefId: String!
 }
 
-type LocationVisited {
+type VisitedLocation {
   locationId: String!
   dateVisited: String
 }
@@ -55,36 +57,42 @@ input FavoriteGameInput {
   gameId: String
 }
 
-type FavoritePin {
-  xrefId: String
+type FavoriteMachine {
+  locationMachineXrefId: String
 }
 
-input FavoritePin {
-  xrefId: String
+input FavoriteMachineInput {
+  locationMachineXrefId: String
+}
+
+type Friend{
+  username:String
+  dateAdded:String
+}
+type FriendInput{
+  username:String
 }
 
 type Query {
-  players: [Player]
-  player(id: String!): Player!
-  player(username: String!): Player!
+  users: [User]
+  userById(id: String!): User!
+  userByUsername(username: String!): User!
+  userRolesById(role:String!):[User]
 }
 
-input PlayerInput {
-  username: String!
-  name: String!
-  email: String!
-}
 
 type Mutation {
-  putPlayer(data: PlayerInput!): Player
   addScore(userId: ID!, data: ScoreInput!): Score
+  addFriend(userId: ID!)
   addScores(userId: ID!, data: [ScoreInput]!): [Score]
   addPlayedMachine(userId: ID!, data: PlayedMachineInput!): PlayedMachine
-  addPlayedMachines(userId: ID!, data: [PlayedMachineInput]!): [PlayedMachine]
+ addPlayedMachines(userId: ID!, data: [PlayedMachineInput]!): [PlayedMachine]
   addLocationVisited(userId: ID!, data: LocationVisitedInput!): LocationVisited
+  addFavoriteGame(userId:ID!, data:FavoriteGameInput)
+  addFavoriteMachine(userId:ID!, data:FavoritePinInput)
   addLocationsVisited(
     userId: ID!
     data: [LocationVisitedInput]!
   ): [LocationVisited]
-  deletePlayer(id: String!): Result
+  deleteUser(id: String!): Result
 }

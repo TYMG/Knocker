@@ -58,7 +58,7 @@ export default {
     userRolesById: async (source, { id }, { dataSources }, state) =>
       dataSources.knockerDB.getUserRolesById({ id: id }),
     usersByRoles: async (source, args, { dataSources }, state) => {},
-    usersScores: async (soruce, { username }, { dataSources }, state) =>
+    usersScores: async (source, { username }, { dataSources }, state) =>
       dataSources.knockerDB.getUserScores({ username: username }),
     knockerScoresByGameId: async (source, { gameId }, { dataSources }, state) =>
       dataSources.knockerDB.getScoresByGameId({ gameId: gameId }),
@@ -207,8 +207,8 @@ export default {
      * Add a favorite pin
      *
      */
-    addFavoritePin: async (source, args, { dataSources }, state) => {},
-    addFavoritePins: async (source, args, { dataSources }, state) => {},
+    addFavoriteMachine: async (source, args, { dataSources }, state) => {},
+    addFavoriteMachines: async (source, args, { dataSources }, state) => {},
     /**
      *
      *

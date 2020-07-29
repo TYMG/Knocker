@@ -4,8 +4,9 @@ import score from "../../db/tables/score";
 const cryptoRandomString = require("crypto-random-string");
 const crypto = require("crypto");
 const { v4 } = require("uuid");
-var moment = require("moment"); // require
 
+var moment = require("moment"); // require
+const userReducer = require("../reducers/user");
 export default class KnockerDB {
   constructor() {}
   // our methods go here, we are going to discuss them below
@@ -58,11 +59,11 @@ export default class KnockerDB {
     return item;
   }
 
-  async addPermissions(permission, userId, username) {
-    var hashString = "PERMISSION#" + userId;
-    const permissionUserHash = crypto
+  async addRoles(role, userId, username) {
+    var hashString = "ROLE#" + userId;
+    const roleUserHash = crypto
       .createHash("md5")
-      .update(data)
+      .update(hashString)
       .digest("hex");
 
     var params = {
@@ -70,8 +71,8 @@ export default class KnockerDB {
       Key: {
         // The primary key of the item (a map of attribute name to AttributeValue)
 
-        PK: permissionUserHash, //(string | number | boolean | null | Binary)
-        SK: permission,
+        PK: roleUserHash, //(string | number | boolean | null | Binary)
+        SK: role,
         // more attributes...
       },
       UpdateExpression: "SET #Data = :Data, #Date = :Date",
@@ -83,7 +84,7 @@ export default class KnockerDB {
       },
       ExpressionAttributeValues: {
         // a map of substitutions for all attribute values
-        ":SK": permission,
+        ":SK": role,
         ":Data": username,
         ":Date": moment().format("YYYY-MM-DD"),
       },
@@ -361,13 +362,20 @@ export default class KnockerDB {
    */
   async getUserById(id) {
     const db = await this.getDatabase();
-    return db.query({
+    const params = {
       TableName: process.env.PLAYER_TABLE,
       KeyConditionExpression: "PK = :PK ",
       ExpressionAttributeValues: {
         ":PK": id,
       },
+    };
+    return docClient.query(params, function (err, data) {
+      if (err) console.log(err);
+      // an error occurred
+      else return userReducer.reduce(data); // successful response
     });
+
+    // successful response}
   }
 
   /**
@@ -377,8 +385,7 @@ export default class KnockerDB {
    * @param {*} username
    */
   async getUserByUsername(username) {
-    const db = await this.getDatabase();
-    return db.query({
+    const params = {
       TableName: process.env.PLAYER_TABLE,
       IndexName: "DataGSI",
       KeyConditionExpression: "#Data = :Data",
@@ -388,21 +395,27 @@ export default class KnockerDB {
       ExpressionAttributeValues: {
         ":Data": username,
       },
+    };
+    const db = await this.getDatabase();
+    return db.query(function (err, data) {
+      if (err) console.log(err);
+      // an error occurred
+      else return userReducer.reduce(data); // successful response
     });
   }
 
   async getUserRolesById(id) {
-    const permissionUserHash = crypto
+    const roleUserHash = crypto
       .createHash("md5")
       .update("ROLE#" + id)
       .digest("hex");
-    console.log(permissionUserHash);
+    console.log(roleUserHash);
     const db = await this.getDatabase();
     return db.query({
       TableName: process.env.PLAYER_TABLE,
       KeyConditionExpression: "PK = :PK",
       ExpressionAttributeValues: {
-        ":PK": permissionHash,
+        ":PK": roleHash,
       },
     });
   }
@@ -472,17 +485,17 @@ export default class KnockerDB {
   async getKnockerScoresByLocationMachineId(locMachId) {
     var params = {
       TableName: process.env.PLAYER_TABLE,
-      IndexName: "XrefIdGSI",
-      KeyConditionExpression: "XrefId = :XrefId",
+      IndexName: "LocationMachineXrefIdGSI",
+      KeyConditionExpression: "LocationMachineXrefId = :LocationMachineXrefId",
       ExpressionAttributeValues: {
-        ":XrefId": locMachId,
+        ":LocationMachineXrefId": locMachId,
       },
     };
 
-    docClient.query(params, function (err, data) {
+    return docClient.query(params, function (err, data) {
       if (err) console.log(err);
       // an error occurred
-      else console.log("Result", data); // successful response
+      else return data; // successful response
     });
   }
 
@@ -498,10 +511,10 @@ export default class KnockerDB {
         ":Date": moment(date).format("YYYY-MM-DD"),
       },
     };
-    docClient.query(params, function (err, data) {
+    return docClient.query(params, function (err, data) {
       if (err) console.log(err);
       // an error occurred
-      else console.log("Result", data); // successful response
+      else return data; // successful response
     });
   }
 

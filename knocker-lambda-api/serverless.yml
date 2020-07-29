@@ -102,8 +102,7 @@ resources:
               - AttributeName: "SK"
                 KeyType: "RANGE"
             Projection:
-              ProjectionType: "INCLUDE"
-              NonKeyAttributes: ["Date"]
+              ProjectionType: "ALL"
             ProvisionedThroughput:
               ReadCapacityUnits: 5
               WriteCapacityUnits: 5

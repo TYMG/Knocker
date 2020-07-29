@@ -7,7 +7,7 @@ export class PinballMachineAPI extends RESTDataSource {
   }
 
   // leaving this inside the class to make the class easier to test
-  pinballMachineReducer(pin) {
+  machineReducer(pin) {
     return {
       id: pin.id,
       name: pin.name,
@@ -22,6 +22,25 @@ export class PinballMachineAPI extends RESTDataSource {
       opdb_id: pin.opdb_id,
     };
   }
+
+  machineXrefsReducer(machineXref) {
+    console.log(machineXref);
+    return {
+      id: machineXref.id,
+      created_at: machineXref.created_at,
+      updated_at: machineXref.updated_at,
+      location_id: machineXref.location_id,
+      machine_id: machineXref.machine_id,
+      condition: machineXref.condition,
+      condition_date: machineXref.condition_date,
+      ip: machineXref.ip,
+      user_id: machineXref.user_id,
+      machine_score_xrefs_count: machineXref.machine_score_xrefs_count,
+      location: this.locationReducer(machineXref.location),
+      machine: this.machineReducer(machineXref.machine),
+    };
+  }
+
   regionReducer(reg) {
     return {
       id: reg.id,
@@ -101,7 +120,7 @@ export class PinballMachineAPI extends RESTDataSource {
     if (response) {
       response["machines"].forEach((element) => {
         ////console.log("test", element);
-        returnArray.push(this.pinballMachineReducer(element));
+        returnArray.push(this.machineReducer(element));
       });
       return returnArray;
     } /*  Array.isArray(response)
@@ -175,6 +194,20 @@ export class PinballMachineAPI extends RESTDataSource {
       response["machine_scores"].forEach((element) => {
         ////console.log("test", element);
         returnArray.push(this.scoreReducer(element));
+      });
+      return returnArray;
+    }
+  }
+
+  async getMachineXrefByRegion({ region }) {
+    const response = await this.get(
+      "/region/" + region + "/location_machine_xrefs"
+    );
+    let returnArray = [];
+    if (response) {
+      response["location_machine_xrefs"].forEach((element) => {
+        ////console.log("test", element);
+        returnArray.push(this.machineXrefsReducer(element));
       });
       return returnArray;
     }

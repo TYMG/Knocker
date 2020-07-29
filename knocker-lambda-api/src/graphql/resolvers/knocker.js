@@ -91,9 +91,10 @@ export default {
       dataSources.pinballMachineAPI.getLocations({ region: region }),
     locationsByRegion: (_, { region }, { dataSources }) =>
       dataSources.pinballMachineAPI.getLocationsByRegion({ region: region }),
-    regions: (_, __, { dataSources }) =>
+    regions: (_, { region }, { dataSources }) =>
       dataSources.pinballMachineAPI.getAllRegions(),
-
+    machineXrefs: (_, { region }, { dataSources }) =>
+      dataSources.pinballMachineAPI.getMachineXrefByRegion({ region: region }),
     /* 
     allOps: (_, __, { dataSources }) =>
       dataSources.pinballMachineAPI.getAllOperators(),

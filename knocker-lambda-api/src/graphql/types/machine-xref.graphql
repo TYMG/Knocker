@@ -10,9 +10,11 @@ type MachineXref {
   machine_score_xrefs_count: Int
   last_updated_by_username: String
   machine_conditions: [MachineCondition]
+  location: Location
+  machine: Machine
 }
 
 type Query {
-  machineXrefs: [MachineXref]!
+  machineXrefs(region: String): [MachineXref]!
   machineXref(id: String!): MachineXref!
 }

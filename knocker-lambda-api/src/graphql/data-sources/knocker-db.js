@@ -59,7 +59,7 @@ export default class KnockerDB {
     return item;
   }
 
-  async addRoles(role, userId, username) {
+  async addRole(role, userId, username) {
     var hashString = "ROLE#" + userId;
     const roleUserHash = crypto
       .createHash("md5")
@@ -136,8 +136,8 @@ export default class KnockerDB {
       }
     });
   }
-  async addFavoritePin(pinId, username, userId) {
-    const SK = "FAVORITE#PIN#" + pinId;
+  async addFavoriteGame(gameId, username, userId) {
+    const SK = "FAVORITE#GAME#" + gameId;
     var params = {
       TableName: process.env.PLAYER_TABLE,
       Key: {
@@ -206,7 +206,7 @@ export default class KnockerDB {
     });
   }
 
-  async addPlayedMachine(locationMachineXrefId, userId) {
+  async addPlayedMachine(locationMachineXrefId, username) {
     const epoch = moment().format("X");
     const SK = "MACHINE#" + locationMachineXrefId + "#" + epoch;
     var params = {
@@ -225,7 +225,7 @@ export default class KnockerDB {
       ExpressionAttributeValues: {
         // a map of substitutions for all attribute values
         ":sk": SK,
-        ":data": "TYMG",
+        ":data": username,
         ":date": moment().format("YYYY-MM-DD"),
       },
       ReturnValues: "UPDATED_NEW",
@@ -243,13 +243,13 @@ export default class KnockerDB {
     });
   }
 
-  async addVisitedLocation(locationId, userId) {
+  async addVisitedLocation(locationId, username, uid) {
     const epoch = moment().format("X");
     const SK = "LOCATION#" + locationId + "#" + epoch;
     var params = {
       TableName: process.env.PLAYER_TABLE,
       Key: {
-        PK: "666", //(string | number | boolean | null | Binary)
+        PK: uid, //(string | number | boolean | null | Binary)
         SK: SK,
       },
       UpdateExpression: "set #data = :data, #date = :date", // String representation of the update
@@ -262,7 +262,7 @@ export default class KnockerDB {
       ExpressionAttributeValues: {
         // a map of substitutions for all attribute values
         ":sk": SK,
-        ":data": "TYMG",
+        ":data": username,
         ":date": moment().format("YYYY-MM-DD"),
       },
       ReturnValues: "UPDATED_NEW",
@@ -282,14 +282,14 @@ export default class KnockerDB {
 
   async createScore(
     score,
-    pinId,
+    gameId,
     locationId,
     locationMachineXrefId,
     username,
     userId
   ) {
     const epoch = moment().format("X");
-    const scoreString = "SCORE#" + pinId;
+    const scoreString = "SCORE#" + gameId;
     const PK = crypto.createHash("md5").update(scoreString).digest("hex");
 
     const SK = "SCORE#" + userId + "#" + epoch;

@@ -1,5 +1,5 @@
 export default {
-  TableName: process.env.PLAYER_TABLE,
+  TableName: process.env.KNOCKER_TABLE,
   KeySchema: [
     {
       AttributeName: "id",

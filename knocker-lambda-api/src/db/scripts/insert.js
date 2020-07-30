@@ -169,7 +169,7 @@ const res = await db.update(params).then(function (data, err) {
 const epoch = moment().format("X");
 const SK = "MACHINE#616#" + epoch;
 var params = {
-  TableName: process.env.PLAYER_TABLE,
+  TableName: process.env.KNOCKER_TABLE,
   Key: {
     PK: userId, //(string | number | boolean | null | Binary)
     SK: SK,

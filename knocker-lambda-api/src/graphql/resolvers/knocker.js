@@ -52,12 +52,12 @@ export default {
     // ------- User ---------
     users: (_, __, { dataSources }) => dataSources.knockerDB.get(),
     userById: async (source, { id }, { dataSources }, state) =>
-      dataSources.knockerDB.getUserById({ id: id }),
-    userByUsername: async (source, args, { dataSources }, state) =>
-      dataSources.knockerDB.getUserByUsername({ username: username }),
+      dataSources.knockerDB.getUserById(id),
+    userByUsername: async (source, { username }, { dataSources }, state) =>
+      dataSources.knockerDB.getUserByUsername(username),
     usersByRoles: async (source, args, { dataSources }, state) => {},
     knockerScoresByGameId: async (source, { gameId }, { dataSources }, state) =>
-      dataSources.knockerDB.getScoresByGameId({ gameId: gameId }),
+      dataSources.knockerDB.getScoresByGameId(gameId),
     knockerScoresByXrefId: async (
       source,
       { locMachId },
@@ -68,9 +68,7 @@ export default {
         locMachId: locMachId,
       }),
     pmScoresByXrefId: async (source, { locMachId }, { dataSources }, state) =>
-      dataSources.pinballMachineAPI.getPMScoresByLocationMachineId({
-        locMachId: locMachId,
-      }),
+      dataSources.pinballMachineAPI.getPMScoresByLocationMachineId(locMachId),
     // ------- Dates --------
 
     /* eventsByDate: async (source, { date }, { dataSources }, state) =>

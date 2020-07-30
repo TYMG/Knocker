@@ -35,9 +35,7 @@ export default class Database {
         if (err) {
           reject(err);
         } else {
-          //console.log("database.js - get()", data);
-          //console.log("database.js - get(): Items", data.Items);
-          return data;
+          resolve(data);
         }
       });
     });
@@ -45,7 +43,7 @@ export default class Database {
 
   async get() {
     var params = {
-      TableName: process.env.PLAYER_TABLE,
+      TableName: process.env.KNOCKER_TABLE,
     };
 
     return new Promise((resolve, reject) => {

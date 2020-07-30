@@ -1,1 +1,1 @@
-process.env.PLAYER_TABLE = "knocker-lambda-player-dev";
+process.env.KNOCKER_TABLE = "knocker-dev";

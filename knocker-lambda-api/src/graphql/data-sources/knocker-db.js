@@ -35,7 +35,7 @@ export default class KnockerDB {
 
     const db = await this.getDatabase();
     /* await db.putItem({
-     TableName: process.env.PLAYER_TABLE,
+     TableName: process.env.KNOCKER_TABLE,
       Item: item,
     }); */
     //return item;
@@ -43,7 +43,7 @@ export default class KnockerDB {
     //console.log("item: ", item);
     await db
       .putItem({
-        TableName: process.env.PLAYER_TABLE,
+        TableName: process.env.KNOCKER_TABLE,
         Item: item,
         ReturnValues: "NONE",
       })
@@ -67,7 +67,7 @@ export default class KnockerDB {
       .digest("hex");
 
     var params = {
-      TableName: process.env.PLAYER_TABLE,
+      TableName: process.env.KNOCKER_TABLE,
       Key: {
         // The primary key of the item (a map of attribute name to AttributeValue)
 
@@ -105,7 +105,7 @@ export default class KnockerDB {
   async addFriend(friendUserName, friendUid, userId) {
     const SK = "FRIEND#" + friendUid;
     var params = {
-      TableName: process.env.PLAYER_TABLE,
+      TableName: process.env.KNOCKER_TABLE,
       Key: {
         PK: userId, //(string | number | boolean | null | Binary)
         SK: SK,
@@ -139,7 +139,7 @@ export default class KnockerDB {
   async addFavoriteGame(gameId, username, userId) {
     const SK = "FAVORITE#GAME#" + gameId;
     var params = {
-      TableName: process.env.PLAYER_TABLE,
+      TableName: process.env.KNOCKER_TABLE,
       Key: {
         PK: userId, //(string | number | boolean | null | Binary)
         SK: SK,
@@ -174,7 +174,7 @@ export default class KnockerDB {
   async addFavoriteMachine(locationMachineXrefId, username, userId) {
     const SK = "FAVORITE#MACHINE#" + locationMachineXrefId;
     var params = {
-      TableName: process.env.PLAYER_TABLE,
+      TableName: process.env.KNOCKER_TABLE,
       Key: {
         PK: userId, //(string | number | boolean | null | Binary)
         SK: SK,
@@ -210,7 +210,7 @@ export default class KnockerDB {
     const epoch = moment().format("X");
     const SK = "MACHINE#" + locationMachineXrefId + "#" + epoch;
     var params = {
-      TableName: process.env.PLAYER_TABLE,
+      TableName: process.env.KNOCKER_TABLE,
       Key: {
         PK: "666", //(string | number | boolean | null | Binary)
         SK: SK,
@@ -247,7 +247,7 @@ export default class KnockerDB {
     const epoch = moment().format("X");
     const SK = "LOCATION#" + locationId + "#" + epoch;
     var params = {
-      TableName: process.env.PLAYER_TABLE,
+      TableName: process.env.KNOCKER_TABLE,
       Key: {
         PK: uid, //(string | number | boolean | null | Binary)
         SK: SK,
@@ -294,7 +294,7 @@ export default class KnockerDB {
 
     const SK = "SCORE#" + userId + "#" + epoch;
     var params = {
-      TableName: process.env.PLAYER_TABLE,
+      TableName: process.env.KNOCKER_TABLE,
       Key: {
         PK: PK, //(string | number | boolean | null | Binary)
         SK: SK,
@@ -347,7 +347,7 @@ export default class KnockerDB {
     //console.log("knocker-db.js - get()");
 
     return db.get({
-      TableName: process.env.PLAYER_TABLE,
+      TableName: process.env.KNOCKER_TABLE,
       Key: {
         HashKey: "hashkey",
       },
@@ -363,7 +363,7 @@ export default class KnockerDB {
   async getUserById(id) {
     const db = await this.getDatabase();
     const params = {
-      TableName: process.env.PLAYER_TABLE,
+      TableName: process.env.KNOCKER_TABLE,
       KeyConditionExpression: "PK = :PK ",
       ExpressionAttributeValues: {
         ":PK": id,
@@ -386,7 +386,7 @@ export default class KnockerDB {
    */
   async getUserByUsername(username) {
     const params = {
-      TableName: process.env.PLAYER_TABLE,
+      TableName: process.env.KNOCKER_TABLE,
       IndexName: "DataGSI",
       KeyConditionExpression: "#Data = :Data",
       ExpressionAttributeNames: {
@@ -397,11 +397,19 @@ export default class KnockerDB {
       },
     };
     const db = await this.getDatabase();
-    return db.query(function (err, data) {
+    return db.query(params).then((response) => {
+      console.log("then getUserByUsername", response);
+      return userReducer.reduce(response);
+      // successful response
+    });
+    /* return db.query(params, function (err, data) {
       if (err) console.log(err);
       // an error occurred
-      else return userReducer.reduce(data); // successful response
-    });
+      else {
+        console.log(data);
+        return userReducer.reduce(data);
+      } // successful response
+    }); */
   }
 
   async getUserRolesById(id) {
@@ -412,7 +420,7 @@ export default class KnockerDB {
     console.log(roleUserHash);
     const db = await this.getDatabase();
     return db.query({
-      TableName: process.env.PLAYER_TABLE,
+      TableName: process.env.KNOCKER_TABLE,
       KeyConditionExpression: "PK = :PK",
       ExpressionAttributeValues: {
         ":PK": roleHash,
@@ -422,7 +430,7 @@ export default class KnockerDB {
 
   async getUsersByRole(role) {
     return db.query({
-      TableName: process.env.PLAYER_TABLE,
+      TableName: process.env.KNOCKER_TABLE,
       IndexName: "SKGSI",
       KeyConditionExpression: "SK = :SK",
       ExpressionAttributeValues: {
@@ -434,7 +442,7 @@ export default class KnockerDB {
   async getUserScores(username, uid) {
     const db = await this.getDatabase();
     return db.query({
-      TableName: process.env.PLAYER_TABLE,
+      TableName: process.env.KNOCKER_TABLE,
       IndexName: "DataGSI",
       KeyConditionExpression: "#Data = :Data AND begins_with(SK,:SK)",
       ExpressionAttributeNames: {
@@ -449,7 +457,7 @@ export default class KnockerDB {
   async getUserScoresByGameId(username, uid, gameId) {
     const db = await this.getDatabase();
     return db.query({
-      TableName: process.env.PLAYER_TABLE,
+      TableName: process.env.KNOCKER_TABLE,
       IndexName: "DataGSI",
       KeyConditionExpression: "#Data = :Data AND begins_with(SK,:SK)",
       ExpressionAttributeNames: {
@@ -474,7 +482,7 @@ export default class KnockerDB {
     console.log(gameScoreHash);
     const db = await this.getDatabase();
     return db.query({
-      TableName: process.env.PLAYER_TABLE,
+      TableName: process.env.KNOCKER_TABLE,
       KeyConditionExpression: "PK = :PK ",
       ExpressionAttributeValues: {
         ":PK": gameScoreHash,
@@ -484,7 +492,7 @@ export default class KnockerDB {
 
   async getKnockerScoresByLocationMachineId(locMachId) {
     var params = {
-      TableName: process.env.PLAYER_TABLE,
+      TableName: process.env.KNOCKER_TABLE,
       IndexName: "LocationMachineXrefIdGSI",
       KeyConditionExpression: "LocationMachineXrefId = :LocationMachineXrefId",
       ExpressionAttributeValues: {
@@ -501,7 +509,7 @@ export default class KnockerDB {
 
   async getEventsByDate(date) {
     var params = {
-      TableName: process.env.PLAYER_TABLE,
+      TableName: process.env.KNOCKER_TABLE,
       IndexName: "DateGSI",
       KeyConditionExpression: "#Date = :Date",
       ExpressionAttributeNames: {
@@ -521,7 +529,7 @@ export default class KnockerDB {
   async delete(id) {
     const db = await this.getDatabase();
     await db.deleteItem({
-      TableName: process.env.PLAYER_TABLE,
+      TableName: process.env.KNOCKER_TABLE,
       Key: {
         id: {
           S: id.toString(),

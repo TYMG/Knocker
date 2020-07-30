@@ -24,7 +24,6 @@ export class PinballMachineAPI extends RESTDataSource {
   }
 
   machineXrefsReducer(machineXref) {
-    console.log(machineXref);
     return {
       id: machineXref.id,
       created_at: machineXref.created_at,
@@ -38,7 +37,27 @@ export class PinballMachineAPI extends RESTDataSource {
       machine_score_xrefs_count: machineXref.machine_score_xrefs_count,
       location: this.locationReducer(machineXref.location),
       machine: this.machineReducer(machineXref.machine),
+      machine_conditions: this.machineConditionsReducer(
+        machineXref.machine_conditions
+      ),
     };
+  }
+
+  machineConditionsReducer(machineConditions) {
+    var list = [];
+    machineConditions.forEach((machineCondition) => {
+      list = [
+        ...list,
+        {
+          id: machineCondition.id,
+          comment: machineCondition.comment,
+          location_machine_xref_Id: machineCondition.location_machine_xref_id,
+          created_at: machineCondition.created_at,
+          updated_at: machineCondition.updated_at,
+        },
+      ];
+    });
+    return list;
   }
 
   regionReducer(reg) {

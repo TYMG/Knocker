@@ -5,7 +5,7 @@ const { v4 } = require("uuid");
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 const dbParams = {
-  TableName: process.env.PLAYER_TABLE,
+  TableName: process.env.KNOCKER_TABLE,
   ProjectionExpression: "id, email,  name, scores, usernames",
 };
 
@@ -63,7 +63,7 @@ module.exports.main = (event, context, callback) => {
 
 const addUser = (user, callback) => {
   const userData = {
-    TableName: process.env.PLAYER_TABLE,
+    TableName: process.env.KNOCKER_TABLE,
     Item: user,
   };
   return dynamoDb.put(userData, callback);

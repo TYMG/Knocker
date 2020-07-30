@@ -12,6 +12,12 @@ type User {
   email: String
 }
 
+type RoleUser {
+  id: String
+  username: String
+  dateAdded: String
+}
+
 type PinballAPIScore {
   id: String!
   location_machine_xref_id: String!
@@ -86,7 +92,7 @@ input FriendInput {
 
 type Query {
   users: [User]
-  usersByRoles(role: String!): [User]
+  usersByRoles(role: String!): [RoleUser]
   userById(id: String!): User!
   userByUsername(username: String!): User!
   knockerScoresByGameId(gameId: String): [Score]

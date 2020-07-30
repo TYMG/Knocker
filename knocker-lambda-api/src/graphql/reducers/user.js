@@ -101,4 +101,15 @@ reduce = (data) => {
   return user;
 };
 
+roleReducer = (data) => {
+  const items = data.Items;
+  var roleUsers = [];
+  items.forEach((item) => {
+    roleUsers = [...roleUsers, { username: item.Data, dateAdded: item.Date }];
+  });
+  console.log(roleUsers);
+  return roleUsers;
+};
+
 exports.reduce = reduce;
+exports.roleReducer = roleReducer;

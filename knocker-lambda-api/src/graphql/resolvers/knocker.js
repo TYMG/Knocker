@@ -55,7 +55,8 @@ export default {
       dataSources.knockerDB.getUserById(id),
     userByUsername: async (source, { username }, { dataSources }, state) =>
       dataSources.knockerDB.getUserByUsername(username),
-    usersByRoles: async (source, args, { dataSources }, state) => {},
+    usersByRoles: async (source, { role }, { dataSources }, state) =>
+      dataSources.knockerDB.getUsersByRole(role),
     knockerScoresByGameId: async (source, { gameId }, { dataSources }, state) =>
       dataSources.knockerDB.getScoresByGameId(gameId),
     knockerScoresByXrefId: async (

@@ -361,7 +361,6 @@ export default class KnockerDB {
    * @param {*} id
    */
   async getUserById(id) {
-    const db = await this.getDatabase();
     const params = {
       TableName: process.env.KNOCKER_TABLE,
       KeyConditionExpression: "PK = :PK ",
@@ -369,10 +368,11 @@ export default class KnockerDB {
         ":PK": id,
       },
     };
-    return docClient.query(params, function (err, data) {
-      if (err) console.log(err);
-      // an error occurred
-      else return userReducer.reduce(data); // successful response
+    const db = await this.getDatabase();
+    return db.query(params).then((response) => {
+      console.log("then getUserById", response);
+      return userReducer.reduce(response);
+      // successful response
     });
 
     // successful response}
@@ -402,46 +402,50 @@ export default class KnockerDB {
       return userReducer.reduce(response);
       // successful response
     });
-    /* return db.query(params, function (err, data) {
-      if (err) console.log(err);
-      // an error occurred
-      else {
-        console.log(data);
-        return userReducer.reduce(data);
-      } // successful response
-    }); */
   }
 
-  async getUserRolesById(id) {
+  /**
+   * Roles can retrieved from the DataGSI
+   *
+   * @param {*} id
+   */
+  /*   async getUserRolesById(id) {
     const roleUserHash = crypto
       .createHash("md5")
       .update("ROLE#" + id)
       .digest("hex");
-    console.log(roleUserHash);
-    const db = await this.getDatabase();
-    return db.query({
+    const params = {
       TableName: process.env.KNOCKER_TABLE,
       KeyConditionExpression: "PK = :PK",
       ExpressionAttributeValues: {
         ":PK": roleHash,
       },
+    };
+    console.log(roleUserHash);
+    const db = await this.getDatabase();
+    return db.query(params).then((response) => {
+      console.log("getUserRolesId", response);
+      return userReducer.roleReducer(response);
     });
-  }
+  } */
 
   async getUsersByRole(role) {
-    return db.query({
+    const db = await this.getDatabase();
+    const params = {
       TableName: process.env.KNOCKER_TABLE,
       IndexName: "SKGSI",
       KeyConditionExpression: "SK = :SK",
       ExpressionAttributeValues: {
         ":SK": role,
       },
+    };
+    return db.query(params).then((response) => {
+      return userReducer.roleReducer(response);
     });
   }
 
   async getUserScores(username, uid) {
-    const db = await this.getDatabase();
-    return db.query({
+    params = {
       TableName: process.env.KNOCKER_TABLE,
       IndexName: "DataGSI",
       KeyConditionExpression: "#Data = :Data AND begins_with(SK,:SK)",
@@ -452,7 +456,9 @@ export default class KnockerDB {
         ":Data": username,
         ":SK": "SCORE",
       },
-    });
+    };
+    const db = await this.getDatabase();
+    return db.query();
   }
   async getUserScoresByGameId(username, uid, gameId) {
     const db = await this.getDatabase();

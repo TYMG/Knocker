@@ -1,12 +1,13 @@
 import Database from "../../db/database";
 import stringGen from "crypto-random-string";
 import score from "../../db/tables/score";
+import knocker from "../resolvers/knocker";
 const cryptoRandomString = require("crypto-random-string");
 const crypto = require("crypto");
 const { v4 } = require("uuid");
 
 var moment = require("moment"); // require
-const userReducer = require("../reducers/user");
+const reducers = require("../reducers");
 export default class KnockerDB {
   constructor() {}
   // our methods go here, we are going to discuss them below
@@ -91,13 +92,14 @@ export default class KnockerDB {
       ReturnValues: "UPDATED_NEW",
     };
     const db = await this.getDatabase();
-
+    console.log("addRole", params);
     return db.update(params).then(function (data, err) {
       if (err) {
         //console.log(err, err.stack);
       } else {
         //console.log("update createScore() Response: ", paramsData);
         console.log("data", data);
+        return true;
       }
     });
   }
@@ -132,7 +134,8 @@ export default class KnockerDB {
         //console.log(err, err.stack);
       } else {
         //console.log("update createScore() Response: ", paramsData);
-        console.log("data", data);
+        console.log("addFriend Response", data);
+        return reducers.friendReducer(data.Attributes);
       }
     });
   }
@@ -167,6 +170,7 @@ export default class KnockerDB {
       } else {
         //console.log("update createScore() Response: ", paramsData);
         console.log("data", data);
+        return true;
       }
     });
   }
@@ -201,7 +205,7 @@ export default class KnockerDB {
         //console.log(err, err.stack);
       } else {
         //console.log("update createScore() Response: ", paramsData);
-        console.log("data", data);
+        return true;
       }
     });
   }
@@ -239,6 +243,7 @@ export default class KnockerDB {
       } else {
         //console.log("update createScore() Response: ", paramsData);
         console.log("data", data);
+        return reducers.playedMachinesReducer({ ...data.Attributes, SK: SK });
       }
     });
   }
@@ -275,7 +280,7 @@ export default class KnockerDB {
         //console.log(err, err.stack);
       } else {
         //console.log("update createScore() Response: ", paramsData);
-        console.log("data", data);
+        return reducers.visitedLocationReducer({ ...data.Attributes, SK: SK });
       }
     });
   }
@@ -330,6 +335,7 @@ export default class KnockerDB {
       } else {
         //console.log("update createScore() Response: ", paramsData);
         console.log("data", data);
+        return reducers.knockerScoreReducer(data.Attributes);
       }
     });
   }
@@ -371,7 +377,7 @@ export default class KnockerDB {
     const db = await this.getDatabase();
     return db.query(params).then((response) => {
       console.log("then getUserById", response);
-      return userReducer.reduce(response);
+      return reducers.userReducer(response);
       // successful response
     });
 
@@ -399,7 +405,7 @@ export default class KnockerDB {
     const db = await this.getDatabase();
     return db.query(params).then((response) => {
       console.log("then getUserByUsername", response);
-      return userReducer.reduce(response);
+      return reducers.userReducer(response);
       // successful response
     });
   }
@@ -425,7 +431,7 @@ export default class KnockerDB {
     const db = await this.getDatabase();
     return db.query(params).then((response) => {
       console.log("getUserRolesId", response);
-      return userReducer.roleReducer(response);
+      return reducers.roleReducer(response);
     });
   } */
 
@@ -439,13 +445,17 @@ export default class KnockerDB {
         ":SK": role,
       },
     };
-    return db.query(params).then((response) => {
-      return userReducer.roleReducer(response);
-    });
+
+    return db.query(params).then((response) =>
+      response.Items.reduce((accumulator, item, currIndex, array) => {
+        accumulator.push(reducers.roleReducer(item));
+        return accumulator;
+      }, [])
+    );
   }
 
   async getUserScores(username, uid) {
-    params = {
+    const params = {
       TableName: process.env.KNOCKER_TABLE,
       IndexName: "DataGSI",
       KeyConditionExpression: "#Data = :Data AND begins_with(SK,:SK)",
@@ -458,7 +468,9 @@ export default class KnockerDB {
       },
     };
     const db = await this.getDatabase();
-    return db.query();
+    return db
+      .query(params)
+      .then((response) => reducers.knockerScoreReducer(response));
   }
   async getUserScoresByGameId(username, uid, gameId) {
     const db = await this.getDatabase();
@@ -480,23 +492,31 @@ export default class KnockerDB {
    *
    * @param {*} gameId
    */
-  async getScoresByGameId(gameId) {
+  async getKnockerScoresByGameId(gameId) {
     const gameScoreHash = crypto
       .createHash("md5")
       .update("SCORE#" + gameId)
       .digest("hex");
     console.log(gameScoreHash);
-    const db = await this.getDatabase();
-    return db.query({
+    var params = {
       TableName: process.env.KNOCKER_TABLE,
       KeyConditionExpression: "PK = :PK ",
       ExpressionAttributeValues: {
         ":PK": gameScoreHash,
       },
-    });
+    };
+    const db = await this.getDatabase();
+    var result = [];
+    return db.query(params).then((response) =>
+      response.Items.reduce((accumulator, item, currIndex, array) => {
+        accumulator.push(reducers.knockerScoreReducer(item));
+        return accumulator;
+      }, [])
+    );
   }
 
   async getKnockerScoresByLocationMachineId(locMachId) {
+    console.log(locMachId);
     var params = {
       TableName: process.env.KNOCKER_TABLE,
       IndexName: "LocationMachineXrefIdGSI",
@@ -506,11 +526,13 @@ export default class KnockerDB {
       },
     };
 
-    return docClient.query(params, function (err, data) {
-      if (err) console.log(err);
-      // an error occurred
-      else return data; // successful response
-    });
+    const db = await this.getDatabase();
+    return db.query(params).then((response) =>
+      response.Items.reduce((accumulator, item, currIndex, array) => {
+        accumulator.push(reducers.knockerScoreReducer(item));
+        return accumulator;
+      }, [])
+    );
   }
 
   async getEventsByDate(date) {

@@ -58,18 +58,25 @@ export default {
     usersByRoles: async (source, { role }, { dataSources }, state) =>
       dataSources.knockerDB.getUsersByRole(role),
     knockerScoresByGameId: async (source, { gameId }, { dataSources }, state) =>
-      dataSources.knockerDB.getScoresByGameId(gameId),
+      dataSources.knockerDB.getKnockerScoresByGameId(gameId),
     knockerScoresByXrefId: async (
       source,
-      { locMachId },
+      { locationMachineXrefId },
       { dataSources },
       state
     ) =>
-      dataSources.knockerDB.getKnockerScoresByLocationMachineId({
-        locMachId: locMachId,
-      }),
-    pmScoresByXrefId: async (source, { locMachId }, { dataSources }, state) =>
-      dataSources.pinballMachineAPI.getPMScoresByLocationMachineId(locMachId),
+      dataSources.knockerDB.getKnockerScoresByLocationMachineId(
+        locationMachineXrefId
+      ),
+    pmScoresByXrefId: async (
+      source,
+      { locationMachineXrefId },
+      { dataSources },
+      state
+    ) =>
+      dataSources.pinballMachineAPI.getPMScoresByLocationMachineId(
+        locationMachineXrefId
+      ),
     // ------- Dates --------
 
     /* eventsByDate: async (source, { date }, { dataSources }, state) =>
@@ -127,12 +134,13 @@ export default {
      *
      */
     addRole: async (source, args, { dataSources }, state) => {
+      let result = {};
       try {
         //console.log(dataSources);
         result = await dataSources.knockerDB.addRole(
           args.role,
-          args.username,
-          args.userId
+          args.userId,
+          args.username
         );
       } catch (e) {
         console.error(e);
@@ -174,7 +182,7 @@ export default {
       let result = {};
       try {
         //console.log(dataSources);
-        result = await dataSources.knockerDB.createScore(
+        result = await dataSources.knockerDB.addFriend(
           args.data.username,
           args.data.uid,
           args.userId
@@ -195,7 +203,7 @@ export default {
       let result = {};
       try {
         //console.log(dataSources);
-        result = await dataSources.knockerDB.createScore(
+        result = await dataSources.knockerDB.addFavoriteGame(
           args.data.gameId,
           args.username,
           args.userId
@@ -204,7 +212,7 @@ export default {
         console.error(e);
         result.error = "Internal error";
       }
-      //console.log("addScore() - result", result);
+      console.log("addScore() - result", result);
       return result;
     },
     /**
@@ -216,7 +224,7 @@ export default {
       let result = {};
       try {
         //console.log(dataSources);
-        result = await dataSources.knockerDB.createScore(
+        result = await dataSources.knockerDB.addFavoriteMachine(
           args.data.locationMachineXrefId,
           args.username,
           args.userId

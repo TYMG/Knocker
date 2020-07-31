@@ -6,6 +6,7 @@ type User {
   roles: [String]
   playedMachines: [PlayedMachine]
   scores: [Score]
+  friends: [Friend]
   visitedLocations: [VisitedLocation]
   favoriteMachines: [FavoriteMachine]
   favoriteGames: [FavoriteGame]
@@ -20,14 +21,15 @@ type RoleUser {
 
 type PinballAPIScore {
   id: String!
-  location_machine_xref_id: String!
+  locationMachineXrefId: String!
   score: String!
-  created_at: String!
-  updated_at: String!
-  user_id: String!
+  createdAt: String!
+  updatedAt: String!
+  userId: String!
   username: String!
 }
 type Score {
+  username: String!
   score: String!
   pinId: String
   locationId: String
@@ -40,14 +42,14 @@ input ScoreInput {
   score: String
   locationMachineXrefId: String
   pinId: String
-  locationId: Int
+  locationId: String
   s3RefId: String
   isVerified: Boolean
 }
 
 type PlayedMachine {
   locationMachineXrefId: String!
-  date: String
+  datePlayed: String
 }
 
 input PlayedMachineInput {
@@ -74,6 +76,7 @@ input FavoriteGameInput {
 
 type FavoriteMachine {
   locationMachineXrefId: String
+  dateAdded: String
 }
 
 input FavoriteMachineInput {
@@ -104,17 +107,21 @@ type Mutation {
   addScore(userId: ID!, username: String, data: ScoreInput!): Score
   addRole(userId: ID!, username: String, role: String!): Boolean
   addFriend(userId: ID!, data: FriendInput!): Friend
-  addPlayedMachine(
-    userId: ID!
-    username: String
-    data: PlayedMachineInput!
-  ): PlayedMachine
+  addPlayedMachine(userId: ID!, data: PlayedMachineInput!): PlayedMachine
   addVisitedLocation(
     userId: ID!
     username: String
     data: VisitedLocationInput!
   ): VisitedLocation
-  addFavoriteGame(userId: ID!, data: FavoriteGameInput): Boolean
-  addFavoriteMachine(userId: ID!, data: FavoriteMachineInput): Boolean
+  addFavoriteGame(
+    userId: ID!
+    username: String
+    data: FavoriteGameInput
+  ): Boolean
+  addFavoriteMachine(
+    userId: ID!
+    username: String
+    data: FavoriteMachineInput
+  ): Boolean
   deleteUser(id: String!): Result
 }

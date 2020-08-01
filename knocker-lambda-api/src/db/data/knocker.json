@@ -10,8 +10,8 @@
   },
   {
     "PK": "USER",
-    "SK": "666",
-    "Data": "TYMG",
+    "SK": "TYMG",
+    "Data": "666",
     "Name": "Matt Green",
     "Location": "Washington DC",
     "Email": "verde.madeo.a@gmail.com",
@@ -28,8 +28,8 @@
   },
   {
     "PK": "USER",
-    "SK": "820",
-    "Data": "TOTT",
+    "SK": "TOTT",
+    "Data": "820",
     "Name": "Tottionna Matthews",
     "Location": "Redding CA",
     "Email": "tottionna.matthews@gmail.com",

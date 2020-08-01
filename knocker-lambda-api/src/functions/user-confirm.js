@@ -3,6 +3,7 @@ const AWS = require("aws-sdk");
 const Joi = require("joi");
 const { v4 } = require("uuid");
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
+var moment = require("moment"); // require
 
 const dbParams = {
   TableName: process.env.KNOCKER_TABLE,
@@ -50,43 +51,63 @@ module.exports.main = (event, context, callback) => {
   const username = event.userName;
   const email = event.request.userAttributes.email;
   const name = event.request.userAttributes.name;
+  //const location = event.request.userAttributes.location;
   //const { error } = postSchema.validate(requestBody);
   /*  //console.log(error);
   if (error) return callback(error); */
 
-  addUser(createUser(id, username, email, name), (err, res) => {
+  addUser((id, username, email, name), (err, res) => {
     if (err) return callback(err);
     //console.log("Succesful Player Creation:", username);
-    callback(null, event);
+    callback(res, event);
   });
 };
 
-const addUser = (user, callback) => {
-  const userData = {
-    TableName: process.env.KNOCKER_TABLE,
-    Item: user,
-  };
-  return dynamoDb.put(userData, callback);
-};
+const addUser = (id, username, email, name, callback) => {
+  const tableName = process.env.KNOCKER_TABLE;
+  var params = {};
+  params.RequestItems = {};
+  params.RequestItems[tableName] = [
+    // a list of Put or Delete requests for that table
+    {
+      // An example PutRequest
+      PutRequest: {
+        Item: {
+          // a map of attribute name to AttributeValue
+          PK: "USER",
+          SK: username,
+          Data: id,
+          Location: "",
+          Email: email,
+          Date: moment().format("YYYY-MM-DD"),
+          Name: name,
+          // attribute_value (string | number | boolean | null | Binary | DynamoDBSet | Array | Object)
+          // ... more attributes ...
+        },
+      },
+    },
+    {
+      // An example PutRequest
+      PutRequest: {
+        Item: {
+          // a map of attribute name to AttributeValue
+          PK: id,
+          SK: "USER",
+          Data: username,
+          Location: "",
+          Email: email,
+          Date: moment().format("YYYY-MM-DD"),
+          Name: name,
+          // attribute_value (string | number | boolean | null | Binary | DynamoDBSet | Array | Object)
+          // ... more attributes ...
+        },
+      },
+    },
+  ];
 
-const createUser = (id, username, email, name) => {
-  const timestamp = new Date().getTime();
-  return {
-    id: v4(),
-    createdAt: timestamp,
-    id,
-    username,
-    email,
-    name,
-    locationsVisited: [],
-    machinesPlayed: [],
-    scores: [],
-  };
+  return docClient.batchWrite(params, function (err, data) {
+    if (err) console.log(err);
+    // an error occurred
+    else return console.log("PLAYER CREATED!!!!"), data, callback; // successful response
+  });
 };
-
-const makeSuccessResponse = (data) => ({
-  statusCode: 200,
-  body: JSON.stringify({
-    data,
-  }),
-});

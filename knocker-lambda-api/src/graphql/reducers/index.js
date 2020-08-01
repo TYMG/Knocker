@@ -137,6 +137,11 @@ favoriteGame = (game) => {
 };
 
 machineXrefsReducer = (machineXref) => {
+  machineConditions = [];
+  machineXref.machine_conditions.forEach((machineCondition) =>
+    machineConditions.push(this.machineConditionsReducer(machineCondition))
+  );
+  console.log(machineConditions);
   return {
     id: machineXref.id,
     created_at: machineXref.created_at,
@@ -150,27 +155,18 @@ machineXrefsReducer = (machineXref) => {
     machine_score_xrefs_count: machineXref.machine_score_xrefs_count,
     location: this.locationReducer(machineXref.location),
     machine: this.machineReducer(machineXref.machine),
-    machine_conditions: this.machineConditionsReducer(
-      machineXref.machine_conditions
-    ),
+    machine_conditions: machineConditions,
   };
 };
 
-machineConditionsReducer = (machineConditions) => {
-  var list = [];
-  machineConditions.forEach((machineCondition) => {
-    list = [
-      ...list,
-      {
-        id: machineCondition.id,
-        comment: machineCondition.comment,
-        location_machine_xref_Id: machineCondition.location_machine_xref_id,
-        created_at: machineCondition.created_at,
-        updated_at: machineCondition.updated_at,
-      },
-    ];
-  });
-  return list;
+machineConditionsReducer = (machineCondition) => {
+  return {
+    id: machineCondition.id,
+    comment: machineCondition.comment,
+    location_machine_xref_Id: machineCondition.location_machine_xref_id,
+    created_at: machineCondition.created_at,
+    updated_at: machineCondition.updated_at,
+  };
 };
 
 regionReducer = (reg) => {
@@ -274,7 +270,14 @@ playedMachinesReducer = (pm) => {
 exports.userReducer = userReducer;
 exports.roleReducer = roleReducer;
 exports.friendReducer = friendReducer;
+exports.machineReducer = machineReducer;
+exports.favoriteGame = favoriteGame;
+exports.machineXrefsReducer = machineXrefsReducer;
+exports.machineConditionsReducer = machineConditionsReducer;
+exports.regionReducer = regionReducer;
+exports.locationReducer = locationReducer;
 exports.knockerScoreReducer = knockerScoreReducer;
 exports.pinballAPIScoreReducer = pinballAPIScoreReducer;
+exports.operatorReducer = operatorReducer;
 exports.visitedLocationReducer = visitedLocationReducer;
 exports.playedMachinesReducer = playedMachinesReducer;

@@ -5,6 +5,7 @@ plugins:
   - serverless-webpack
   - serverless-dynamodb-local
   - serverless-offline
+  - serverless-pseudo-parameters
 provider:
   name: aws
   runtime: nodejs12.x
@@ -149,6 +150,18 @@ resources:
       Type: AWS::Cognito::UserPool
       Properties:
         UserPoolName: knocker_lambda_api_user_pool
+        Schema:
+          - Name: email
+            Required: true
+            Mutable: false
+          - Name: username
+            Required: false
+            Mutable: false
+            AttributeDataType: String
+          - Name: name
+            Required: false
+            Mutable: true
+            AttributeDataType: String
         AutoVerifiedAttributes:
           - email
         UsernameAttributes:
@@ -161,6 +174,8 @@ resources:
         EmailVerificationSubject: Your Verification Link!!!!
         EmailConfiguration:
           EmailSendingAccount: COGNITO_DEFAULT
+        LambdaConfig:
+          PostConfirmation: arn:aws:lambda:${self:provider.region}:#{AWS::AccountId}:function:${self:service}-${self:provider.stage}-confirm-user
     # Cognito - Client ( Used to cakk  )
     CognitoUserPoolClient:
       Type: AWS::Cognito::UserPoolClient
@@ -255,3 +270,11 @@ resources:
                     - "cognito-sync:*"
                     - "cognito-identity:*"
                   Resource: "*"
+    UserPoolLambdaInvokePermission:
+      Type: AWS::Lambda::Permission
+      DependsOn: ConfirmDashuserLambdaFunction
+      Properties:
+        Action: lambda:invokeFunction
+        Principal: cognito-idp.amazonaws.com
+        FunctionName: arn:aws:lambda:${self:provider.region}:#{AWS::AccountId}:function:${self:service}-${self:provider.stage}-confirm-user
+        SourceArn: arn:aws:cognito-idp:us-east-1:170172180887:userpool/*

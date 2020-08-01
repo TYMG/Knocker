@@ -259,34 +259,32 @@ When creating a Partition Key, all items must have a PK and SK. So for the Knock
 
 I'm going to create a Composite Key:
 
-| PK              | SK                                                    | Data         | Date           | Other Attributes                                | Purpose                                                      |
-| --------------- | ----------------------------------------------------- | ------------ | -------------- | ----------------------------------------------- | ------------------------------------------------------------ |
-| {{UID}}         | USER                                                  | {{Username}} | {{yyyy-MM-dd}} | Location, Email, Name                           | User Information                                             |
+| PK              | SK                                                    | Data         | Date           | Other Attributes                                | Purpose                                                                |
+| --------------- | ----------------------------------------------------- | ------------ | -------------- | ----------------------------------------------- | ---------------------------------------------------------------------- |
+| {{UID}}         | USER                                                  | {{Username}} | {{yyyy-MM-dd}} | Location, Email, Name                           | User Information                                                       |
 | {{UID}}         | FAVORITE#MACHINE#{{LocationMachineXrefId}}            | {{Username}} | {{yyyy-MM-dd}} |                                                 | A User's Favorite Pinball Machine (Machine Specific not Game Specific) |
-| {{UID}}         | FAVORITE#PIN#{{PinId}}                                | {{Username}} | {{yyyy-MM-dd}} |                                                 | A User's Favorite Pin ( Game Specific)                       |
-| {{UID}}         | FRIEND#{{UID}}                                        | {{Username}} | {{yyyy-MM-dd}} |                                                 | A User's Friend                                              |
-| {{UID}}         | LOCATION#{{LocationId}}#{{EPOCH-TIMESTAMP}}           | {{Username}} | {{yyyy-MM-dd}} |                                                 | A User's Visited Location                                    |
-| {{UID}}         | MACHINE#{{LocationMachineXrefId}}#{{EPOCH-TIMESTAMP}} | {{Username}} | {{yyyy-MM-dd}} |                                                 | A User's Played Machines                                     |
-| USER            | {{UID}}                                               | {{Username}} | {{yyyy-MM-dd}} | Location,  Email, Name                          | User Information                                             |
-| SCORE#{{PinId}} | SCORE#{{UID}}#{{PinId}}#{{EPOCH-TIMESTAMP}}           | {{Username}} | {{yyyy-MM-dd}} | Score, LocationId, LocationMachineXrefId, PinId | Recorded Score                                               |
-| ROLE#{{UID}}    | {{ROLE}}                                              | {{Username}} | {{yyyy-MM-dd}} |                                                 |                                                              |
-|                 |                                                       |              |                |                                                 |                                                              |
-|                 |                                                       |              |                |                                                 |                                                              |
-|                 |                                                       |              |                |                                                 |                                                              |
-|                 |                                                       |              |                |                                                 |                                                              |
+| {{UID}}         | FAVORITE#PIN#{{PinId}}                                | {{Username}} | {{yyyy-MM-dd}} |                                                 | A User's Favorite Pin ( Game Specific)                                 |
+| {{UID}}         | FRIEND#{{UID}}                                        | {{Username}} | {{yyyy-MM-dd}} |                                                 | A User's Friend                                                        |
+| {{UID}}         | LOCATION#{{LocationId}}#{{EPOCH-TIMESTAMP}}           | {{Username}} | {{yyyy-MM-dd}} |                                                 | A User's Visited Location                                              |
+| {{UID}}         | MACHINE#{{LocationMachineXrefId}}#{{EPOCH-TIMESTAMP}} | {{Username}} | {{yyyy-MM-dd}} |                                                 | A User's Played Machines                                               |
+| USER            | {{UID}}                                               | {{Username}} | {{yyyy-MM-dd}} | Location, Email, Name                           | User Information                                                       |
+| SCORE#{{PinId}} | SCORE#{{UID}}#{{PinId}}#{{EPOCH-TIMESTAMP}}           | {{Username}} | {{yyyy-MM-dd}} | Score, LocationId, LocationMachineXrefId, PinId | Recorded Score                                                         |
+| ROLE#{{UID}}    | {{ROLE}}                                              | {{Username}} | {{yyyy-MM-dd}} |                                                 |                                                                        |
+|                 |                                                       |              |                |                                                 |                                                                        |
+|                 |                                                       |              |                |                                                 |                                                                        |
+|                 |                                                       |              |                |                                                 |                                                                        |
+|                 |                                                       |              |                |                                                 |                                                                        |
 
-
-
-| PK | SK (GSK 1 PK) (GSK 2 SK) | Data (GSK 1 SK) | Date(GSK 2 PK) | Attributes | Purpose |
-|---|---|---|---|---|---|
-| {{UID}} | Username#{{Username}} | Name | DateCreated | Email, Location, Permission[Roles] | Create User |
-| {{UID}} | PLAYED#{{XREF_ID}}#{{DATE}} | Username | DateAdded | Username, DateAdded | Add Machine Played] |
-| {{UID}} | FAVORITE#PIN#{{XREF}} | Username | DateAdded | DateAdded | |
-| {{UID}} | FAVORITE#GAME#{{PIN}} | Username | DateAdded | DateAdded | |
-| {{UID}} | LOCATION#{{LID}}#{{DATE}} | LID | DateVisited | Username | |
-| SCORE#{{PIN}} | SCORE#{{UID}}#{{DATE}} | Username | DateRecorded | Score,LID | |
-| LOCATION#{{LID}}#{{DATE}} | Date | Username | DateVisited | | Add Visited Location |
-| PERMISSION#{{UID}}#{{DATE}} | Username | Role | DateAdded | | |
+| PK                          | SK (GSK 1 PK) (GSK 2 SK)    | Data (GSK 1 SK) | Date(GSK 2 PK) | Attributes                         | Purpose              |
+| --------------------------- | --------------------------- | --------------- | -------------- | ---------------------------------- | -------------------- |
+| {{UID}}                     | Username#{{Username}}       | Name            | DateCreated    | Email, Location, Permission[Roles] | Create User          |
+| {{UID}}                     | PLAYED#{{XREF_ID}}#{{DATE}} | Username        | DateAdded      | Username, DateAdded                | Add Machine Played]  |
+| {{UID}}                     | FAVORITE#PIN#{{XREF}}       | Username        | DateAdded      | DateAdded                          |                      |
+| {{UID}}                     | FAVORITE#GAME#{{PIN}}       | Username        | DateAdded      | DateAdded                          |                      |
+| {{UID}}                     | LOCATION#{{LID}}#{{DATE}}   | LID             | DateVisited    | Username                           |                      |
+| SCORE#{{PIN}}               | SCORE#{{UID}}#{{DATE}}      | Username        | DateRecorded   | Score,LID                          |                      |
+| LOCATION#{{LID}}#{{DATE}}   | Date                        | Username        | DateVisited    |                                    | Add Visited Location |
+| PERMISSION#{{UID}}#{{DATE}} | Username                    | Role            | DateAdded      |                                    |                      |
 
 | Index | Access Patterns                                       | Query Condition s                                           |
 | ----- | ----------------------------------------------------- | ----------------------------------------------------------- |
@@ -369,42 +367,61 @@ mutation {
   }
 }
 
+
 ```
+
+### Mutations
 
 Add Score
 
 ```
-mutation {
- addScore(userId:"2",data:{
-   score:"69,000,000",
-    machineId: 642,
-    machineName: "Medieval Madness",
-    locationId: 10426
-}){
-  score
-}
-}
+mutation addScore{
+  addScore(userId:"666",username:"TYMG",
+    data: {score:"3,000,000,000",locationMachineXrefId:"62614",pinId:"85352",locationId:"12410",s3RefId:null,isVerified:false}){
+    username
+    scores
+  }
 }
 
 ```
 
+Add Favorite Game
+
 ```
-mutation {
- addScores(userId:"2",data:[{
-   score:"69,000,000",
-    machineId: 642,
-    machineName: "Attack on Mars!",
-    locationId: 10426
-},{
-   score:"69,000,000",
-    machineId: 642,
-    machineName: "Whitewater",
-    locationId: 10426
+
+mutation addFavoriteGame{
+  addFavoriteGame(userId:"666",username:"TYMG",data:{gameId:"900"})
 }
 
-]){
-  score
+```
+
+Add Favorite Machine
+
+```
+mutation addFavoriteMachine {
+  addFavoriteMachine(userId:"666",username:"TYMG",data:{locationMachineXrefId:"1741"})
 }
+```
+
+Add Visited Location
+
+```
+mutation {
+  addVisitedLocation(userId:"666", username:"TYMG",data:{locationId:"111"}){
+    locationId
+  }
+}
+
+```
+
+Add Played Machine
+
+```
+
+mutation addPlayedMachine {
+  addPlayedMachine(userId:"666",data:{locationMachineXrefId:"123"}){
+    locationMachineXrefId
+  }
 }
 
 ```

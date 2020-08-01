@@ -15,11 +15,11 @@ const server = new ApolloServer({
   typeDefs,
   resolvers,
   formatError: (error) => {
-    console.log(error);
+    //console.log(error);
     return error;
   },
   formatResponse: (response) => {
-    console.log(response);
+    //console.log(response);
     return response;
   },
   // initial context state, will be available in resolvers

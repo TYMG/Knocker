@@ -46,11 +46,9 @@ class AddMachines extends Component {
   }
 
   handleChange = (name) => (value) => {
-    console.log(value);
     this.setState({
       [name]: value,
     });
-    console.log(this.state);
   };
 
   render() {
@@ -82,7 +80,7 @@ class AddMachines extends Component {
           />
           <button
             onClick={() => {
-              console.log(this.state);
+              //console.log(this.state);
             }}
           >
             Submit
@@ -117,8 +115,8 @@ class AddMachines extends Component {
         };
       }
     });
-    //console.log(groupedOptions);
-    console.log(Object.values(groupedOptions));
+    ////console.log(groupedOptions);
+    //console.log(Object.values(groupedOptions));
     return Object.values(groupedOptions);
   }
 }

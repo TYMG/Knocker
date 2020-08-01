@@ -1,39 +1,127 @@
-type Player {
+type User {
   id: ID
   username: String
   name: String
-  machinesPlayed: [Machine]
+  location: String
+  roles: [String]
+  playedMachines: [PlayedMachine]
   scores: [Score]
-  locationsVisited: [Location]
+  friends: [Friend]
+  visitedLocations: [VisitedLocation]
+  favoriteMachines: [FavoriteMachine]
+  favoriteGames: [FavoriteGame]
   email: String
 }
 
-type Score {
-  id: ID!
-  score: String
-  machine: Machine
-  date: String #Should be a Timestramp converted to a String
+type RoleUser {
+  id: String
+  username: String
+  dateAdded: String
 }
-type ScoreInput {
-  id: ID!
+
+type PinballAPIScore {
+  id: String!
+  locationMachineXrefId: String!
+  score: String!
+  createdAt: String!
+  updatedAt: String!
+  userId: String!
+  username: String!
+}
+type Score {
+  username: String!
+  score: String!
+  pinId: String
+  locationId: String
+  locationMachineXrefId: String
+  date: String
+  s3RefId: String
+  isVerified: String
+}
+input ScoreInput {
   score: String
-  machine: Machine
-  date: String #Should be a Timestramp converted to a String
+  locationMachineXrefId: String
+  pinId: String
+  locationId: String
+  s3RefId: String
+  isVerified: Boolean
+}
+
+type PlayedMachine {
+  locationMachineXrefId: String!
+  datePlayed: String
+}
+
+input PlayedMachineInput {
+  locationMachineXrefId: String!
+}
+
+type VisitedLocation {
+  locationId: String!
+  dateVisited: String
+}
+
+input VisitedLocationInput {
+  locationId: String!
+}
+
+type FavoriteGame {
+  gameId: String
+  username: String
+}
+
+input FavoriteGameInput {
+  gameId: String
+}
+
+type FavoriteMachine {
+  locationMachineXrefId: String
+  dateAdded: String
+}
+
+input FavoriteMachineInput {
+  locationMachineXrefId: String
+}
+
+type Friend {
+  username: String
+  uid: String
+  dateAdded: String
+}
+input FriendInput {
+  uid: String
+  username: String
 }
 
 type Query {
-  players: [Player]
-  player(id: String!): Player!
-  player(username: String!): Player!
-}
-
-input PlayerInput {
-  username: String!
-  name: String!
-  email: String!
+  users: [User]
+  usersByRoles(role: String!): [RoleUser]
+  userById(id: String!): User!
+  userByUsername(username: String!): User!
+  knockerScoresByGameId(gameId: String): [Score]
+  knockerScoresByXrefId(locationMachineXrefId: String): [Score]
+  pmScoresByXrefId(locationMachineXrefId: String): [PinballAPIScore]
 }
 
 type Mutation {
-  putPlayer(data: PlayerInput!): Player
-  deletePlayer(id: String!): Result
+  addScore(userId: ID!, username: String, data: ScoreInput!): Score
+  addRole(userId: ID!, username: String, role: String!): Boolean
+  addFriend(userId: ID!, data: FriendInput!): Friend
+  addPlayedMachine(userId: ID!, data: PlayedMachineInput!): PlayedMachine
+  addVisitedLocation(
+    userId: ID!
+    username: String
+    data: VisitedLocationInput!
+  ): VisitedLocation
+  addFavoriteGame(
+    userId: ID!
+    username: String
+    data: FavoriteGameInput
+  ): Boolean
+  addFavoriteMachine(
+    userId: ID!
+    username: String
+    data: FavoriteMachineInput
+  ): Boolean
+  deleteUser(id: String!): Result
 }

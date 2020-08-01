@@ -1,0 +1,379 @@
+{
+  "ModelName": "KNKR_V1",
+  "ModelMetadata": {
+    "Author": "TYMG",
+    "DateCreated": "Jul 17, 2020, 08:49 AM",
+    "DateLastModified": "Jul 18, 2020, 08:38 PM",
+    "Description": "",
+    "Version": "1.0"
+  },
+  "DataModel": [
+    {
+      "TableName": "Knocker",
+      "KeyAttributes": {
+        "PartitionKey": {
+          "AttributeName": "PK",
+          "AttributeType": "S"
+        },
+        "SortKey": {
+          "AttributeName": "SK",
+          "AttributeType": "S"
+        }
+      },
+      "NonKeyAttributes": [
+        {
+          "AttributeName": "Data",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "Location",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "Email",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "Score",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "Permissions",
+          "AttributeType": "SS"
+        },
+        {
+          "AttributeName": "Date",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "Username",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "LocationID",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "XrefIds",
+          "AttributeType": "NS"
+        },
+        {
+          "AttributeName": "XrefId",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "s3RefId",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "isVerified",
+          "AttributeType": "S"
+        }
+      ],
+      "TableFacets": [
+        {
+          "FacetName": "User",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "UserId",
+            "SortKeyAlias": "SK"
+          },
+          "TableData": [
+            {
+              "PK": {
+                "S": "666"
+              },
+              "SK": {
+                "S": "USER#TYMG"
+              },
+              "Data": {
+                "S": "Matt Green"
+              },
+              "Location": {
+                "S": "Washington DC"
+              },
+              "Email": {
+                "S": "verde.madeo.a@gmail.com"
+              },
+              "Permissions": {
+                "SS": [
+                  "Admin"
+                ]
+              },
+              "Date": {
+                "S": "2020_07_02"
+              }
+            },
+            {
+              "PK": {
+                "S": "820"
+              },
+              "SK": {
+                "S": "USER#TOTT"
+              },
+              "Data": {
+                "S": "Tott Matthews"
+              },
+              "Location": {
+                "S": "Redding CA"
+              },
+              "Email": {
+                "S": "tottionna.matthews@gmail.com"
+              },
+              "Permissions": {
+                "SS": [
+                  "User"
+                ]
+              },
+              "Date": {
+                "S": "2020_05_30"
+              }
+            }
+          ],
+          "NonKeyAttributes": [
+            "Data",
+            "Location",
+            "Email",
+            "Permissions",
+            "Date"
+          ],
+          "DataAccess": {
+            "MySql": {}
+          }
+        },
+        {
+          "FacetName": "Score",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "PK",
+            "SortKeyAlias": "SK"
+          },
+          "TableData": [
+            {
+              "PK": {
+                "S": "SCORE#23434"
+              },
+              "SK": {
+                "S": "SCORE#777"
+              },
+              "Data": {
+                "S": "TYMG"
+              },
+              "Score": {
+                "S": "69,000,000"
+              },
+              "Date": {
+                "S": "2020_05_02"
+              },
+              "LocationID": {
+                "S": "999"
+              },
+              "XrefId": {
+                "S": "616"
+              }
+            },
+            {
+              "PK": {
+                "S": "SCORE#354223"
+              },
+              "SK": {
+                "S": "SCORE#777"
+              },
+              "Data": {
+                "S": "TOTT"
+              },
+              "Score": {
+                "S": "23,000,000"
+              },
+              "Date": {
+                "S": "2020_06_23"
+              },
+              "LocationID": {
+                "S": "999"
+              },
+              "XrefId": {
+                "S": "616"
+              }
+            },
+            {
+              "PK": {
+                "S": "SCORE#840148"
+              },
+              "SK": {
+                "S": "SCORE#13"
+              },
+              "Data": {
+                "S": "TYMG"
+              },
+              "Score": {
+                "S": "3,200,000,000"
+              },
+              "Date": {
+                "S": "2020_06_23"
+              },
+              "LocationID": {
+                "S": "111"
+              },
+              "XrefId": {
+                "S": "1741"
+              },
+              "s3RefId": {
+                "S": "RF43234D2F243RR4"
+              },
+              "isVerified": {
+                "S": "true"
+              }
+            }
+          ],
+          "NonKeyAttributes": [
+            "Data",
+            "Score",
+            "Date",
+            "LocationID",
+            "XrefId",
+            "s3RefId",
+            "isVerified"
+          ],
+          "DataAccess": {
+            "MySql": {}
+          }
+        },
+        {
+          "FacetName": "FavoritePin",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "PK",
+            "SortKeyAlias": "SK"
+          },
+          "TableData": [
+            {
+              "PK": {
+                "S": "666"
+              },
+              "SK": {
+                "S": "FAVORITE#777"
+              },
+              "Data": {
+                "S": "TYMG"
+              },
+              "Date": {
+                "S": "2020_05_02"
+              },
+              "XrefIds": {
+                "NS": [
+                  "616"
+                ]
+              }
+            }
+          ],
+          "NonKeyAttributes": [
+            "Data",
+            "Date",
+            "XrefIds"
+          ],
+          "DataAccess": {
+            "MySql": {}
+          }
+        },
+        {
+          "FacetName": "Location",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "PK",
+            "SortKeyAlias": "SK"
+          },
+          "TableData": [
+            {
+              "PK": {
+                "S": "666"
+              },
+              "SK": {
+                "S": "LOCATION#999#2020_06_23"
+              },
+              "Data": {
+                "S": "TYMG"
+              },
+              "Date": {
+                "S": "2020_06_23"
+              }
+            },
+            {
+              "PK": {
+                "S": "666"
+              },
+              "SK": {
+                "S": "LOCATION#999#2020_07_04"
+              },
+              "Data": {
+                "S": "TYMG"
+              },
+              "Date": {
+                "S": "2020_07_04"
+              }
+            }
+          ],
+          "NonKeyAttributes": [
+            "Data",
+            "Date"
+          ],
+          "DataAccess": {
+            "MySql": {}
+          }
+        }
+      ],
+      "GlobalSecondaryIndexes": [
+        {
+          "IndexName": "DataGSI",
+          "KeyAttributes": {
+            "PartitionKey": {
+              "AttributeName": "SK",
+              "AttributeType": "S"
+            },
+            "SortKey": {
+              "AttributeName": "Data",
+              "AttributeType": "S"
+            }
+          },
+          "Projection": {
+            "ProjectionType": "INCLUDE",
+            "NonKeyAttributes": [
+              "Date"
+            ]
+          }
+        },
+        {
+          "IndexName": "DateGSI",
+          "KeyAttributes": {
+            "PartitionKey": {
+              "AttributeName": "Date",
+              "AttributeType": "S"
+            },
+            "SortKey": {
+              "AttributeName": "SK",
+              "AttributeType": "S"
+            }
+          },
+          "Projection": {
+            "ProjectionType": "ALL"
+          }
+        },
+        {
+          "IndexName": "XredfIDGSI",
+          "KeyAttributes": {
+            "PartitionKey": {
+              "AttributeName": "XrefId",
+              "AttributeType": "S"
+            }
+          },
+          "Projection": {
+            "ProjectionType": "INCLUDE",
+            "NonKeyAttributes": [
+              "Date",
+              "Score",
+              "Data"
+            ]
+          }
+        }
+      ],
+      "DataAccess": {
+        "MySql": {}
+      }
+    }
+  ]
+}

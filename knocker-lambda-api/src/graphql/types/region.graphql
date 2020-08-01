@@ -10,3 +10,7 @@ type Region {
   state: String
   effective_radius: Float
 }
+
+type Query {
+  regions: [Region]!
+}

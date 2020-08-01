@@ -1,17 +1,18 @@
-service: knocker-lambda
+service: knocker
 
 # enable required plugins, in order to make what we want
 plugins:
   - serverless-webpack
   - serverless-dynamodb-local
   - serverless-offline
+  - serverless-pseudo-parameters
 provider:
   name: aws
   runtime: nodejs12.x
   region: us-east-1
   #stage: dev
   environment:
-    PLAYER_TABLE: ${self:custom.settings.${self:custom.myStage}.PLAYER_TABLE}
+    KNOCKER_TABLE: ${self:custom.settings.${self:custom.myStage}.KNOCKER_TABLE}
     DB_URL: ${self:custom.endpoints.dynamodb-url}
   iamRoleStatements:
     - Effect: Allow
@@ -20,6 +21,9 @@ provider:
         - dynamodb:Scan
         - dynamodb:GetItem
         - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:BatchWriteItem
       Resource: "*"
 # here we describe our lambda function
 functions:
@@ -55,14 +59,20 @@ custom:
       port: 8000
       inMemory: true
       migrate: true
+      seed: true
+    seed: #Seeds local data after test are created
+      domain:
+        sources:
+          - table: ${self:custom.settings.${self:custom.myStage}.KNOCKER_TABLE}
+            sources: [./src/db/data/knocker.json]
     stages:
       - ${self:provider.stage}
   myStage: ${opt:stage, self:provider.stage}
   settings:
     local:
-      PLAYER_TABLE: ${self:service}-player-local
+      KNOCKER_TABLE: ${self:service}-local
     dev:
-      PLAYER_TABLE: ${self:service}-player-dev
+      KNOCKER_TABLE: ${self:service}-dev
   endpoints:
     dynamodb-url: "http://localhost:8000"
 
@@ -73,35 +83,102 @@ resources:
       # DeletionPolicy: Retain # Retains table after stack delete
       Properties:
         AttributeDefinitions:
-          - AttributeName: "id"
+          - AttributeName: "PK"
+            AttributeType: "S"
+          - AttributeName: "SK"
+            AttributeType: "S"
+          - AttributeName: "Data"
+            AttributeType: "S"
+          - AttributeName: "Date"
+            AttributeType: "S"
+          - AttributeName: "LocationMachineXrefId"
             AttributeType: "S"
         KeySchema:
-          - AttributeName: "id"
+          - AttributeName: "PK"
             KeyType: "HASH"
+          - AttributeName: "SK"
+            KeyType: "RANGE"
+        GlobalSecondaryIndexes:
+          - IndexName: "DataGSI"
+            KeySchema:
+              - AttributeName: "Data"
+                KeyType: "HASH"
+              - AttributeName: "SK"
+                KeyType: "RANGE"
+            Projection:
+              ProjectionType: "ALL"
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+          - IndexName: "DateGSI"
+            KeySchema:
+              - AttributeName: "Date"
+                KeyType: "HASH"
+              - AttributeName: "SK"
+                KeyType: "RANGE"
+            Projection:
+              ProjectionType: "ALL"
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+          - IndexName: "LocationMachineXrefIdGSI"
+            KeySchema:
+              - AttributeName: "LocationMachineXrefId"
+                KeyType: "HASH"
+            Projection:
+              ProjectionType: "INCLUDE"
+              NonKeyAttributes: ["Date", "Score", "Data"]
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+          - IndexName: "SKGSI"
+            KeySchema:
+              - AttributeName: "SK"
+                KeyType: "HASH"
+            Projection:
+              ProjectionType: "INCLUDE"
+              NonKeyAttributes: ["Date", "Score", "Data"]
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
         ProvisionedThroughput:
-          ReadCapacityUnits: 1
-          WriteCapacityUnits: 1
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
         StreamSpecification:
           StreamViewType: "NEW_AND_OLD_IMAGES"
-        TableName: ${self:custom.settings.${self:custom.myStage}.PLAYER_TABLE}
+        TableName: ${self:custom.settings.${self:custom.myStage}.KNOCKER_TABLE}
     # Cognito - User Pool (https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-cognito-userpool.html)
     # https://stackoverflow.com/questions/46973302/how-to-require-email-validation-in-cognito-through-cloudformation
     CognitoUserPool:
       Type: AWS::Cognito::UserPool
       Properties:
         UserPoolName: knocker_lambda_api_user_pool
+        Schema:
+          - Name: email
+            Required: true
+            Mutable: false
+          - Name: preferred_username
+            Required: true
+            Mutable: false
+            AttributeDataType: String
+          - Name: name
+            Required: true
+            Mutable: true
+            AttributeDataType: String
         AutoVerifiedAttributes:
           - email
         UsernameAttributes:
           - email
         VerificationMessageTemplate:
-          DefaultEmailOption: CONFIRM_WITH_CODE
-          EmailMessage: Here's your stinkin' code - {####}
-          EmailSubject: Verification Confirmation Code!!!!
+          DefaultEmailOption: CONFIRM_WITH_LINK
+          EmailMessage: Please verify your email address by clicking the following link - {####}
+          EmailSubject: Knckr Verification Link!!!!
         EmailVerificationMessage: Please click the link below to verify your email address. {####}
         EmailVerificationSubject: Your Verification Link!!!!
         EmailConfiguration:
           EmailSendingAccount: COGNITO_DEFAULT
+        LambdaConfig:
+          PostConfirmation: arn:aws:lambda:${self:provider.region}:#{AWS::AccountId}:function:${self:service}-${self:provider.stage}-confirm-user
     # Cognito - Client ( Used to cakk  )
     CognitoUserPoolClient:
       Type: AWS::Cognito::UserPoolClient
@@ -109,6 +186,11 @@ resources:
         ClientName: knocker_lambda_api_client
         UserPoolId:
           Ref: CognitoUserPool #Pointing to the Cognito User Pool
+    UserPoolDomain:
+      Type: AWS::Cognito::UserPoolDomain
+      Properties:
+        UserPoolId: !Ref CognitoUserPool
+        Domain: "knckr"
     # Cognito - Identity (https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-cognito-identitypool.html)
     CognitoIdentityPool:
       Type: AWS::Cognito::IdentityPool
@@ -196,3 +278,11 @@ resources:
                     - "cognito-sync:*"
                     - "cognito-identity:*"
                   Resource: "*"
+    UserPoolLambdaInvokePermission:
+      Type: AWS::Lambda::Permission
+      DependsOn: ConfirmDashuserLambdaFunction
+      Properties:
+        Action: lambda:invokeFunction
+        Principal: cognito-idp.amazonaws.com
+        FunctionName: arn:aws:lambda:${self:provider.region}:#{AWS::AccountId}:function:${self:service}-${self:provider.stage}-confirm-user
+        SourceArn: arn:aws:cognito-idp:us-east-1:170172180887:userpool/*

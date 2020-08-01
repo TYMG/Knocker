@@ -70,7 +70,7 @@
     });
 
     server.listen().then(({ url }) => {
-    console.log(`🚀 Server ready at ${url}`)
+    //console.log(`🚀 Server ready at ${url}`)
     });
     ```
 
@@ -176,13 +176,12 @@ for `knocker-user-pool`
 
 ```
 
-aws cognito-idp sign-up \
+ aws cognito-idp sign-up \
   --region us-east-1 \
-  --client-id 7uqjtuqrjoc7uqppi2jkamvh8j \
-  --username verde \
+  --client-id 3sde383av087443l1075s32iru \
+  --username verde.mateo.a@gmail.com \
   --password Passw0rd! \
-  --user-attributes Name="email",Value="verde.mateo.a@gmail.com" Name="name",Value="Jane"
-
+  --user-attributes  Name="name",Value="Matt Green" Name="preferred_username",Value="TYMG"
 
 ```
 
@@ -197,20 +196,231 @@ aws cognito-idp sign-up \
 
 ```
 
+## DynamoDB
+
+### Use Cases
+
+When thinking about how to set up our data structure, think how you would fill in the blanks for the following query:
+
+> "Give me all of the \_**_ from a particular _**."
+
+- Create a User
+- Retrieve all Users
+- Retrieve a User using the User's id
+- Add A Played Machine for a User
+- Add A Visited Location for a User
+- Add A Score on a given machine for a user
+- Retrieve a List of Locations Visited in the last 6 months
+- Retrieve the Location most visted by user
+- Retrieve the machine most played by a user
+- Retriece the dates a specific location was visted
+- Get all the machines a users have played in a date range
+- Retrieve a List of User's scores using User's Id
+- Retrieve a List of Scores for a particular XREF Machine
+- Retrieve a List of Scores for a particular XREF Machine in descending order
+- Retrieve a List of Scores for a particular XREF Machine for a Particular User
+- Retrieve a List of Scores for a particular Location
+- Retrieve a List of Scores for a particular date
+- Get all users that visited certain location
+- Get all users that played a certain machine
+
+### Access Pattern
+
+- Write
+  - Create a User
+  - Add A Played Machine for a User
+  - Add A Score that connects to a User
+  - Add A Visited Location for a User
+  - Add a Sign Off for a Particular Score
+  - Add Image Proof for a Particular Score
+- Read
+  - Retrieve all users
+  - Retrieve a specific user
+  - Retrtieve a list of locations visites for a user
+  - Retrieve a list of machines played for a user
+  - Retrieve scores for a user
+  - Retreieve scores for a particular machine
+
+### Table Design
+
+DATE - Date
+UID - User ID
+LID - Location Id (From the Pinball API)
+PIN - Pin's Actual ID (From the Pinball API)  
+XREF_ID - Pin's XREF Id (From the Pinball API)
+~~SID - Score ID~~
+
+~~PID-Permission Id~~
+
+{{DATE}} Using Time Since Epoch Timestamp
+
+When creating a Partition Key, all items must have a PK and SK. So for the Knocker Table, the Partiton Key will be a String called PK and another string called SK
+
+I'm going to create a Composite Key:
+
+| PK              | SK                                                    | Data         | Date           | Other Attributes                                | Purpose                                                                |
+| --------------- | ----------------------------------------------------- | ------------ | -------------- | ----------------------------------------------- | ---------------------------------------------------------------------- |
+| {{UID}}         | USER                                                  | {{Username}} | {{yyyy-MM-dd}} | Location, Email, Name                           | User Information                                                       |
+| {{UID}}         | FAVORITE#MACHINE#{{LocationMachineXrefId}}            | {{Username}} | {{yyyy-MM-dd}} |                                                 | A User's Favorite Pinball Machine (Machine Specific not Game Specific) |
+| {{UID}}         | FAVORITE#PIN#{{PinId}}                                | {{Username}} | {{yyyy-MM-dd}} |                                                 | A User's Favorite Pin ( Game Specific)                                 |
+| {{UID}}         | FRIEND#{{UID}}                                        | {{Username}} | {{yyyy-MM-dd}} |                                                 | A User's Friend                                                        |
+| {{UID}}         | LOCATION#{{LocationId}}#{{EPOCH-TIMESTAMP}}           | {{Username}} | {{yyyy-MM-dd}} |                                                 | A User's Visited Location                                              |
+| {{UID}}         | MACHINE#{{LocationMachineXrefId}}#{{EPOCH-TIMESTAMP}} | {{Username}} | {{yyyy-MM-dd}} |                                                 | A User's Played Machines                                               |
+| USER            | {{UID}}                                               | {{Username}} | {{yyyy-MM-dd}} | Location, Email, Name                           | User Information                                                       |
+| SCORE#{{PinId}} | SCORE#{{UID}}#{{PinId}}#{{EPOCH-TIMESTAMP}}           | {{Username}} | {{yyyy-MM-dd}} | Score, LocationId, LocationMachineXrefId, PinId | Recorded Score                                                         |
+| ROLE#{{UID}}    | {{ROLE}}                                              | {{Username}} | {{yyyy-MM-dd}} |                                                 |                                                                        |
+|                 |                                                       |              |                |                                                 |                                                                        |
+|                 |                                                       |              |                |                                                 |                                                                        |
+|                 |                                                       |              |                |                                                 |                                                                        |
+|                 |                                                       |              |                |                                                 |                                                                        |
+
+| PK                          | SK (GSK 1 PK) (GSK 2 SK)    | Data (GSK 1 SK) | Date(GSK 2 PK) | Attributes                         | Purpose              |
+| --------------------------- | --------------------------- | --------------- | -------------- | ---------------------------------- | -------------------- |
+| {{UID}}                     | Username#{{Username}}       | Name            | DateCreated    | Email, Location, Permission[Roles] | Create User          |
+| {{UID}}                     | PLAYED#{{XREF_ID}}#{{DATE}} | Username        | DateAdded      | Username, DateAdded                | Add Machine Played]  |
+| {{UID}}                     | FAVORITE#PIN#{{XREF}}       | Username        | DateAdded      | DateAdded                          |                      |
+| {{UID}}                     | FAVORITE#GAME#{{PIN}}       | Username        | DateAdded      | DateAdded                          |                      |
+| {{UID}}                     | LOCATION#{{LID}}#{{DATE}}   | LID             | DateVisited    | Username                           |                      |
+| SCORE#{{PIN}}               | SCORE#{{UID}}#{{DATE}}      | Username        | DateRecorded   | Score,LID                          |                      |
+| LOCATION#{{LID}}#{{DATE}}   | Date                        | Username        | DateVisited    |                                    | Add Visited Location |
+| PERMISSION#{{UID}}#{{DATE}} | Username                    | Role            | DateAdded      |                                    |                      |
+
+| Index | Access Patterns                                       | Query Condition s                                           |
+| ----- | ----------------------------------------------------- | ----------------------------------------------------------- |
+| 1     | Look Up User By User ID                               | Primary Key on table, ID="UID"                              |
+| 2     | Look Up User Metadata By Username                     | Use GSI-1, PK="Username#{{Username}}"                       |
+| 3     | Look up Vistors and Date Visted at a Certain Location | Use GSI-1, PK="Location#{{LID}}"                            |
+| 4     | Look Up Scores for a certain Machine                  | Use GSI-3, PK="XrefID" SK="{{Date}}" (Either == Or Between) |
+| 5     | Look Up Scores by UID                                 | Use GSI-1, PK='SCORE#{{UID}}'                               |
+| 6     | Look up Favorite Machines by UID                      | Use Table, PK={{UID}} SK="FAVORITE"                         |
+| 7     | Get All Vistors at certain Location                   | Use GSI-1PK="LOCATION#LID"                                  |
+| 8     | Look Up All Machines Played By A User                 | Use GSI-1, PK="Username" SK="PIN"                           |
+| 9     | Look Up All Favorite Machine Played By A User         | Use GSI-1, PK="Username" SK="FAVORITE"                      |
+| 10    | Look Up All Scores Recorded on A Certain Date         | Use GSI-2, PK="DATE" S                                      |
+| 11    | Look Up Users Who Like Specific Machine               | Use GSI-1, PK="FAVORITE#{{PINID}}"                          |
+|       |                                                       |                                                             |
+|       |                                                       |                                                             |
+|       |                                                       |                                                             |
+|       |                                                       |                                                             |
+
+#### Facets
+
+- User
+  - Name
+  - Username
+  - Email
+- Location
+  - Date
+- Pinball Machine Played
+  - Location Id
+  - Date
+- Score
+  - Score
+  - Date
+  - Username
+  - ImageId (For Proof)
+  - SignOff (UserID)
+
+### Queries
+
+### Updates
+
 ## Graphql
+
+### Queries
+
+```
+query locations{
+  locations(region:"ca-central"){
+    id
+    name
+    lat
+    lon
+  }
+}
+
+```
+
+```
+query locationsByRegion {
+  locationsByRegion(region:"dc"){
+  	name
+    id
+  }
+}
+```
 
 Add Player
 
 ```
 
 mutation {
-putPlayer(data:{
-username: "tymg",
-name: "Matt Green",
-email: "verde.mateo.a@gmail.com"
-}) {
-error
+  putPlayer(data:
+    {
+    username: "tymg",
+    name: "Matt Green",
+    email: "verde.mateo.a@gmail.com"
+    }
+  ) {
+  error
+  }
 }
+
+
+```
+
+### Mutations
+
+Add Score
+
+```
+mutation addScore{
+  addScore(userId:"666",username:"TYMG",
+    data: {score:"3,000,000,000",locationMachineXrefId:"62614",pinId:"85352",locationId:"12410",s3RefId:null,isVerified:false}){
+    username
+    scores
+  }
+}
+
+```
+
+Add Favorite Game
+
+```
+
+mutation addFavoriteGame{
+  addFavoriteGame(userId:"666",username:"TYMG",data:{gameId:"900"})
+}
+
+```
+
+Add Favorite Machine
+
+```
+mutation addFavoriteMachine {
+  addFavoriteMachine(userId:"666",username:"TYMG",data:{locationMachineXrefId:"1741"})
+}
+```
+
+Add Visited Location
+
+```
+mutation {
+  addVisitedLocation(userId:"666", username:"TYMG",data:{locationId:"111"}){
+    locationId
+  }
+}
+
+```
+
+Add Played Machine
+
+```
+
+mutation addPlayedMachine {
+  addPlayedMachine(userId:"666",data:{locationMachineXrefId:"123"}){
+    locationMachineXrefId
+  }
 }
 
 ```
@@ -225,7 +435,7 @@ Looks like Graphql has issues with merging Resolvers, so either the resolvers ha
 
 ```
 var params = {
-    TableName: 'knocker-lambda-player-dev',
+    TableName: 'knocker-dev',
 };
 dynamodb.scan(params, function(err, data) {
     if (err) ppJson(err); // an error occurred

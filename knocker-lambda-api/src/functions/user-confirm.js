@@ -20,19 +20,24 @@ const postSchema = Joi.object({
 /**
 Sample Post Confirmation Payload 
 
-2020-07-03T20:02:03.294Z	87bb6d1c-6baf-4925-9712-76cfff1235ad	INFO	{
+INFO	EVENT:  {
   version: '1',
   region: 'us-east-1',
-  userPoolId: 'us-east-1_95kfEXpVN',
-  userName: 'tymg',
-  callerContext: { awsSdkVersion: 'aws-sdk-unknown-unknown', clientId: null },
+  userPoolId: 'us-east-1_XF66Apxby',
+  userName: 'de11dcbc-e3fc-45ad-a8be-6ed67eca6794',
+  callerContext: {
+    awsSdkVersion: 'aws-sdk-unknown-unknown',
+    clientId: '23cfnmhglhfib3omu2t7u8gm8p'
+  },
   triggerSource: 'PostConfirmation_ConfirmSignUp',
   request: {
     userAttributes: {
-      sub: '22ef8af6-8c9a-4505-8506-e5f20a97a887',
+      sub: 'de11dcbc-e3fc-45ad-a8be-6ed67eca6794',
+      'cognito:email_alias': 'verde.mateo.a@gmail.com',
       'cognito:user_status': 'CONFIRMED',
-      email_verified: 'false',
-      name: 'Jane',
+      email_verified: 'true',
+      name: 'Matt Green',
+      preferred_username: 'TYMG',
       email: 'verde.mateo.a@gmail.com'
     }
   },
@@ -42,13 +47,13 @@ Sample Post Confirmation Payload
  **/
 
 module.exports.main = (event, context, callback) => {
-  //console.log("EVENT: ", event);
+  console.log("EVENT: ", event);
   //console.log("Username: ", event.userName);
   //const requestBody = JSON.parse(event.body);
   ////console.log(requestBody);
   //event.request.userAttributes.email
   const id = event.request.userAttributes.sub;
-  const username = event.userName;
+  const username = event.request.userAttributes.preferred_username;
   const email = event.request.userAttributes.email;
   const name = event.request.userAttributes.name;
   //const location = event.request.userAttributes.location;
@@ -56,11 +61,9 @@ module.exports.main = (event, context, callback) => {
   /*  //console.log(error);
   if (error) return callback(error); */
 
-  addUser((id, username, email, name), (err, res) => {
-    if (err) return callback(err);
-    //console.log("Succesful Player Creation:", username);
-    callback(res, event);
-  });
+  const result = addUser(id, username, email, name);
+  console.log("Result: ", result);
+  return callback(null, event);
 };
 
 const addUser = (id, username, email, name, callback) => {
@@ -105,9 +108,13 @@ const addUser = (id, username, email, name, callback) => {
     },
   ];
 
-  return docClient.batchWrite(params, function (err, data) {
-    if (err) console.log(err);
-    // an error occurred
-    else return console.log("PLAYER CREATED!!!!"), data, callback; // successful response
+  return dynamoDb.batchWrite(params, function (err, data) {
+    if (err) {
+      console.log(err);
+      return false;
+      // an error occurred
+    } else {
+      return true;
+    } // successful response
   });
 };

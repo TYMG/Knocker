@@ -21,6 +21,9 @@ provider:
         - dynamodb:Scan
         - dynamodb:GetItem
         - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+        - dynamodb:BatchWriteItem
       Resource: "*"
 # here we describe our lambda function
 functions:
@@ -154,12 +157,12 @@ resources:
           - Name: email
             Required: true
             Mutable: false
-          - Name: username
-            Required: false
+          - Name: preferred_username
+            Required: true
             Mutable: false
             AttributeDataType: String
           - Name: name
-            Required: false
+            Required: true
             Mutable: true
             AttributeDataType: String
         AutoVerifiedAttributes:
@@ -167,9 +170,9 @@ resources:
         UsernameAttributes:
           - email
         VerificationMessageTemplate:
-          DefaultEmailOption: CONFIRM_WITH_CODE
-          EmailMessage: Here's your stinkin' code - {####}
-          EmailSubject: Verification Confirmation Code!!!!
+          DefaultEmailOption: CONFIRM_WITH_LINK
+          EmailMessage: Please verify your email address by clicking the following link - {####}
+          EmailSubject: Knckr Verification Link!!!!
         EmailVerificationMessage: Please click the link below to verify your email address. {####}
         EmailVerificationSubject: Your Verification Link!!!!
         EmailConfiguration:
@@ -183,6 +186,11 @@ resources:
         ClientName: knocker_lambda_api_client
         UserPoolId:
           Ref: CognitoUserPool #Pointing to the Cognito User Pool
+    UserPoolDomain:
+      Type: AWS::Cognito::UserPoolDomain
+      Properties:
+        UserPoolId: !Ref CognitoUserPool
+        Domain: "knckr"
     # Cognito - Identity (https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-cognito-identitypool.html)
     CognitoIdentityPool:
       Type: AWS::Cognito::IdentityPool

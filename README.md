@@ -1,37 +1,161 @@
+
+
 # Knocker
 
-## Next Steps:
+## Action Items
 
-### Short Term
+### Todo
+
+- [ ] Build React App (Should be mobile ready, almost preferred)
+
+  - [ ] Sign In 
+  - [ ] User Profile Page
+    - [ ] Show Scores
+    - [ ] Show Friends
+    - [ ] Show Played Machines
+    - [ ] Favorite Games along with providing ipdb links
+  - [ ] Create a Map Feature that displays all machines in a users location, shows the machines theyve played, their scores using icons 
+  - [ ] Add Scores, Add Friends, Add Location Visited
+
+- [ ] Update Knocker.json to use PinballAPI Locations and Machine Ids for more realistic data.
+
+- [ ] CI/CD
+
+  - [ ] API
+
+    - [ ] Deploying API via Serverless in AWS Code Pipeline
+
+      Resources: 
+
+      * [CICD for Serverless Part 2 - AWS CodePipeline Integration](https://www.serverless.com/blog/cicd-for-serverless-part-2)
+
+  - [ ] React App
+
+    - [ ] Build a CI/CD Pipeline for React App
+
+      1. Code Change is made to a branch (Master = Prod, Dev = Stage)
+      2. Code Build Picks Up that Change Using Docker Compose Build a new Image containing the updated React App
+      3. Container is deployed to ECS, EKS
+
+      Resources
+
+      * [Deploying Docker Containers Using an AWS CodePipeline for DevOps](https://www.infoq.com/articles/aws-codepipeline-deploy-docker/)
+
+      * [Deploy a React application to Kubernetes in 5 easy steps :fire::fire:](https://dev.to/rieckpil/deploy-a-react-application-to-kubernetes-in-5-easy-steps-516j) - But doesnt any insight into CI/CD 
+        * [Deploy a Kubernetes Application [AWS]](https://aws.amazon.com/getting-started/hands-on/deploy-kubernetes-app-amazon-eks/)
+
+      Research
+
+      * [How to deploy a React app to production on AWS using Express, Postgres, PM2 and nginx](https://www.freecodecamp.org/news/production-fullstack-react-express/) - Very Detailed Resource, do I want to commit EC2   for hosting?
+      * [CI/CD for Containers: A Way Forward for Your DevOps Pipeline - AWS Online Tech Talks](https://youtu.be/jMEYIS5eFWg?t=1385)
+      * [Set Up a CI/CD Pipeline for Deploying Containers Using the AWS Developer Tools - Online Tech Talks](https://www.youtube.com/watch?v=aI_cAR75aRU)
+
+    - [ ] Configure React App's Address to be Knocker.com
+
+      Open Questions:
+
+      * Hosting the App? S3, Docker?
+      * Docker, Kubernetes?
+
+      Resources
+
+      * 
+
+- [ ] Using Token Passed In Context, be able to retrieve a user
+
+  Implementation
+
+  ```
+  // using apollo-server 2.x
+  const { ApolloServer } = require('apollo-server');
+  
+  const server = new ApolloServer({
+  typeDefs,
+  resolvers,
+  context: ({ req }) => {
+  // Note! This example uses the `req` object to access headers,
+  // but the arguments received by `context` vary by integration.
+  // This means they will vary for Express, Koa, Lambda, etc.!
+  //
+  // To find out the correct arguments for a specific integration,
+  // see the `context` option in the API reference for `apollo-server`:
+  // https://www.apollographql.com/docs/apollo-server/api/apollo-server/
+  
+  // Get the user token from the headers.
+  const token = req.headers.authorization || '';
+  
+  // try to retrieve a user with the token
+  const user = getUser(token);
+  
+  // add the user to the context
+  return { user };
+  },
+  });
+  
+  server.listen().then(({ url }) => {
+  //console.log(`🚀 Server ready at ${url}`)
+  });
+  ```
+
+  Resources:
+
+  - https://www.apollographql.com/docs/apollo-server/security/authentication/#authorization-outside-of-graphql
+  - https://stackoverflow.com/questions/55487265/how-to-store-aws-cognito-user-pool-users-in-db-for-instance-dynamodb
+
+- [ ] Update Serverless to use preexisting AWS Resources
+
+  - [x] Add IAM Roles For Serverless Lambda Function To Access DynamoDB Table
+
+    Added the following to the serverless.yml
+
+    ```
+    iamRoleStatements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:BatchWriteItem
+          Resource: "*"
+    ```
+
+  - [ ] Configure Knocker to use Hosted Web Address
+
+    - [ ] Update API Gateway to Use 
+      - [ ] Configure the API Gateway to use Knckr.com Domain via Route 53  - Resources: [How to set up a custom domain name for API Gateway in your Serverless app](https://seed.run/blog/how-to-set-up-a-custom-domain-name-for-api-gateway-in-your-serverless-app.html) 
+
+  - [ ] Update Amplify Configure to use Knocker API Address: [Using Your Own Domain for the Hosted UI](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-add-custom-domain.html)
+
+    Resources: https://www.serverless.com/blog/serverless-api-gateway-domain
+
+- [ ] Sending Verification Emails Using Own Email Service
+  - [ ] So... Cognito Sucks Ass So I will have to create my own Email Address - 
+    - [ ] Have to create a Email Server [Integrating Amazon SES with Postfix](https://docs.aws.amazon.com/ses/latest/DeveloperGuide/postfix.html#send-email-postfix)
+      [A serverless email server on AWS using S3 and SES (github.com)](https://news.ycombinator.com/item?id=21953960)
+  - [ ] Getting Email Address Verified
+  - [ ] Sending Emails Through Cognito
+    - https://stackoverflow.com/questions/60645671/serverless-framework-configure-cognito-user-pool-to-send-emails-through-ses
+  - [ ] Remove SES Sandbox ([Example:](https://youtu.be/IrSP7soIq3A?t=348))
+
+### Completed
 
 - [x] Add User Authentication Via AWS Cognito
 
   - Resources: https://itnext.io/my-experience-with-severless-graphql-2e95e5a8bda7
 
-- [ ] Configure Knocker to use Hosted Web Address
-      [x] Purchase knckr.com via Route 53
-      [ ] Configure the API Gateway to use Route 53 via - Resources: [How to set up a custom domain name for API Gateway in your Serverless app](https://seed.run/blog/how-to-set-up-a-custom-domain-name-for-api-gateway-in-your-serverless-app.html)
-      [ ] Update Amplify Configure to use Knocker API Address
+- [x] Authorization with JWT
 
-  - Resources: https://www.serverless.com/blog/serverless-api-gateway-domain
+  - [x] When a User Signs Up With Cognito, Create A Player in DynamoDB Table
 
-- [ ] Sending Verification Emails
-  - [ ] So... Cognito Sucks Ass So I will have to create my own Email Address - [ ] Have to create a Email Server [Integrating Amazon SES with Postfix
-        ](https://docs.aws.amazon.com/ses/latest/DeveloperGuide/postfix.html#send-email-postfix)
-        [A serverless email server on AWS using S3 and SES (github.com)](https://news.ycombinator.com/item?id=21953960)
-  - [ ] Getting Email Address Verified
-  - [ ] Sending Emails Through Cognito
-    - https://stackoverflow.com/questions/60645671/serverless-framework-configure-cognito-user-pool-to-send-emails-through-ses
-- [ ] Authorization with JWT
-
-  - [ ] When a User Signs Up With Cognito, Create A Player in DynamoDB Table
-
-    - [ ] Creating a Cognito Trigger
-          How the trigger is suppose to work:
-          When a user is created, the Cognito Trigger Post Confirmation should be triggered
-          ![Client Confirm Sign Up Flow](https://docs.aws.amazon.com/cognito/latest/developerguide/images/lambda-post-confirmation-1.png)
-          [Example](https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-lambda-post-confirmation.html#user-pool-lambda-post-confirmation-flows)
-          [SO: Great Example of What I'm Trying to Do](https://stackoverflow.com/questions/57403579/how-to-configure-serverless-cognito-lambda-tiggers)
+    - [x] Creating a Cognito Trigger
+      How the trigger is suppose to work:
+      When a user is created, the Cognito Trigger Post Confirmation should be triggered
+      ![Client Confirm Sign Up Flow](https://docs.aws.amazon.com/cognito/latest/developerguide/images/lambda-post-confirmation-1.png)
+      [Example](https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-lambda-post-confirmation.html#user-pool-lambda-post-confirmation-flows)
+      [SO: Great Example of What I'm Trying to Do](https://stackoverflow.com/questions/57403579/how-to-configure-serverless-cognito-lambda-tiggers)
     - Resources:
 
   - https://www.reddit.com/r/aws/comments/ad8arj/q_what_is_the_best_way_to_store_user_data_aws/
@@ -39,77 +163,45 @@
 
     > I would definitely use DynamoDB for storing additional user meta-data. I created a Lambda function to automatically (using Cognito triggers) copy newly-created Cognito users to a DynamoDB's Users table. That gives you the essential setup to continue adding the meta-data. It comes useful if you want to use AppSync (or anything else for that matter) to retrieve and manipulate the data. It's much more effective to work with DDB for key-value lookups than Cognito since you control the scalability of DDB and you can add a lot of different data types into DDB (vs clear text in Cognito).
 
-  - [ ] - Using Token Passed In Context, be able to retrieve a user
-  - Implementation
+
+- [x] Update Apollo Server API
+
+  - [x] Add Seed Data for Player Table For Local Envs
+
+    Added the following to the serverless.yml
 
     ```
-    // using apollo-server 2.x
-    const { ApolloServer } = require('apollo-server');
-
-    const server = new ApolloServer({
-    typeDefs,
-    resolvers,
-    context: ({ req }) => {
-    // Note! This example uses the `req` object to access headers,
-    // but the arguments received by `context` vary by integration.
-    // This means they will vary for Express, Koa, Lambda, etc.!
-    //
-    // To find out the correct arguments for a specific integration,
-    // see the `context` option in the API reference for `apollo-server`:
-    // https://www.apollographql.com/docs/apollo-server/api/apollo-server/
-
-    // Get the user token from the headers.
-    const token = req.headers.authorization || '';
-
-    // try to retrieve a user with the token
-    const user = getUser(token);
-
-    // add the user to the context
-    return { user };
-    },
-    });
-
-    server.listen().then(({ url }) => {
-    //console.log(`🚀 Server ready at ${url}`)
-    });
+     custom:
+       dynamodb:
+          start:
+            port: 8000
+            inMemory: true
+            migrate: true
+            seed: true
+          seed: #Seeds local data after test are created
+            domain:
+              sources:
+                - table: ${self:custom.settings.${self:custom.myStage}.KNOCKER_TABLE}
+                  sources: [./src/db/data/knocker.json]
     ```
 
-    - Resources:
-      - https://www.apollographql.com/docs/apollo-server/security/authentication/#authorization-outside-of-graphql
-      - https://stackoverflow.com/questions/55487265/how-to-store-aws-cognito-user-pool-users-in-db-for-instance-dynamodb
+    
 
-- [ ] Update Serverless to use preexisting AWS Resources
-  - [ ] Add IAM Roles For Serverless Lambda Function To Access DynamoDB Table
-  - [ ] Update API Gateway to Use Knckr.com Domain
-- [ ] Update Apollo Server API
-  - [ ] Add Seed Data for Player Table For Local Envs
-  - [ ] Update Deployment Scripts (Run Seed Data Before Deploying)
-  - Resources: https://github.com/serverless/serverless-graphql/tree/master/app-backend/dynamodb
+  - [ ] ~~Update Deployment Scripts (Run Seed Data Before Deploying)~~
 
-### Long Term
+    ~~Resources: https://github.com/serverless/serverless-graphql/tree/master/app-backend/dynamodb~~
 
-- [ ] Remove SES Sandbox ([Example:](https://youtu.be/IrSP7soIq3A?t=348))
-- [ ] - Deploying to Production
-  - How can I create a dev and prod envs?
-  - [ ] - Deploy API
-  - [ ] - Deploy React App
-    - [ ] - Configure React App's Address to be Knocker.com
-    - [ ] - Implement a CI/CD Pipeline for React App
-  - Resources: https://serverless-stack.com/chapters/deploy-the-apis.html
-- [ ] - Optional
-  - [ ] - Add Secret Keys To Env File
-    - Resources: https://www.serverless.com/blog/react-apps-with-serverless-components/
-  - [ ] - Configure the AWS SDK Using Secret Keys
-    - Resources:
-      - https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/Credentials.html
-  - [ ] - Retrieve list of Apis
-    - Resources:
-      - https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/APIGateway.html#getApiKeys-property
+### MISC
 
-### Future Ideas
-
-- Containerize React App Using Docker
-- Using Kubernetes Deploy The App
+- Optional
+- [ ] - Add Secret Keys To Env File
+  - Resources: https://www.serverless.com/blog/react-apps-with-serverless-components/
+- [ ] - Configure the AWS SDK Using Secret Keys
+  - Resources:
+- https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/Credentials.html
+- [ ] - Retrieve list of Apis
+  - Resources:
+- https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/APIGateway.html#getApiKeys-property
 
 ---
 

@@ -1,0 +1,15 @@
+version: 0.2
+
+env:
+  variables:
+    STAGE: $STAGE
+
+phases:
+  install:
+    commands:
+      - npm install
+      - npm install -g mocha
+      - npm install -g serverless
+  build:
+    commands:
+      - serverless deploy --stage $STAGE

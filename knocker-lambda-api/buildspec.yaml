@@ -7,6 +7,7 @@ env:
 phases:
   install:
     commands:
+      - cd knocker-lambda-api
       - npm install
       - npm install -g mocha
       - npm install -g serverless

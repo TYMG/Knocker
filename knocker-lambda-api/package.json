@@ -11,7 +11,7 @@
     "apollo-server-lambda": "^2.11.0",
     "apollo-server-testing": "2.6.1",
     "aws-sdk": "^2.713.0",
-    "axios": "^0.19.2",
+    "axios": "^0.21.1",
     "dotenv": "^6.2.0",
     "graphql-merge-resolvers": "^1.1.16",
     "install": "^0.13.0",

@@ -1,14 +1,23 @@
 import Box from '@mui/material/Box';
+import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { useTheme } from '@mui/material/styles';
+import { useColorScheme } from '@mui/material/styles';
 import { LineChart } from '@mui/x-charts/LineChart';
 import type { NightPoints, StandingRow } from '../../../shared/types';
 import { colors } from '../theme';
 
+const ordinal = (n: number) => {
+  const tens = n % 100;
+  if (tens >= 11 && tens <= 13) return `${n}th`;
+  return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
+};
+
 /**
- * Season race: each team's running points total, week by week.
+ * Season race, two views of the same weeks:
+ *   1. Running points: each team's total, week by week.
+ *   2. Rank by week: where that total put them in the standings (1st at the top).
  * Your team is drawn in flipper yellow, the current top 4 in lagoon teal,
- * everyone else in muted grey so the chart stays readable with 10+ teams.
+ * everyone else in muted grey so the charts stay readable with 10+ teams.
  */
 export default function SeasonChart({
   byNight, rows, option, myTeamId
@@ -18,40 +27,78 @@ export default function SeasonChart({
   option: 'option1' | 'option2';
   myTeamId?: string;
 }) {
-  const theme = useTheme();
+  // The theme uses CSS variables, so ask for the active scheme rather than reading theme.palette.
+  const { mode, systemMode } = useColorScheme();
+  const dark = (mode === 'system' ? systemMode : mode) === 'dark';
   if (byNight.length < 2) {
     return (
       <Typography variant="body2" color="text.secondary">
-        The season chart appears after week 2.
+        The season charts appear after week 2.
       </Typography>
     );
   }
   const topFour = new Set(rows.filter((r) => r.rank <= 4).map((r) => r.team.teamId));
-  const muted = theme.palette.mode === 'dark' ? 'rgba(231,240,238,0.22)' : 'rgba(19,33,43,0.18)';
+  const teal = dark ? colors.lagoonBright : colors.lagoon;
+  const muted = dark ? 'rgba(231,240,238,0.34)' : 'rgba(19,33,43,0.2)';
+  const weeks = byNight.map((n) => `Wk ${n.week}`);
 
-  const series = rows
+  // One entry per team, highlighted lines last so they draw on top.
+  const teams = rows
     .map((r) => {
+      const id = r.team.teamId;
+      const mine = id === myTeamId;
+      const top = topFour.has(id);
       let total = 0;
-      const data = byNight.map((n) => (total += n[option][r.team.teamId] ?? 0));
-      const mine = r.team.teamId === myTeamId;
-      const color = mine ? colors.flipper : topFour.has(r.team.teamId) ? theme.palette.primary.main : muted;
-      return { id: r.team.teamId, label: r.team.teamName, data, color, showMark: mine, curve: 'linear' as const, order: mine ? 2 : topFour.has(r.team.teamId) ? 1 : 0 };
+      return {
+        id,
+        label: r.team.teamName,
+        color: mine ? colors.flipper : top ? teal : muted,
+        showMark: mine,
+        order: mine ? 2 : top ? 1 : 0,
+        points: byNight.map((n) => (total += n[option][id] ?? 0)),
+        ranks: byNight.map((n) => n.ranks[option][id] ?? null)
+      };
     })
-    .sort((a, b) => a.order - b.order); // draw highlighted lines on top
+    .sort((a, b) => a.order - b.order);
+
+  const line = (t: (typeof teams)[number]) => ({ id: t.id, label: t.label, color: t.color, showMark: t.showMark, curve: 'linear' as const });
+  const places = rows.map((_, i) => i + 1);
 
   return (
-    <Box>
-      <LineChart
-        height={280}
-        hideLegend
-        margin={{ left: 8, right: 16, top: 16, bottom: 8 }}
-        xAxis={[{ scaleType: 'point', data: byNight.map((n) => `Wk ${n.week}`) }]}
-        yAxis={[{ width: 44 }]}
-        series={series.map(({ order: _order, ...s }) => s)}
-      />
+    <Stack spacing={3}>
+      <Box>
+        <Typography variant="h4">Running points</Typography>
+        <LineChart
+          height={280}
+          hideLegend
+          margin={{ left: 8, right: 16, top: 16, bottom: 8 }}
+          xAxis={[{ scaleType: 'point', data: weeks }]}
+          yAxis={[{ width: 44 }]}
+          series={teams.map((t) => ({ ...line(t), data: t.points, valueFormatter: (v: number | null) => (v === null ? '' : `${v.toLocaleString('en-US')} pts`) }))}
+        />
+      </Box>
+      <Box>
+        <Typography variant="h4">Rank by week</Typography>
+        <LineChart
+          height={Math.max(200, Math.min(320, 36 + places.length * 26))}
+          hideLegend
+          margin={{ left: 8, right: 16, top: 16, bottom: 8 }}
+          xAxis={[{ scaleType: 'point', data: weeks }]}
+          yAxis={[{
+            width: 44,
+            reverse: true, // 1st place at the top
+            min: 1,
+            max: Math.max(places.length, 2),
+            domainLimit: 'strict',
+            tickInterval: places,
+            valueFormatter: (v: number) => ordinal(v)
+          }]}
+          series={teams.map((t) => ({ ...line(t), data: t.ranks, valueFormatter: (v: number | null) => (v === null ? '' : ordinal(v)) }))}
+        />
+      </Box>
       <Typography variant="body2" color="text.secondary">
-        Running points by week. {myTeamId ? 'Yellow is your team. ' : ''}Teal lines are the current top 4.
+        {myTeamId ? 'Yellow is your team. ' : ''}Teal lines are the current top 4. Tap a week to see every team.
       </Typography>
-    </Box>
+    </Stack>
   );
 }

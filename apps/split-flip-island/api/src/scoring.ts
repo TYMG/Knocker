@@ -78,3 +78,21 @@ export function rankTotals(totals: Map<string, number>, teamIds: string[]) {
   rows.sort((a, b) => b.points - a.points);
   return rows.map((row) => ({ ...row, rank: 1 + rows.filter((r) => r.points > row.points).length }));
 }
+
+/**
+ * Season rank after each night, from running totals. Takes each night's points
+ * in order and returns one teamId -> rank map per night.
+ */
+export function runningRanks(nightly: Map<string, number>[], teamIds: string[]): Map<string, number>[] {
+  const totals = new Map<string, number>();
+  return nightly.map((night) => {
+    for (const [teamId, points] of night) totals.set(teamId, (totals.get(teamId) ?? 0) + points);
+    return new Map(rankTotals(totals, teamIds).map((r) => [r.teamId, r.rank]));
+  });
+}
+
+/** Places moved between two ranks. Positive = moved up. Undefined when there is no earlier night. */
+export function rankChange(previous: Map<string, number> | undefined, teamId: string, rank: number): number | undefined {
+  const before = previous?.get(teamId);
+  return before === undefined ? undefined : before - rank;
+}

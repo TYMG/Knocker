@@ -69,8 +69,34 @@ function Board({ board, myTeamId, onOpen }: { board: MachineBoard; myTeamId?: st
   );
 }
 
+/** Places moved since last week: green up arrow, red down arrow, or a dash for no change. */
+function Movement({ change }: { change: number }) {
+  const places = Math.abs(change);
+  const label = change === 0 ? 'No change since last week' : `${change > 0 ? 'Up' : 'Down'} ${places} ${places === 1 ? 'place' : 'places'} since last week`;
+  return (
+    <Typography
+      component="span"
+      role="img"
+      aria-label={label}
+      title={label}
+      sx={{
+        width: 34,
+        flexShrink: 0,
+        fontSize: '0.85rem',
+        fontWeight: 700,
+        fontVariantNumeric: 'tabular-nums',
+        whiteSpace: 'nowrap',
+        color: change === 0 ? 'text.secondary' : change > 0 ? 'success.main' : 'error.main'
+      }}
+    >
+      {change === 0 ? '\u2013' : `${change > 0 ? '\u25B2' : '\u25BC'}${places}`}
+    </Typography>
+  );
+}
+
 function StandingsTable({ rows, unit, myTeamId }: { rows: StandingRow[]; unit: string; myTeamId?: string }) {
   if (rows.length === 0) return <Typography color="text.secondary">No teams yet.</Typography>;
+  const showChange = rows.some((r) => r.change !== undefined);
   return (
     <Card>
       {rows.map((r) => (
@@ -83,11 +109,12 @@ function StandingsTable({ rows, unit, myTeamId }: { rows: StandingRow[]; unit: s
           <Typography sx={{ width: 28, fontFamily: "'Bungee', sans-serif", textAlign: 'right', color: r.rank <= 4 ? 'primary.main' : 'text.secondary' }}>
             {r.rank}
           </Typography>
+          {showChange && <Movement change={r.change ?? 0} />}
           <Avatar src={r.team.photoUrl ?? undefined} alt="" sx={{ width: 36, height: 36 }} />
-          <Typography sx={{ flexGrow: 1, fontWeight: 700 }} noWrap>
+          <Typography sx={{ flexGrow: 1, minWidth: 0, fontWeight: 700 }} noWrap>
             {r.team.teamName}
           </Typography>
-          <Typography sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+          <Typography sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', flexShrink: 0 }}>
             {r.points.toLocaleString('en-US')} <Typography component="span" variant="body2" color="text.secondary">{unit}</Typography>
           </Typography>
         </Stack>
@@ -156,6 +183,11 @@ export default function Standings() {
             <SeasonChart byNight={data.season.byNight} rows={data.season[option]} option={option} myTeamId={myTeamId} />
           </Card>
           <StandingsTable rows={data.season[option]} unit="pts" myTeamId={myTeamId} />
+          {data.season.nightsPlayed >= 2 && (
+            <Typography variant="body2" color="text.secondary">
+              Arrows show places gained or lost since last week.
+            </Typography>
+          )}
         </Stack>
       )}
 

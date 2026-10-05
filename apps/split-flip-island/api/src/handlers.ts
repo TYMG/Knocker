@@ -9,7 +9,7 @@ import type {
 } from '../../shared/types.js';
 import { ddb, keys, leagueId, queryAll, table } from './db.js';
 import { hashPin, issueToken, requireTeam, verifyPin } from './auth.js';
-import { rankTotals, scoreNight } from './scoring.js';
+import { rankChange, rankTotals, runningRanks, scoreNight } from './scoring.js';
 import { env, HttpError, nowIso, parseBody, photoUrl } from './util.js';
 
 const s3 = new S3Client({});
@@ -274,17 +274,22 @@ export async function standings(): Promise<StandingsResponse> {
   const option2 = new Map<string, number>();
   let tonight: StandingsResponse['tonight'] = { boards: [], machinePoints: [] };
   const byNight: StandingsResponse['season']['byNight'] = [];
+  const nightly1: Map<string, number>[] = [];
+  const nightly2: Map<string, number>[] = [];
 
   for (const night of played) {
     const scores = await loadNightScores(night.date);
     const result = scoreNight(scores, night.machineIds, teamCount);
     for (const [id, pts] of result.machinePoints) option1.set(id, (option1.get(id) ?? 0) + pts);
     for (const [id, pts] of result.nightPoints) option2.set(id, (option2.get(id) ?? 0) + pts);
+    nightly1.push(result.machinePoints);
+    nightly2.push(result.nightPoints);
     byNight.push({
       date: night.date,
       week: night.week,
       option1: Object.fromEntries(result.machinePoints),
-      option2: Object.fromEntries(result.nightPoints)
+      option2: Object.fromEntries(result.nightPoints),
+      ranks: { option1: {}, option2: {} } // filled in below, once every night is totalled
     });
 
     if (night.date === activeNight?.date) {
@@ -306,11 +311,28 @@ export async function standings(): Promise<StandingsResponse> {
     }
   }
 
+  // Rank after each night, plus how far each team moved since the night before.
+  const ranks1 = runningRanks(nightly1, teamIds);
+  const ranks2 = runningRanks(nightly2, teamIds);
+  byNight.forEach((n, i) => {
+    n.ranks = { option1: Object.fromEntries(ranks1[i]), option2: Object.fromEntries(ranks2[i]) };
+  });
+  const withChange = (rows: StandingRow[], ranks: Map<string, number>[]): StandingRow[] =>
+    rows.map((r) => {
+      const change = rankChange(ranks[ranks.length - 2], r.team.teamId, r.rank);
+      return change === undefined ? r : { ...r, change };
+    });
+
   return {
     night: activeNight ? toNight(activeNight) : null,
     teamCount,
     tonight,
-    season: { option1: toRows(option1), option2: toRows(option2), nightsPlayed: played.length, byNight }
+    season: {
+      option1: withChange(toRows(option1), ranks1),
+      option2: withChange(toRows(option2), ranks2),
+      nightsPlayed: played.length,
+      byNight
+    }
   };
 }
 

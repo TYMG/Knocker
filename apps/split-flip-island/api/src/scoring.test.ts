@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rankPoints, rankTotals, scoreNight } from './scoring.js';
+import { rankChange, rankPoints, rankTotals, runningRanks, scoreNight } from './scoring.js';
 
 describe('rankPoints', () => {
   it('gives 1st place as many points as there are teams', () => {
@@ -50,5 +50,41 @@ describe('rankTotals', () => {
     const rows = rankTotals(new Map([['a', 10], ['b', 10]]), ['a', 'b', 'c']);
     expect(rows.map((r) => r.rank)).toEqual([1, 1, 3]);
     expect(rows[2]).toMatchObject({ teamId: 'c', points: 0 });
+  });
+});
+
+describe('runningRanks', () => {
+  const teams = ['a', 'b', 'c'];
+  const ranks = runningRanks(
+    [
+      new Map([['a', 10], ['b', 6], ['c', 2]]),
+      new Map([['a', 1], ['b', 8]]), // c missed the night
+      new Map([['c', 20]])
+    ],
+    teams
+  );
+
+  it('ranks teams on their running total after each night', () => {
+    expect(Object.fromEntries(ranks[0])).toEqual({ a: 1, b: 2, c: 3 });
+    expect(Object.fromEntries(ranks[1])).toEqual({ a: 2, b: 1, c: 3 }); // 11 vs 14 vs 2
+    expect(Object.fromEntries(ranks[2])).toEqual({ a: 3, b: 2, c: 1 }); // 11 vs 14 vs 22
+  });
+
+  it('shares a rank when running totals tie', () => {
+    const tied = runningRanks([new Map([['a', 5], ['b', 3]]), new Map([['b', 2]])], teams);
+    expect(Object.fromEntries(tied[1])).toEqual({ a: 1, b: 1, c: 3 });
+  });
+});
+
+describe('rankChange', () => {
+  it('is positive when a team moves up and negative when it drops', () => {
+    const lastWeek = new Map([['a', 1], ['b', 4], ['c', 3]]);
+    expect(rankChange(lastWeek, 'b', 2)).toBe(2);
+    expect(rankChange(lastWeek, 'a', 3)).toBe(-2);
+    expect(rankChange(lastWeek, 'c', 3)).toBe(0);
+  });
+
+  it('is undefined with no earlier night to compare against', () => {
+    expect(rankChange(undefined, 'a', 1)).toBeUndefined();
   });
 });

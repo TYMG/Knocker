@@ -112,6 +112,11 @@ export interface StandingRow {
   team: Team;
   points: number;
   rank: number;
+  /**
+   * Season standings only: places moved since the previous league night.
+   * Positive = moved up, negative = moved down, 0 = held. Left out until week 2.
+   */
+  change?: number;
 }
 
 export interface StandingsResponse {
@@ -125,7 +130,7 @@ export interface StandingsResponse {
     option1: StandingRow[]; // machine points add up
     option2: StandingRow[]; // rank the night
     nightsPlayed: number;
-    byNight: NightPoints[]; // points earned each night, for the season chart
+    byNight: NightPoints[]; // points and rank after each night, for the season charts
   };
 }
 
@@ -134,6 +139,11 @@ export interface NightPoints {
   week: number;
   option1: Record<string, number>; // teamId -> machine points that night
   option2: Record<string, number>; // teamId -> league points that night
+  /** Season rank after this night, from running totals (ties share a rank). */
+  ranks: {
+    option1: Record<string, number>; // teamId -> rank
+    option2: Record<string, number>;
+  };
 }
 
 export interface AuditResponse {

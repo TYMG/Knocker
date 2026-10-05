@@ -4,6 +4,8 @@
 *.tfstate.*
 *.tfvars
 crash.log
+.build/
+infra/backend.hcl
 # Node / build
 node_modules/
 dist/

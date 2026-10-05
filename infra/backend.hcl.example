@@ -1,0 +1,2 @@
+# Copy to infra/backend.hcl and set the bucket printed by the bootstrap stack.
+bucket = "knckr-terraform-state-<your-account-id>"

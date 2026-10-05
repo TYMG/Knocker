@@ -1,0 +1,18 @@
+// Viewer-request function on knckr.com: sends app paths to their subdomains.
+// 302 (temporary) while prototyping; switch to 301 once URLs settle.
+var REDIRECTS = ${redirects};
+
+function handler(event) {
+  var request = event.request;
+  var uri = request.uri.replace(/\/+$/, '');
+  for (var path in REDIRECTS) {
+    if (uri === path || uri.indexOf(path + '/') === 0) {
+      return {
+        statusCode: 302,
+        statusDescription: 'Found',
+        headers: { location: { value: REDIRECTS[path] } }
+      };
+    }
+  }
+  return request;
+}

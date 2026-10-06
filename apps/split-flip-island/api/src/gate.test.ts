@@ -35,6 +35,14 @@ async function enter(handler: Handler, password: string) {
 }
 
 describe('demo password gate', () => {
+  it('avoids syntax that CloudFront\'s JavaScript engine rejects', () => {
+    // "await in arguments not supported" took the live site down once: an await may not sit
+    // inside a call's parentheses, an array or an object literal.
+    expect(source).not.toMatch(/[(,[{]\s*await\b/);
+    // Also not available there: optional chaining, nullish coalescing, class syntax.
+    expect(source).not.toMatch(/\?\.|\?\?|\bclass\b/);
+  });
+
   it('shows only the password page to a visitor without a pass', async () => {
     const handler = load(record);
     for (const uri of ['/', '/standings', '/admin/teams', '/gate.html']) {

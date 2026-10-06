@@ -8,6 +8,8 @@
 // everyone out. With no "gate" key, nobody gets in.
 //
 // Tested by api/src/gate.test.ts, which loads this file with stand-ins for the two imports.
+// CloudFront runs this on an older JavaScript engine (njs) than Node: keep to plain var,
+// function and simple statements, and after any change run `deploy-step.sh diagnose-gate`.
 import cf from 'cloudfront';
 import crypto from 'crypto';
 
@@ -17,7 +19,10 @@ var MAX_AGE = 30 * 24 * 60 * 60; // seconds the cookie lasts
 
 async function loadGate() {
   try {
-    var gate = JSON.parse(await kvs.get('gate'));
+    // Keep the await on its own line: CloudFront's JavaScript engine rejects an await used
+    // directly as a function argument ("await in arguments not supported").
+    var stored = await kvs.get('gate');
+    var gate = JSON.parse(stored);
     if (gate && typeof gate.salt === 'string' && typeof gate.hash === 'string' && typeof gate.key === 'string' && gate.key.length >= 32) {
       return gate;
     }

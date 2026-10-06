@@ -1,72 +1,38 @@
 import { configureStore, createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { Team } from '../../shared/types';
-import { api } from './api';
+import { sampleReducer, saveSample } from './sample/slice';
 
-interface AuthState {
-  token: string | null;
-  team: Team | null;
-}
-
-const STORAGE_KEY = 'sfi-auth';
-
-function loadAuth(): AuthState {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '') as AuthState;
-  } catch {
-    return { token: null, team: null };
-  }
-}
-
-const authSlice = createSlice({
-  name: 'auth',
-  initialState: loadAuth,
+// Small pieces of screen state shared by every page.
+const uiSlice = createSlice({
+  name: 'ui',
+  initialState: { toast: null as string | null, tourOpen: false },
   reducers: {
-    loggedIn: (_state, action: PayloadAction<{ token: string; team: Team }>) => action.payload,
-    loggedOut: () => ({ token: null, team: null })
+    /** A short confirmation at the bottom of the screen: "Checked in Slam Tilt". */
+    showToast: (state, action: PayloadAction<string>) => {
+      state.toast = action.payload;
+    },
+    hideToast: (state) => {
+      state.toast = null;
+    },
+    setTourOpen: (state, action: PayloadAction<boolean>) => {
+      state.tourOpen = action.payload;
+    }
   }
 });
 
-export const { loggedIn, loggedOut } = authSlice.actions;
+export const { showToast, hideToast, setTourOpen } = uiSlice.actions;
 
-// Admins log in separately from teams, each with their own name and password.
-interface AdminState {
-  token: string | null;
-  name: string | null;
-}
-
-const ADMIN_STORAGE_KEY = 'sfi-admin';
-
-function loadAdmin(): AdminState {
-  try {
-    return JSON.parse(localStorage.getItem(ADMIN_STORAGE_KEY) ?? '') as AdminState;
-  } catch {
-    return { token: null, name: null };
-  }
-}
-
-const adminSlice = createSlice({
-  name: 'admin',
-  initialState: loadAdmin,
-  reducers: {
-    adminLoggedIn: (_state, action: PayloadAction<{ token: string; name: string }>) => action.payload,
-    adminLoggedOut: () => ({ token: null, name: null })
-  }
-});
-
-export const { adminLoggedIn, adminLoggedOut } = adminSlice.actions;
-
+// The app runs on a made-up league for now (see sample/README.md). The real API and its login
+// state are in live/, ready to be added back here.
 export const store = configureStore({
-  reducer: { auth: authSlice.reducer, admin: adminSlice.reducer, [api.reducerPath]: api.reducer },
-  middleware: (getDefault) => getDefault().concat(api.middleware)
+  reducer: { sample: sampleReducer, ui: uiSlice.reducer }
 });
 
+let saved = store.getState().sample;
 store.subscribe(() => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(store.getState().auth));
-    localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(store.getState().admin));
-  } catch {
-    // Private browsing can block storage; the session still works until the tab closes.
-  }
+  const next = store.getState().sample;
+  if (next === saved) return;
+  saved = next;
+  saveSample(next);
 });
 
 export type RootState = ReturnType<typeof store.getState>;

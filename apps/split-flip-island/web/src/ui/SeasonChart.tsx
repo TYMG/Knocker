@@ -3,14 +3,10 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useColorScheme } from '@mui/material/styles';
 import { LineChart } from '@mui/x-charts/LineChart';
-import type { NightPoints, StandingRow } from '../../../shared/types';
+import type { NightPoints, SeasonRow } from '../sample/league';
+import { ordinal } from '../sample/time';
 import { colors } from '../theme';
 
-const ordinal = (n: number) => {
-  const tens = n % 100;
-  if (tens >= 11 && tens <= 13) return `${n}th`;
-  return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
-};
 
 /**
  * Season race, two views of the same weeks:
@@ -23,7 +19,7 @@ export default function SeasonChart({
   byNight, rows, option, myTeamId
 }: {
   byNight: NightPoints[];
-  rows: StandingRow[];
+  rows: SeasonRow[];
   option: 'option1' | 'option2';
   myTeamId?: string;
 }) {
@@ -42,6 +38,7 @@ export default function SeasonChart({
   const mineLine = { color: colors.coral, name: 'Coral' };
   const muted = dark ? 'rgba(164,154,135,0.45)' : 'rgba(0,0,0,0.18)';
   const weeks = byNight.map((n) => `Wk ${n.week}`);
+  // A team that joined mid-season has no rank before its first week.
 
   // One entry per team, highlighted lines last so they draw on top.
   const teams = rows

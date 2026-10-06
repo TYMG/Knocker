@@ -2,7 +2,7 @@ import { createApi, fetchBaseQuery, type BaseQueryFn, type FetchArgs, type Fetch
 import type {
   AdminAuthResponse, AdminLoginRequest, AdminTeamsResponse, AuditResponse, AuthResponse, LoginRequest, MeResponse,
   RegisterRequest, RemoveTeamRequest, Score, StandingsResponse, SubmitScoreRequest, UploadResponse
-} from '../../shared/types';
+} from '../../../shared/types';
 
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: '/api',
@@ -99,4 +99,13 @@ export function errorMessage(err: unknown, fallback = 'Something went wrong. Try
     if (err instanceof Error) return err.message;
   }
   return fallback;
+}
+
+/** Uploads a photo straight to S3 using the presigned POST from the API. */
+export async function uploadPhoto(target: UploadResponse['photo'], blob: Blob): Promise<void> {
+  const form = new FormData();
+  Object.entries(target.fields).forEach(([k, v]) => form.append(k, v));
+  form.append('file', blob, 'photo.jpg');
+  const res = await fetch(target.url, { method: 'POST', body: form });
+  if (!res.ok) throw new Error('Photo upload failed. Check your connection and try again.');
 }

@@ -1,5 +1,3 @@
-import type { PresignedUpload } from '../../../shared/types';
-
 /**
  * Resizes a camera photo to a JPEG. Redrawing on a canvas also strips EXIF
  * metadata, including GPS location.
@@ -17,13 +15,4 @@ export async function resizeImage(file: Blob, maxSide: number, quality = 0.82): 
   return new Promise((resolve, reject) =>
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Couldn't process that photo. Try taking it again."))), 'image/jpeg', quality)
   );
-}
-
-/** Uploads straight to S3 using the presigned POST from the API. */
-export async function uploadPhoto(target: PresignedUpload, blob: Blob): Promise<void> {
-  const form = new FormData();
-  Object.entries(target.fields).forEach(([k, v]) => form.append(k, v));
-  form.append('file', blob, 'photo.jpg');
-  const res = await fetch(target.url, { method: 'POST', body: form });
-  if (!res.ok) throw new Error('Photo upload failed. Check your connection and try again.');
 }

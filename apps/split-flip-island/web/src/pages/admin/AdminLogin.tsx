@@ -1,51 +1,91 @@
+// The league admin log-in. Admins get here from the link at the bottom of the team log-in, or
+// because they opened an admin address without being logged in (the router sends them here and
+// remembers where they were going). In the sample any name and password are accepted.
+
 import { useState, type FormEvent } from 'react';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router';
 import Button from '@mui/material/Button';
+import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { errorMessage, useAdminLoginMutation } from '../../api';
-import { useAppDispatch } from '../../hooks';
-import { adminLoggedIn } from '../../store';
+import { useAppDispatch, useLeague, useMe } from '../../hooks';
+import { sample } from '../../sample/slice';
+import { showToast } from '../../store';
+import Page from '../../ui/Page';
 
-export default function AdminLogin() {
+export default function AdminLogIn() {
+  const league = useLeague();
+  const me = useMe();
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  // Set by the AdminOnly guard: the admin page the person was trying to open.
+  const next = (useLocation().state as { next?: string } | null)?.next ?? '/admin';
+
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [login, { isLoading }] = useAdminLoginMutation();
-  const dispatch = useAppDispatch();
+  // Errors only show after the first try, so the form is not red before anyone has typed.
+  const [tried, setTried] = useState(false);
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    try {
-      const auth = await login({ name, password }).unwrap();
-      dispatch(adminLoggedIn({ token: auth.token, name: auth.admin.name }));
-    } catch (err) {
-      setError(errorMessage(err));
-    }
+  if (me.isAdmin) {
+    return (
+      <Page title="League admin log in" subtitle={`You are already logged in as the admin ${league.adminName}.`}>
+        <Stack spacing={2}>
+          <Button component={RouterLink} to="/admin" variant="contained" color="secondary" size="large">
+            Admin home
+          </Button>
+          <Typography variant="body2" color="textSecondary">
+            To log out, use the button at the top right.
+          </Typography>
+        </Stack>
+      </Page>
+    );
   }
 
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    setTried(true);
+    if (!name.trim() || !password) return;
+    dispatch(sample.logInAdmin());
+    dispatch(showToast('Logged in as a league admin'));
+    // Replace, so Back does not return to the log-in form.
+    navigate(next, { replace: true });
+  };
+
   return (
-    <Box component="form" onSubmit={onSubmit} sx={{ maxWidth: 420, mx: 'auto' }}>
-      <Typography variant="h2" sx={{ mb: 1 }}>
-        Admin log in
-      </Typography>
-      <Typography color="text.secondary" sx={{ mb: 3 }}>
-        For league organizers. Each admin has their own name and password.
-      </Typography>
-      <Stack spacing={2.5}>
-        <TextField label="Your name" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="username" />
-        <TextField label="Password" value={password} onChange={(e) => setPassword(e.target.value)} required type="password" autoComplete="current-password" />
-        {error && <Alert severity="error">{error}</Alert>}
-        <Button type="submit" variant="contained" size="large" disabled={isLoading}>
-          {isLoading ? 'Logging in…' : 'Log in'}
+    <Page title="League admin log in" subtitle="For the people running the league night.">
+      <Stack component="form" spacing={2} onSubmit={submit} noValidate>
+        <TextField
+          label="Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          autoComplete="username"
+          autoCapitalize="words"
+          error={tried && !name.trim()}
+          helperText={tried && !name.trim() ? 'Type your name.' : undefined}
+        />
+        <TextField
+          label="Password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+          error={tried && !password}
+          helperText={tried && !password ? 'Type your password.' : undefined}
+        />
+        <Button type="submit" variant="contained" color="secondary" size="large">
+          Log in
         </Button>
-        <Typography variant="body2" color="text.secondary">
-          Forgot your password? The league organizer can reset it.
+        <Typography variant="body2" color="textSecondary">
+          This is the sample league, so any name and password work.
         </Typography>
+        <Typography variant="body2" color="textSecondary">
+          Admin accounts are created on the organizer's computer, never on the website.
+        </Typography>
+        <Link component={RouterLink} to="/" underline="hover" sx={{ alignSelf: 'flex-start', py: 1.5, fontWeight: 700 }}>
+          Not an admin? Go to the front page
+        </Link>
       </Stack>
-    </Box>
+    </Page>
   );
 }

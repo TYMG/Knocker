@@ -29,7 +29,8 @@ export default function AdminHome() {
   const waiting = data?.pending.length ?? 0;
   const logOut = () => {
     dispatch(adminLoggedOut());
-    dispatch(api.util.invalidateTags(['AdminTeams']));
+    // Drop everything fetched as an admin (team phone numbers) from memory.
+    dispatch(api.util.resetApiState());
   };
 
   return (

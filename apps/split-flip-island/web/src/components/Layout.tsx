@@ -91,7 +91,14 @@ export default function Layout() {
           <ThemeToggle />
           {adminArea && adminName && (
             <Tooltip title={`Log out admin ${adminName}`}>
-              <IconButton color="inherit" aria-label="Log out of admin" onClick={() => dispatch(adminLoggedOut())}>
+              <IconButton
+                color="inherit"
+                aria-label="Log out of admin"
+                onClick={() => {
+                  dispatch(adminLoggedOut());
+                  dispatch(api.util.resetApiState());
+                }}
+              >
                 <LogoutIcon />
               </IconButton>
             </Tooltip>

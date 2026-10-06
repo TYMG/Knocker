@@ -43,8 +43,8 @@ Then visit https://knckr.com/split-flip-island.
 The app is a private demo. Three things guard it:
 
 - **Demo password.** Until a visitor enters it they get only the password page: no app, no
-  API, no photos. `./scripts/demo-password.sh` makes a new random one (or pass your own, 12+
-  characters) and signs out everyone who was in. `./scripts/demo-password.sh --close` locks the
+  API, no photos. `./scripts/demo-password.sh` makes a new random one (`--choose` lets you type
+  your own, 12+ characters) and signs out everyone who was in. `./scripts/demo-password.sh --close` locks the
   site for everybody. The password is shown once and never stored, so note it down.
 - **Team approval.** A new sign-up waits as "pending": the team can log in, but can't score and
   isn't in the standings. An admin approves or removes it at `/admin`. A sign-up nobody approves

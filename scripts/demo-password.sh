@@ -1,42 +1,70 @@
 #!/usr/bin/env bash
 # Sets the demo password that guards split-flip-island.knckr.com.
-#   ./scripts/demo-password.sh                 make a new random password and show it
-#   ./scripts/demo-password.sh "my own phrase" use your own (12 characters or more)
-#   ./scripts/demo-password.sh --close         remove the password: nobody can get in
+#   ./scripts/demo-password.sh            make a new random password and show it
+#   ./scripts/demo-password.sh --choose   type your own at a hidden prompt (12 characters or more)
+#   ./scripts/demo-password.sh --close    remove the password: nobody can get in
 #
 # Setting a password signs out everyone who was in, so only people you give the new one
 # to can come back. Only a scrambled form is stored; the password is shown here once and
-# is not saved anywhere, so note it down.
+# is not saved anywhere, so note it down. A random one is harder to guess than a phrase.
 set -euo pipefail
 export AWS_PROFILE="${AWS_PROFILE:-knckr}"
+export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 INFRA="$ROOT/apps/split-flip-island/infra"
+MODE="${1:-}"
 
-if [ "$#" -gt 1 ]; then
-  echo 'Put a password with spaces in quotes: ./scripts/demo-password.sh "my own phrase"' >&2
-  exit 1
-fi
+case "$MODE" in
+  "" | --choose | --close) ;;
+  *)
+    echo "Usage: ./scripts/demo-password.sh [--choose | --close]" >&2
+    echo "Passwords are never given on the command line; --choose asks for one at a hidden prompt." >&2
+    exit 1
+    ;;
+esac
 
 STORE="$(terraform -chdir="$INFRA" output -raw gate_store_arn)"
-etag() { aws cloudfront-keyvaluestore describe-key-value-store --kvs-arn "$STORE" --query ETag --output text; }
+store() { aws cloudfront-keyvaluestore describe-key-value-store --kvs-arn "$STORE" --query "$1" --output text; }
 
-if [ "${1:-}" = "--close" ]; then
-  if aws cloudfront-keyvaluestore delete-key --kvs-arn "$STORE" --key gate --if-match "$(etag)" > /dev/null 2>&1; then
-    echo "The demo is closed. Nobody can get in until you set a new password."
-  else
-    echo "The demo was already closed, or the change did not go through. Run it again to check." >&2
+if [ "$MODE" = "--close" ]; then
+  if [ "$(store ItemCount)" = "0" ]; then
+    echo "The demo is already closed. Nobody can get in until you set a password."
+    exit 0
+  fi
+  aws cloudfront-keyvaluestore delete-key --kvs-arn "$STORE" --key gate --if-match "$(store ETag)" > /dev/null
+  if [ "$(store ItemCount)" != "0" ]; then
+    echo "The demo is NOT closed: the change did not go through. Run this again." >&2
     exit 1
   fi
+  echo "The demo is closed. Nobody can get in until you set a new password."
   exit 0
 fi
 
 cd "$ROOT/apps/split-flip-island/api"
 [ -d node_modules ] || npm install
-if [ "$#" -eq 1 ]; then OUT="$(npx tsx scripts/gate-record.ts "$1")"; else OUT="$(npx tsx scripts/gate-record.ts)"; fi
+if [ "$MODE" = "--choose" ]; then
+  printf 'New demo password (12 characters or more, nothing shows as you type): '
+  IFS= read -r -s CHOSEN
+  printf '\nSame password again: '
+  IFS= read -r -s AGAIN
+  printf '\n'
+  if [ "$CHOSEN" != "$AGAIN" ]; then
+    echo "Those two don't match. Nothing was changed." >&2
+    exit 1
+  fi
+  OUT="$(printf '%s' "$CHOSEN" | npx tsx scripts/gate-record.ts --stdin)"
+  unset CHOSEN AGAIN
+else
+  OUT="$(npx tsx scripts/gate-record.ts)"
+fi
 PASSWORD="$(printf '%s\n' "$OUT" | sed -n 1p)"
 RECORD="$(printf '%s\n' "$OUT" | sed -n 2p)"
+if [ -z "$PASSWORD" ] || [ -z "$RECORD" ]; then
+  echo "Could not make the password record. Nothing was changed." >&2
+  exit 1
+fi
 
-aws cloudfront-keyvaluestore put-key --kvs-arn "$STORE" --key gate --value "$RECORD" --if-match "$(etag)" > /dev/null
+aws cloudfront-keyvaluestore put-key --kvs-arn "$STORE" --key gate --value "$RECORD" --if-match "$(store ETag)" > /dev/null
 
 echo "The demo password is now:"
 echo

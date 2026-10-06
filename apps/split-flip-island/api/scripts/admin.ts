@@ -43,6 +43,7 @@ function askHidden(question: string): Promise<string> {
   return new Promise((resolve) => {
     let value = '';
     const onData = (chunk: string) => {
+      if (chunk.startsWith('\u001b')) return; // arrow keys and other escape sequences
       for (const ch of chunk) {
         if (ch === '\u0003') { // Ctrl+C
           stdin.setRawMode(false);
@@ -57,7 +58,7 @@ function askHidden(question: string): Promise<string> {
           return resolve(value);
         }
         if (ch === '\u007f' || ch === '\b') value = value.slice(0, -1);
-        else value += ch;
+        else if (ch >= ' ') value += ch;
       }
     };
     stdin.on('data', onData);
@@ -86,7 +87,9 @@ switch (command) {
     try {
       await ddb.send(new PutCommand({
         TableName,
-        Item: { PK, SK: keys.admin(name), type: 'admin', name, passHash, tokenVersion: 1, createdAt: new Date().toISOString() },
+        // tokenVersion is the time the password was set, so tokens from an earlier account
+        // with the same name can never match.
+        Item: { PK, SK: keys.admin(name), type: 'admin', name, passHash, tokenVersion: Date.now(), createdAt: new Date().toISOString() },
         ConditionExpression: 'attribute_not_exists(PK)'
       }));
     } catch (err) {
@@ -102,9 +105,9 @@ switch (command) {
     try {
       await ddb.send(new UpdateCommand({
         TableName, Key: { PK, SK: keys.admin(name) },
-        UpdateExpression: 'SET passHash = :hash, tokenVersion = tokenVersion + :one REMOVE failures, lastFailureAt',
+        UpdateExpression: 'SET passHash = :hash, tokenVersion = :version REMOVE failures, lastFailureAt',
         ConditionExpression: 'attribute_exists(PK)',
-        ExpressionAttributeValues: { ':hash': passHash, ':one': 1 }
+        ExpressionAttributeValues: { ':hash': passHash, ':version': Date.now() }
       }));
     } catch (err) {
       if (missing(err)) fail(`There is no admin named ${name}.`);

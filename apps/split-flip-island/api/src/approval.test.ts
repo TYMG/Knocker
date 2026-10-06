@@ -91,6 +91,7 @@ beforeEach(() => {
   fake.bucket.objects.clear();
   delete process.env.MAX_PENDING_TEAMS;
   delete process.env.PENDING_TEAM_HOURS;
+  fake.bucket.failPuts = false;
   addAdmin('Matt', 'correct horse battery');
 });
 
@@ -112,7 +113,9 @@ describe('signing up', () => {
     const wait = Date.parse(res.body.team.expiresAt) - before;
     expect(wait).toBeGreaterThan(24 * HOUR - 5000);
     expect(wait).toBeLessThan(24 * HOUR + 5000);
-    expect(auditActions()).toEqual(['Left & Right signed up and is waiting for approval']);
+    // The name stays out of the public log until an admin approves the team.
+    expect(auditActions()).toEqual(['A new team signed up and is waiting for approval']);
+    expect(JSON.stringify((await call('GET', '/api/audit')).body)).not.toContain('Left & Right');
   });
 
   it('uses the configured waiting time', async () => {
@@ -135,6 +138,32 @@ describe('signing up', () => {
     const third = await signUp('Three');
     expect(third.status).toBe(409);
     expect(fake.table.get(L, 'TEAMNAME#three')).toBeUndefined();
+  });
+});
+
+describe('team log in', () => {
+  it('locks after ten wrong PINs, even in a burst, and never crashes on odd input', async () => {
+    await signUp('Left & Right');
+    const burst = await Promise.all(Array.from({ length: 30 }, (_, i) => call('POST', '/api/login', { body: { teamName: 'Left & Right', pin: String(1000 + i) } })));
+    expect(burst.filter((r) => r.status === 401)).toHaveLength(10);
+    expect(burst.filter((r) => r.status === 429)).toHaveLength(20);
+    expect((await call('POST', '/api/login', { body: { teamName: 'Left & Right', pin: '4821' } })).status).toBe(429);
+
+    for (const body of [null, 7, [], { teamName: 5, pin: 4821 }, { teamName: { a: 1 } }]) {
+      expect((await call('POST', '/api/login', { body })).status).toBe(401);
+      expect((await call('POST', '/api/admin/login', { body })).status).toBe(401);
+    }
+    expect((await call('POST', '/api/teams', { body: { teamName: 5, phone1: 2025550142, phone2: null, pin: 4821 } })).status).toBe(400);
+    expect((await call('POST', '/api/teams', { body: null })).status).toBe(400);
+  });
+
+  it('works with the right PIN and clears earlier wrong guesses', async () => {
+    await signUp('Left & Right');
+    await call('POST', '/api/login', { body: { teamName: 'Left & Right', pin: '0000' } });
+    const ok = await call('POST', '/api/login', { body: { teamName: ' left &  right ', pin: '4821' } });
+    expect(ok.status).toBe(200);
+    const id = ok.body.team.teamId;
+    expect(fake.table.get(L, `TEAM#${id}#PRIVATE`)!.failures).toBeUndefined();
   });
 });
 
@@ -176,6 +205,24 @@ describe('admin log in', () => {
     expect((await call('POST', '/api/admin/login', { body: { name: 'Matt', password: 'correct horse battery' } })).status).toBe(429);
   });
 
+  it('holds the limit against a burst of guesses sent at the same moment', async () => {
+    const burst = await Promise.all(Array.from({ length: 40 }, (_, i) => call('POST', '/api/admin/login', { body: { name: 'Matt', password: `wrong ${i}` } })));
+    expect(burst.filter((r) => r.status === 401)).toHaveLength(10);
+    expect(burst.filter((r) => r.status === 429)).toHaveLength(30);
+    expect(fake.table.get('ADMIN#sfi-s1', 'ADMIN#matt')!.failures).toBe(10);
+  });
+
+  it('unlocks after 15 minutes, and a correct password clears the count', async () => {
+    for (let i = 0; i < 10; i++) await call('POST', '/api/admin/login', { body: { name: 'Matt', password: `wrong ${i}` } });
+    vi.useFakeTimers({ now: Date.now() + 16 * 60_000, toFake: ['Date'] });
+    try {
+      expect((await call('POST', '/api/admin/login', { body: { name: 'Matt', password: 'correct horse battery' } })).status).toBe(200);
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(fake.table.get('ADMIN#sfi-s1', 'ADMIN#matt')!.failures).toBeUndefined();
+  });
+
   it('does not create an account when someone guesses a name', async () => {
     await call('POST', '/api/admin/login', { body: { name: 'Ghost', password: 'whatever it is' } });
     expect(fake.table.all('ADMIN#sfi-s1')).toHaveLength(1);
@@ -204,6 +251,8 @@ describe('admin pages', () => {
     const token = await adminToken();
     expect((await call('GET', '/api/admin/teams', asAdmin(token))).status).toBe(200);
     addAdmin('Matt', 'a different password', 2);
+    // Re-creating an account with the same name must not revive the old token either.
+    expect((await call('GET', '/api/admin/teams', asAdmin(token))).status).toBe(401);
     expect((await call('GET', '/api/admin/teams', asAdmin(token))).status).toBe(401);
 
     const fresh = await adminToken('Matt', 'a different password');
@@ -269,6 +318,31 @@ describe('approving a sign-up', () => {
     expect(fake.table.get(L, `TEAM#${id}`)!.status).toBe('approved');
   });
 
+  it('keeps the photo when two approvals arrive at the same moment', async () => {
+    const { body } = await signUp('Left & Right');
+    const id = body.team.teamId;
+    const token = await adminToken();
+    const both = await Promise.all([1, 2].map(() => call('POST', `/api/admin/teams/${id}/approve`, asAdmin(token))));
+    expect(both.map((r) => r.status)).toEqual([200, 200]);
+    expect(fake.table.get(L, `TEAM#${id}`)!.status).toBe('approved');
+    expect(fake.bucket.objects.has(`leagues/sfi-s1/teams/${id}.jpg`)).toBe(true);
+    expect(auditActions().filter((a) => a.includes('approved'))).toHaveLength(1);
+  });
+
+  it('changes nothing when the photo cannot be saved, so the admin can try again', async () => {
+    const { body } = await signUp('Left & Right');
+    const id = body.team.teamId;
+    const pendingPhoto = fake.table.get(L, `TEAM#${id}`)!.photoKey as string;
+    const token = await adminToken();
+    fake.bucket.failPuts = true;
+    expect((await call('POST', `/api/admin/teams/${id}/approve`, asAdmin(token))).status).toBe(503);
+    expect(fake.table.get(L, `TEAM#${id}`)!.status).toBe('pending');
+    expect(fake.bucket.objects.has(pendingPhoto)).toBe(true);
+    fake.bucket.failPuts = false;
+    expect((await call('POST', `/api/admin/teams/${id}/approve`, asAdmin(token))).status).toBe(200);
+    expect(fake.bucket.objects.has(`leagues/sfi-s1/teams/${id}.jpg`)).toBe(true);
+  });
+
   it('still approves when the photo has gone missing', async () => {
     const { body } = await signUp('No Photo');
     fake.bucket.objects.clear();
@@ -301,8 +375,9 @@ describe('removing a sign-up', () => {
     expect(fake.table.get(L, 'TEAMNAME#spam team')).toBeUndefined();
     expect(fake.bucket.objects.has(photo)).toBe(false);
     const entry = fake.table.all('AUDIT#sfi-s1').find((a) => String(a.action).includes('removed'))!;
-    expect(entry.action).toBe("Matt removed Spam Team's sign-up");
+    expect(entry.action).toBe('Matt removed a sign-up');
     expect(entry.reason).toBe('not a real team');
+    expect(JSON.stringify((await call('GET', '/api/audit')).body)).not.toContain('Spam Team');
 
     expect((await call('POST', '/api/login', { body: { teamName: 'Spam Team', pin: '4821' } })).status).toBe(401);
     expect((await call('GET', '/api/me', asTeam(body.token))).status).toBe(401);
@@ -338,7 +413,8 @@ describe('sign-ups nobody approves', () => {
     expect(fake.bucket.objects.has(pendingPhoto)).toBe(false);
     expect(fake.table.get(L, `TEAM#${fresh.body.team.teamId}`)).toBeDefined();
     expect(fake.table.get(L, `TEAM#${approved.body.team.teamId}`)!.status).toBe('approved');
-    expect(auditActions()).toContain("Old Sign-up's sign-up expired without approval");
+    expect(auditActions()).toContain('A sign-up expired without approval');
+    expect(JSON.stringify((await call('GET', '/api/audit')).body)).not.toContain('Old Sign-up');
   });
 
   it('cannot be triggered from the web', async () => {

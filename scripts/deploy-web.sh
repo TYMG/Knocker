@@ -2,6 +2,7 @@
 # Builds the web app and publishes it to S3 + CloudFront.
 set -euo pipefail
 export AWS_PROFILE="${AWS_PROFILE:-knckr}"
+export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 INFRA="$ROOT/apps/split-flip-island/infra"
 BUCKET="$(terraform -chdir="$INFRA" output -raw site_bucket)"

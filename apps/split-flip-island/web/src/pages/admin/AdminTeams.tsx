@@ -41,7 +41,8 @@ export default function AdminTeams() {
   const { data, error, isLoading } = useAdminTeamsQuery(undefined, { pollingInterval: 30000 });
   const [approve] = useApproveTeamMutation();
   const [remove] = useRemoveTeamMutation();
-  const [busyId, setBusyId] = useState<string | null>(null);
+  // Teams with an approve or remove in flight. A set, so finishing one never re-enables another.
+  const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
   const [actionError, setActionError] = useState<string | null>(null);
   const [removing, setRemoving] = useState<AdminTeam | null>(null);
   const [reason, setReason] = useState('');
@@ -54,7 +55,8 @@ export default function AdminTeams() {
   }, [signedOut, dispatch]);
 
   async function run(teamId: string, action: () => Promise<unknown>) {
-    setBusyId(teamId);
+    if (busy.has(teamId)) return false;
+    setBusy((ids) => new Set(ids).add(teamId));
     setActionError(null);
     try {
       await action();
@@ -64,7 +66,11 @@ export default function AdminTeams() {
       else setActionError(errorMessage(err));
       return false;
     } finally {
-      setBusyId(null);
+      setBusy((ids) => {
+        const next = new Set(ids);
+        next.delete(teamId);
+        return next;
+      });
     }
   }
 
@@ -134,12 +140,12 @@ export default function AdminTeams() {
                         color="secondary"
                         size="large"
                         sx={{ flex: 1 }}
-                        disabled={busyId === team.teamId}
+                        disabled={busy.has(team.teamId)}
                         onClick={() => run(team.teamId, () => approve(team.teamId).unwrap())}
                       >
                         Approve
                       </Button>
-                      <Button variant="outlined" size="large" sx={{ flex: 1 }} disabled={busyId === team.teamId} onClick={() => setRemoving(team)}>
+                      <Button variant="outlined" size="large" sx={{ flex: 1 }} disabled={busy.has(team.teamId)} onClick={() => setRemoving(team)}>
                         Remove
                       </Button>
                     </Stack>
@@ -188,7 +194,7 @@ export default function AdminTeams() {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setRemoving(null)}>Keep it</Button>
-          <Button variant="contained" color="secondary" disabled={reason.trim().length < 3 || busyId !== null} onClick={confirmRemove}>
+          <Button variant="contained" color="secondary" disabled={reason.trim().length < 3 || (!!removing && busy.has(removing.teamId))} onClick={confirmRemove}>
             Remove sign-up
           </Button>
         </DialogActions>

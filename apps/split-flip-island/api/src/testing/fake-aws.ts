@@ -33,14 +33,46 @@ export class FakeTable {
 
   private name = (token: string, names: Names = {}) => (token.startsWith('#') ? names[token] : token);
 
+  /**
+   * Evaluates a condition made of attribute_exists(a), attribute_not_exists(a), a = :v and
+   * a < :v, joined with AND / OR and grouped with parentheses.
+   */
   private passes(existing: Item | undefined, w: Write): boolean {
     const cond = w.ConditionExpression;
     if (!cond) return true;
-    if (cond === 'attribute_not_exists(PK)') return existing === undefined;
-    if (cond === 'attribute_exists(PK)') return existing !== undefined;
-    const eq = /^(#?\w+) = (:\w+)$/.exec(cond);
-    if (eq) return existing !== undefined && existing[this.name(eq[1], w.ExpressionAttributeNames)] === w.ExpressionAttributeValues?.[eq[2]];
-    throw new Error(`fake-aws: unsupported condition "${cond}"`);
+    const tokens = cond.match(/attribute_(?:not_)?exists\(#?\w+\)|\(|\)|AND|OR|#?\w+ (?:=|<) :\w+/g) ?? [];
+    if (tokens.join('').replace(/ /g, '') !== cond.replace(/ /g, '')) throw new Error(`fake-aws: unsupported condition "${cond}"`);
+    let i = 0;
+    const attr = (token: string) => existing?.[this.name(token, w.ExpressionAttributeNames)];
+    const term = (): boolean => {
+      const t = tokens[i++];
+      if (t === '(') {
+        const value = or();
+        if (tokens[i++] !== ')') throw new Error(`fake-aws: unbalanced condition "${cond}"`);
+        return value;
+      }
+      const exists = /^attribute_(not_)?exists\((#?\w+)\)$/.exec(t);
+      if (exists) return (attr(exists[2] === 'PK' ? 'PK' : exists[2]) !== undefined) !== !!exists[1];
+      const compare = /^(#?\w+) (=|<) (:\w+)$/.exec(t);
+      if (!compare) throw new Error(`fake-aws: unsupported condition "${cond}"`);
+      const left = attr(compare[1]);
+      const right = w.ExpressionAttributeValues?.[compare[3]];
+      if (left === undefined) return false;
+      return compare[2] === '=' ? left === right : (left as number) < (right as number);
+    };
+    const and = (): boolean => {
+      let value = term();
+      while (tokens[i] === 'AND') { i++; const next = term(); value = value && next; }
+      return value;
+    };
+    const or = (): boolean => {
+      let value = and();
+      while (tokens[i] === 'OR') { i++; const next = and(); value = value || next; }
+      return value;
+    };
+    const result = or();
+    if (i !== tokens.length) throw new Error(`fake-aws: unsupported condition "${cond}"`);
+    return result;
   }
 
   private applyUpdate(existing: Item | undefined, w: Write): Item {
@@ -104,6 +136,8 @@ export class FakeTable {
 
 export class FakeBucket {
   objects = new Map<string, Uint8Array>();
+  /** Set to make every PutObject fail, as a passing S3 error would. */
+  failPuts = false;
 
   send = async (command: { constructor: { name: string }; input: { Key?: string; Body?: Uint8Array } }): Promise<Record<string, unknown>> => {
     const key = command.input.Key!;
@@ -115,10 +149,11 @@ export class FakeBucket {
       }
       case 'GetObjectCommand': {
         const body = this.objects.get(key);
-        if (!body) throw new Error('NoSuchKey');
+        if (!body) throw Object.assign(new Error('The specified key does not exist.'), { name: 'NoSuchKey' });
         return { Body: { transformToByteArray: async () => body } };
       }
       case 'PutObjectCommand':
+        if (this.failPuts) throw Object.assign(new Error('Service unavailable'), { name: 'ServiceUnavailable' });
         this.objects.set(key, command.input.Body!);
         return {};
       case 'DeleteObjectCommand':

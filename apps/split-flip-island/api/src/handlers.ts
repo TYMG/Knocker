@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
-import { GetCommand, QueryCommand, TransactWriteCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, QueryCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
 import { HeadObjectCommand } from '@aws-sdk/client-s3';
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import type {
@@ -8,17 +8,18 @@ import type {
   Score, StandingRow, StandingsResponse, SubmitScoreRequest, Team, UploadResponse, PresignedUpload
 } from '../../shared/types.js';
 import { ddb, keys, leagueId, queryAll, s3, table } from './db.js';
-import { hashPin, issueToken, requireTeam, verifyPin } from './auth.js';
+import { clearLoginStrikes, hashPin, issueToken, requireTeam, takeLoginStrike, verifyPin } from './auth.js';
 import { rankChange, rankTotals, runningRanks, scoreNight } from './scoring.js';
-import { env, HttpError, nowIso, parseBody, photoUrl } from './util.js';
+import { env, HttpError, nowIso, parseBody, photoUrl, text } from './util.js';
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
-export const MAX_LOGIN_FAILURES = 10;
-export const LOCKOUT_MS = 15 * 60_000;
 
 /** Hours a new sign-up waits for approval before it is deleted. */
 export const pendingHours = () => Number(process.env.PENDING_TEAM_HOURS) || 24;
-/** Most sign-ups allowed to wait at once, so nobody can flood the approval list. */
+/**
+ * Most sign-ups allowed to wait at once, so nobody can flood the approval list. The check is
+ * not atomic: a burst of parallel sign-ups can overshoot it by as many as the API's burst limit.
+ */
 export const maxPendingTeams = () => Number(process.env.MAX_PENDING_TEAMS) || 25;
 
 const NOT_APPROVED = 'Your team is waiting for the league to approve it. You can play once it is approved.';
@@ -143,11 +144,11 @@ export async function createUpload(event: APIGatewayProxyEventV2): Promise<Uploa
 export async function register(event: APIGatewayProxyEventV2): Promise<AuthResponse> {
   const body = parseBody<RegisterRequest>(event);
   const l = leagueId();
-  const teamName = (body.teamName ?? '').trim().replace(/\s+/g, ' ');
-  const phone1 = (body.phone1 ?? '').replace(/\D/g, '');
-  const phone2 = (body.phone2 ?? '').replace(/\D/g, '');
-  const pin = body.pin ?? '';
-  const photoKey = body.photoKey ?? '';
+  const teamName = text(body.teamName).trim().replace(/\s+/g, ' ');
+  const phone1 = text(body.phone1).replace(/\D/g, '');
+  const phone2 = text(body.phone2).replace(/\D/g, '');
+  const pin = text(body.pin);
+  const photoKey = text(body.photoKey);
 
   if (teamName.length < 2 || teamName.length > 30) throw new HttpError(400, 'Team name must be 2 to 30 characters.');
   if (phone1.length < 10 || phone2.length < 10) throw new HttpError(400, 'Enter a 10-digit phone number for both players.');
@@ -172,9 +173,11 @@ export async function register(event: APIGatewayProxyEventV2): Promise<AuthRespo
       TransactItems: [
         // Claims the name so no two teams share it. Also used for login.
         { Put: { TableName: table(), Item: { PK: keys.league(l), SK: keys.teamName(teamName), type: 'teamName', teamId }, ConditionExpression: 'attribute_not_exists(PK)' } },
-        { Put: { TableName: table(), Item: { PK: keys.league(l), SK: keys.team(teamId), ...team } } },
-        { Put: { TableName: table(), Item: { PK: keys.league(l), SK: keys.teamPrivate(teamId), type: 'private', pinHash: hashPin(pin), phone1, phone2 } } },
-        auditPut(`${teamName} signed up and is waiting for approval`, teamName)
+        // The conditions guard against the (very unlikely) case of two teams drawing the same ID.
+        { Put: { TableName: table(), Item: { PK: keys.league(l), SK: keys.team(teamId), ...team }, ConditionExpression: 'attribute_not_exists(PK)' } },
+        { Put: { TableName: table(), Item: { PK: keys.league(l), SK: keys.teamPrivate(teamId), type: 'private', pinHash: hashPin(pin), phone1, phone2 }, ConditionExpression: 'attribute_not_exists(PK)' } },
+        // The league log is public inside the app, so a team's name stays out of it until an admin approves the team.
+        auditPut('A new team signed up and is waiting for approval', 'League')
       ]
     }));
   } catch (err) {
@@ -187,7 +190,9 @@ export async function register(event: APIGatewayProxyEventV2): Promise<AuthRespo
 // ---------- POST /api/login ----------
 
 export async function login(event: APIGatewayProxyEventV2): Promise<AuthResponse> {
-  const { teamName = '', pin = '' } = parseBody<LoginRequest>(event);
+  const body = parseBody<LoginRequest>(event);
+  const teamName = text(body.teamName);
+  const pin = text(body.pin);
   const l = leagueId();
   const wrong = new HttpError(401, "That team name and PIN don't match.");
 
@@ -199,20 +204,10 @@ export async function login(event: APIGatewayProxyEventV2): Promise<AuthResponse
   const priv = (await ddb.send(new GetCommand({ TableName: table(), Key: privKey }))).Item as PrivateItem | undefined;
   if (!priv) throw wrong;
 
-  const locked = (priv.failures ?? 0) >= MAX_LOGIN_FAILURES && Date.now() - (priv.lastFailureAt ?? 0) < LOCKOUT_MS;
-  if (locked) throw new HttpError(429, 'Too many wrong PINs. Wait 15 minutes or ask the league admin.');
-
-  if (!verifyPin(pin, priv.pinHash)) {
-    await ddb.send(new UpdateCommand({
-      TableName: table(), Key: privKey,
-      UpdateExpression: 'SET failures = if_not_exists(failures, :z) + :one, lastFailureAt = :now',
-      ExpressionAttributeValues: { ':z': 0, ':one': 1, ':now': Date.now() }
-    }));
-    throw wrong;
-  }
-  if (priv.failures) {
-    await ddb.send(new UpdateCommand({ TableName: table(), Key: privKey, UpdateExpression: 'REMOVE failures, lastFailureAt' }));
-  }
+  // Every attempt is counted before the PIN is checked; a correct PIN clears the count.
+  if (!(await takeLoginStrike(privKey))) throw new HttpError(429, 'Too many wrong PINs. Wait 15 minutes or ask the league admin.');
+  if (!verifyPin(pin, priv.pinHash)) throw wrong;
+  await clearLoginStrikes(privKey);
 
   const team = (await ddb.send(new GetCommand({ TableName: table(), Key: { PK: keys.league(l), SK: keys.team(teamId) } }))).Item as TeamItem | undefined;
   if (!team) throw wrong;

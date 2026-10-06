@@ -1,5 +1,8 @@
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
+import { ConditionalCheckFailedException } from '@aws-sdk/client-dynamodb';
+import { UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { ddb, table } from './db.js';
 import { env, HttpError } from './util.js';
 
 const TOKEN_DAYS = 60;
@@ -44,7 +47,7 @@ export function readToken(event: APIGatewayProxyEventV2): TokenPayload | null {
   const given = Buffer.from(sig);
   if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
   const payload = parsePayload<TokenPayload>(body);
-  if (!payload || typeof payload.teamId !== 'string' || !(payload.exp > Date.now())) return null;
+  if (!payload || typeof payload.teamId !== 'string' || payload.leagueId !== env('LEAGUE_ID') || !(payload.exp > Date.now())) return null;
   return payload;
 }
 
@@ -112,3 +115,45 @@ export function verifyPin(pin: string, stored: string): boolean {
 // Admin passwords use the same salted scrypt hash as PINs.
 export const hashPassword = hashPin;
 export const verifyPassword = verifyPin;
+
+// ---------- Wrong-guess limit, shared by team PINs and admin passwords ----------
+
+export const MAX_LOGIN_FAILURES = 10;
+export const LOCKOUT_MS = 15 * 60_000;
+
+const isConditionFailure = (err: unknown) =>
+  err instanceof ConditionalCheckFailedException || (err as Error | undefined)?.name === 'ConditionalCheckFailedException';
+
+/**
+ * Counts a login attempt against an account BEFORE the secret is checked, in one atomic
+ * update, so a burst of parallel guesses can't all slip in under the limit. Returns false
+ * when the account is locked (or gone). Call clearLoginStrikes after a correct login.
+ */
+export async function takeLoginStrike(key: { PK: string; SK: string }, now = Date.now()): Promise<boolean> {
+  const count = async (update: string, condition: string, values: Record<string, number>) => {
+    try {
+      await ddb.send(new UpdateCommand({
+        TableName: table(), Key: key, UpdateExpression: update,
+        ConditionExpression: `attribute_exists(PK) AND (${condition})`,
+        ExpressionAttributeValues: values
+      }));
+      return true;
+    } catch (err) {
+      if (isConditionFailure(err)) return false;
+      throw err;
+    }
+  };
+  // Normal case: still under the limit.
+  if (await count(
+    'SET failures = if_not_exists(failures, :zero) + :one, lastFailureAt = :now',
+    'attribute_not_exists(failures) OR failures < :max',
+    { ':zero': 0, ':one': 1, ':now': now, ':max': MAX_LOGIN_FAILURES }
+  )) return true;
+  // At the limit: start a fresh count only if the lockout has run out.
+  return count('SET failures = :one, lastFailureAt = :now', 'lastFailureAt < :unlockedBefore', { ':one': 1, ':now': now, ':unlockedBefore': now - LOCKOUT_MS });
+}
+
+export async function clearLoginStrikes(key: { PK: string; SK: string }): Promise<void> {
+  await ddb.send(new UpdateCommand({ TableName: table(), Key: key, UpdateExpression: 'REMOVE failures, lastFailureAt', ConditionExpression: 'attribute_exists(PK)' }))
+    .catch((err) => { if (!isConditionFailure(err)) throw err; });
+}

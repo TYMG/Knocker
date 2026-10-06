@@ -5,17 +5,15 @@
 // "pending"; an admin approves or removes them, and sign-ups nobody approves in time are
 // deleted by purgeExpired, which a schedule runs every 15 minutes.
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
-import { GetCommand, TransactWriteCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import type {
   AdminAuthResponse, AdminLoginRequest, AdminTeam, AdminTeamsResponse, RemoveTeamRequest
 } from '../../shared/types.js';
-import { hashPassword, issueAdminToken, readAdminToken, verifyPassword } from './auth.js';
+import { clearLoginStrikes, hashPassword, issueAdminToken, readAdminToken, takeLoginStrike, verifyPassword } from './auth.js';
 import { ddb, keys, leagueId, s3, table } from './db.js';
-import {
-  auditPut, loadLeague, LOCKOUT_MS, MAX_LOGIN_FAILURES, pendingHours, toTeam, type PrivateItem, type TeamItem
-} from './handlers.js';
-import { env, HttpError, nowIso, parseBody } from './util.js';
+import { auditPut, loadLeague, pendingHours, toTeam, type PrivateItem, type TeamItem } from './handlers.js';
+import { env, HttpError, nowIso, parseBody, text } from './util.js';
 
 export interface AdminItem {
   type: 'admin'; name: string; passHash: string; tokenVersion: number; createdAt: string;
@@ -47,30 +45,22 @@ export async function requireAdmin(event: APIGatewayProxyEventV2): Promise<Admin
 const DECOY_HASH = hashPassword('no such admin');
 
 export async function adminLogin(event: APIGatewayProxyEventV2): Promise<AdminAuthResponse> {
-  const { name = '', password = '' } = parseBody<AdminLoginRequest>(event);
+  const body = parseBody<AdminLoginRequest>(event);
+  const name = text(body.name);
+  const password = text(body.password);
   const wrong = new HttpError(401, "That name and password don't match.");
-  if (typeof name !== 'string' || typeof password !== 'string' || !name.trim() || password.length > 200) throw wrong;
+  if (!name.trim() || name.length > 60 || password.length > 200) throw wrong;
 
   const admin = await getAdmin(name);
   if (!admin) {
     verifyPassword(password, DECOY_HASH);
     throw wrong;
   }
-  const locked = (admin.failures ?? 0) >= MAX_LOGIN_FAILURES && Date.now() - (admin.lastFailureAt ?? 0) < LOCKOUT_MS;
-  if (locked) throw new HttpError(429, 'Too many wrong passwords. Wait 15 minutes and try again.');
-
-  if (!verifyPassword(password, admin.passHash)) {
-    await ddb.send(new UpdateCommand({
-      TableName: table(), Key: adminKey(name),
-      UpdateExpression: 'SET failures = if_not_exists(failures, :z) + :one, lastFailureAt = :now',
-      ConditionExpression: 'attribute_exists(PK)',
-      ExpressionAttributeValues: { ':z': 0, ':one': 1, ':now': Date.now() }
-    }));
-    throw wrong;
-  }
-  if (admin.failures) {
-    await ddb.send(new UpdateCommand({ TableName: table(), Key: adminKey(name), UpdateExpression: 'REMOVE failures, lastFailureAt' }));
-  }
+  // Every attempt is counted before the password is checked; a correct one clears the count.
+  // (`./scripts/admin.sh password "Name"` also clears it, if someone keeps an admin locked out.)
+  if (!(await takeLoginStrike(adminKey(name)))) throw new HttpError(429, 'Too many wrong passwords. Wait 15 minutes and try again.');
+  if (!verifyPassword(password, admin.passHash)) throw wrong;
+  await clearLoginStrikes(adminKey(name));
   return { token: issueAdminToken(admin.name, leagueId(), admin.tokenVersion), admin: { name: admin.name } };
 }
 
@@ -105,20 +95,32 @@ async function deletePhoto(key: string) {
   }
 }
 
-/** Copies an approved team's photo out of pending/ so the bucket's cleanup leaves it alone. */
+const keptPhotoKey = (teamId: string) => `leagues/${leagueId()}/teams/${teamId}.jpg`;
+
+/**
+ * Copies an approved team's photo out of pending/ so the bucket's cleanup leaves it alone.
+ * Returns '' when the photo no longer exists (the team is approved without one). Any other
+ * failure stops the approval, so a passing error never costs a team its photo.
+ */
 async function keepPhoto(team: TeamItem): Promise<string> {
   const Bucket = env('PHOTOS_BUCKET');
-  const kept = `leagues/${leagueId()}/teams/${team.teamId}.jpg`;
+  let bytes: Uint8Array;
   try {
     const original = await s3.send(new GetObjectCommand({ Bucket, Key: team.photoKey }));
-    const bytes = await original.Body!.transformToByteArray();
-    await s3.send(new PutObjectCommand({ Bucket, Key: kept, Body: bytes, ContentType: 'image/jpeg' }));
-    return kept;
+    bytes = await original.Body!.transformToByteArray();
   } catch (err) {
-    // Approve anyway; the team shows without a photo.
-    console.error('Could not keep team photo', team.photoKey, err);
-    return '';
+    const name = (err as Error).name;
+    if (name === 'NoSuchKey' || name === 'NotFound') return '';
+    console.error('Could not read team photo', team.photoKey, err);
+    throw new HttpError(503, "Couldn't save the team's photo just now. Nothing changed; try again.");
   }
+  try {
+    await s3.send(new PutObjectCommand({ Bucket, Key: keptPhotoKey(team.teamId), Body: bytes, ContentType: 'image/jpeg' }));
+  } catch (err) {
+    console.error('Could not keep team photo', team.photoKey, err);
+    throw new HttpError(503, "Couldn't save the team's photo just now. Nothing changed; try again.");
+  }
+  return keptPhotoKey(team.teamId);
 }
 
 // ---------- POST /api/admin/teams/{teamId}/approve ----------
@@ -156,13 +158,17 @@ export async function approveTeam(event: APIGatewayProxyEventV2, teamId: string)
       ]
     }));
   } catch (err) {
-    if ((err as Error).name === 'TransactionCanceledException') {
-      await deletePhoto(photoKey);
-      throw HANDLED;
-    }
-    throw err;
+    if ((err as Error).name !== 'TransactionCanceledException') throw err;
+    // Someone got there first. If they approved it, the copy we just made is the team's photo,
+    // so leave it. If the team was removed or expired, clean the copy up.
+    const { allTeams } = await loadLeague();
+    const current = allTeams.find((t) => t.teamId === teamId);
+    if (current?.status === 'approved') return { ok: true };
+    await deletePhoto(photoKey);
+    throw HANDLED;
   }
-  await deletePhoto(team.photoKey);
+  // The pending original is only deleted once the kept copy exists.
+  if (photoKey) await deletePhoto(team.photoKey);
   return { ok: true };
 }
 
@@ -202,7 +208,8 @@ export async function removeTeam(event: APIGatewayProxyEventV2, teamId: string):
   const team = await findTeam(teamId);
   if (team.status !== 'pending') throw new HttpError(409, "That team is already approved. Approved teams can't be removed here.");
   try {
-    await deletePendingTeam(team, auditPut(`${admin.name} removed ${team.teamName}'s sign-up`, admin.name, reason));
+    // The team was never approved, so its name stays out of the public log.
+    await deletePendingTeam(team, auditPut(`${admin.name} removed a sign-up`, admin.name, reason));
   } catch (err) {
     if ((err as Error).name === 'TransactionCanceledException') throw HANDLED;
     throw err;
@@ -222,7 +229,7 @@ export async function purgeExpired(now = Date.now()): Promise<{ purged: number; 
   let failed = 0;
   for (const team of expiredSignUps(allTeams, now)) {
     try {
-      await deletePendingTeam(team, auditPut(`${team.teamName}'s sign-up expired without approval`, 'League'));
+      await deletePendingTeam(team, auditPut('A sign-up expired without approval', 'League'));
       purged += 1;
     } catch (err) {
       // Approved in the same instant, or a passing error. The next run tries again.

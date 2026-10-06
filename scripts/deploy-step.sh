@@ -11,6 +11,7 @@
 #   plan-league        plan the site, API, database and photo storage. Changes nothing.
 #   apply-league       create them.
 #   web                build the web app and publish it.
+#   check-gate         confirm the live site serves nothing but the password page. Changes nothing.
 #
 # Every apply-* step applies exactly the plan saved by its plan-* step, nothing else.
 set -uo pipefail
@@ -68,6 +69,39 @@ apply() {
   terraform output -no-color
 }
 
+# Asks the live site for things only someone past the demo password should get, and checks
+# every one is refused. Safe to run any time; it sends no password and changes nothing.
+check_gate() {
+  local infra base api code page fails=0
+  infra="$(stack_dir league)"
+  base="$(terraform -chdir="$infra" output -raw app_url)" || return 1
+  api="$(terraform -chdir="$infra" output -raw api_endpoint)" || return 1
+  expect() { # label, wanted status (or "a|b"), then curl arguments
+    code="$(curl -s -m 20 -o /dev/null -w '%{http_code}' "${@:3}")"
+    case "|$2|" in
+      *"|$code|"*) echo "ok     $1 ($code)" ;;
+      *) echo "WRONG  $1: got $code, wanted $2"; fails=1 ;;
+    esac
+  }
+  page="$(curl -s -m 20 "$base/")"
+  if printf '%s' "$page" | grep -q 'Demo password' && ! printf '%s' "$page" | grep -q '/assets/'; then
+    echo "ok     the front page is the password page, with no app code in it"
+  else
+    echo "WRONG  the front page is not the plain password page"; fails=1
+  fi
+  expect "an app address shows the password page" 200 "$base/standings"
+  expect "the app's own page is refused" 403 "$base/index.html"
+  expect "reading standings is refused" 401 "$base/api/standings"
+  expect "signing up a team is refused" 401 -X POST -H 'content-type: application/json' -d '{}' "$base/api/teams"
+  expect "admin log in is refused" 401 -X POST -H 'content-type: application/json' -d '{}' "$base/api/admin/login"
+  expect "photos are refused" 403 "$base/leagues/sfi-s1/teams/x.jpg"
+  expect "a made-up pass is refused" 401 -H 'cookie: sfi_gate=9999999999.abcdef' "$base/api/standings"
+  expect "a wrong password is refused" "401|503" -H 'x-demo-pass: 0000000000000000000000000000000000000000000000000000000000000000' "$base/gate/enter"
+  expect "going around the site to the API is refused" 403 "$api/api/standings"
+  expect "going around with a guessed key is refused" 403 -H 'x-origin-verify: guess' "$api/api/standings"
+  return "$fails"
+}
+
 build_api() {
   cd "$ROOT/apps/split-flip-island/api" || return 1
   npm install && npm test && npm run build
@@ -80,13 +114,14 @@ run() {
     apply-state | apply-foundation | apply-league) apply "${STEP#apply-}" ;;
     build-api) build_api ;;
     web) "$ROOT/scripts/deploy-web.sh" ;;
+    check-gate) check_gate ;;
     *) return 64 ;;
   esac
 }
 
 case "$STEP" in
-  check | plan-state | apply-state | plan-foundation | apply-foundation | build-api | plan-league | apply-league | web) ;;
-  *) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 64 ;;
+  check | plan-state | apply-state | plan-foundation | apply-foundation | build-api | plan-league | apply-league | web | check-gate) ;;
+  *) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 64 ;;
 esac
 
 mkdir -p "$LOGS"

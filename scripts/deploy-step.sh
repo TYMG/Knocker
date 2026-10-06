@@ -13,6 +13,7 @@
 #   web                build the web app and publish it.
 #   check-gate         confirm the live site serves nothing but the password page. Changes nothing.
 #   diagnose-gate      ask CloudFront to test-run the gate and report any error. Changes nothing.
+#   api-logs           show what the API logged in the last 30 minutes (errors only). Changes nothing.
 #
 # Every apply-* step applies exactly the plan saved by its plan-* step, nothing else.
 set -uo pipefail
@@ -127,6 +128,15 @@ diagnose_gate() {
   curl -s -m 20 -o /dev/null -D - "$base/" | grep -i -E '^HTTP|x-cache|x-amzn-errortype|server:' | tr -d '\r'
 }
 
+# The API only writes to its log when something goes wrong (and when the 15-minute cleanup
+# runs), so this is a short list. It never logs passwords, PINs or request contents.
+api_logs() {
+  export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}"
+  aws logs tail "/aws/lambda/split-flip-island-api" --since 30m --format short 2>&1 \
+    | grep -v -E '(START|END|REPORT|INIT_START) ' | sed -E 's/[0-9]{12}/<account>/g' | tail -120
+  echo "(end of log)"
+}
+
 build_api() {
   cd "$ROOT/apps/split-flip-island/api" || return 1
   npm install && npm test && npm run build
@@ -141,13 +151,14 @@ run() {
     web) "$ROOT/scripts/deploy-web.sh" ;;
     check-gate) check_gate ;;
     diagnose-gate) diagnose_gate ;;
+    api-logs) api_logs ;;
     *) return 64 ;;
   esac
 }
 
 case "$STEP" in
-  check | plan-state | apply-state | plan-foundation | apply-foundation | build-api | plan-league | apply-league | web | check-gate | diagnose-gate) ;;
-  *) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 64 ;;
+  check | plan-state | apply-state | plan-foundation | apply-foundation | build-api | plan-league | apply-league | web | check-gate | diagnose-gate | api-logs) ;;
+  *) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 64 ;;
 esac
 
 mkdir -p "$LOGS"

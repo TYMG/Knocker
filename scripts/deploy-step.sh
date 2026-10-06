@@ -12,6 +12,7 @@
 #   apply-league       create them.
 #   web                build the web app and publish it.
 #   check-gate         confirm the live site serves nothing but the password page. Changes nothing.
+#   diagnose-gate      ask CloudFront to test-run the gate and report any error. Changes nothing.
 #
 # Every apply-* step applies exactly the plan saved by its plan-* step, nothing else.
 set -uo pipefail
@@ -102,6 +103,30 @@ check_gate() {
   return "$fails"
 }
 
+# Runs the live gate function inside CloudFront's own test harness with sample requests and
+# prints what it returned or why it failed. Reads only; nothing on the site changes.
+diagnose_gate() {
+  local name="split-flip-island-gate" etag event base
+  export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}"
+  echo "== function"
+  aws cloudfront describe-function --name "$name" --stage LIVE \
+    --query 'FunctionSummary.{status:Status,runtime:FunctionConfig.Runtime,stores:FunctionConfig.KeyValueStoreAssociations.Items[].KeyValueStoreARN,stage:FunctionMetadata.Stage}' --output json | sed -E 's/[0-9]{12}/<account>/g' || return 1
+  echo "== key value store"
+  aws cloudfront describe-key-value-store --name "$name" --query 'KeyValueStore.{status:Status,name:Name}' --output json || return 1
+  etag="$(aws cloudfront describe-function --name "$name" --stage LIVE --query ETag --output text)" || return 1
+  event="$(mktemp)"
+  for uri in / /api/standings /gate/enter; do
+    echo "== test run: GET $uri with no pass"
+    printf '{"version":"1.0","context":{"eventType":"viewer-request"},"viewer":{"ip":"198.51.100.1"},"request":{"method":"GET","uri":"%s","querystring":{},"headers":{"host":{"value":"split-flip-island.knckr.com"}},"cookies":{}}}' "$uri" > "$event"
+    aws cloudfront test-function --name "$name" --if-match "$etag" --stage LIVE --event-object "fileb://$event" \
+      --query 'TestResult.{error:FunctionErrorMessage,logs:FunctionExecutionLogs,computeUsedPercent:ComputeUtilization,output:FunctionOutput}' --output json
+  done
+  rm -f "$event"
+  base="$(terraform -chdir="$(stack_dir league)" output -raw app_url)" || return 1
+  echo "== what the live site answers"
+  curl -s -m 20 -o /dev/null -D - "$base/" | grep -i -E '^HTTP|x-cache|x-amzn-errortype|server:' | tr -d '\r'
+}
+
 build_api() {
   cd "$ROOT/apps/split-flip-island/api" || return 1
   npm install && npm test && npm run build
@@ -115,13 +140,14 @@ run() {
     build-api) build_api ;;
     web) "$ROOT/scripts/deploy-web.sh" ;;
     check-gate) check_gate ;;
+    diagnose-gate) diagnose_gate ;;
     *) return 64 ;;
   esac
 }
 
 case "$STEP" in
-  check | plan-state | apply-state | plan-foundation | apply-foundation | build-api | plan-league | apply-league | web | check-gate) ;;
-  *) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 64 ;;
+  check | plan-state | apply-state | plan-foundation | apply-foundation | build-api | plan-league | apply-league | web | check-gate | diagnose-gate) ;;
+  *) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 64 ;;
 esac
 
 mkdir -p "$LOGS"

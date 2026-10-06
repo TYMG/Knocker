@@ -130,6 +130,10 @@ The app is not open to the public. Keep all three layers working when changing a
    password record lives in a CloudFront KeyValueStore (key `gate`: salt, hash, cookie signing
    key), written by `scripts/demo-password.sh`. An empty store means locked. Terraform never
    holds the password. Any new CloudFront behavior must get the same function association.
+   `gate.js` runs on CloudFront's own, older JavaScript engine (njs), not Node: an `await`
+   inside a call's arguments took the site down with a 503 on the first deploy. Keep it to
+   plain `var`/`function` code, and after any edit run `./scripts/deploy-step.sh diagnose-gate`
+   and `check-gate` once it is applied.
 2. **Origin secret.** CloudFront adds `x-origin-verify` to API requests and the Lambda refuses
    requests without it, so the API Gateway URL can't be used to go around the gate.
 3. **Sign-up approval.** New teams are `pending` until an admin approves them. Pending teams

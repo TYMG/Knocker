@@ -29,14 +29,16 @@ stack_dir() {
 }
 
 check() {
+  local missing=0
   echo "== tools"
   for tool in aws terraform node npm; do
-    if command -v "$tool" > /dev/null; then echo "$tool: $("$tool" --version 2>&1 | head -1)"; else echo "$tool: NOT INSTALLED"; fi
+    if command -v "$tool" > /dev/null; then echo "$tool: $("$tool" --version 2>&1 | head -1)"; else echo "$tool: NOT INSTALLED"; missing=1; fi
   done
   echo "== AWS login (profile $AWS_PROFILE)"
   aws sts get-caller-identity --query Arn --output text || return 1
   echo "== Route 53 zones"
   aws route53 list-hosted-zones --query 'HostedZones[].Name' --output text || return 1
+  if [ "$missing" -ne 0 ]; then echo "Install the tools marked NOT INSTALLED, then run check again."; return 1; fi
 }
 
 plan() {

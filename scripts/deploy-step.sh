@@ -95,4 +95,7 @@ mkdir -p "$LOGS"
   run
   code=$?
   if [ "$code" -eq 0 ]; then echo "STEP $STEP: OK"; else echo "STEP $STEP: FAILED (exit $code)"; fi
+  exit "$code"
 } 2>&1 | tee "$LOGS/$STEP.log"
+# Pass the step's result on, so steps chained with && stop at the first failure.
+exit "${PIPESTATUS[0]}"

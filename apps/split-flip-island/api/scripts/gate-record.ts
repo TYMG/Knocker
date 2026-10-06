@@ -3,6 +3,8 @@
 //   npx tsx scripts/gate-record.ts            a new random password
 //   npx tsx scripts/gate-record.ts --stdin    your own, read from standard input (12 characters
 //                                             or more), so it never appears in a command line
+//   npx tsx scripts/gate-record.ts --proof    reads a password from standard input and prints
+//                                             only what the password page would send for it
 // Prints two lines: the password, then the JSON record. The record holds no password.
 import { createHash, randomBytes, randomInt } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -14,6 +16,9 @@ export function normalizePassword(password: string): string {
 }
 
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
+
+/** What the password page sends to the gate for a password (see web/public/gate.html). */
+export const passwordProof = (password: string) => sha256(normalizePassword(password));
 
 export function gateRecord(password: string) {
   const salt = randomBytes(16).toString('hex');
@@ -33,7 +38,9 @@ export function randomPassword(): string {
   return `${chunk()}-${chunk()}-${chunk()}-${String(randomInt(10_000)).padStart(4, '0')}`;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] === fileURLToPath(import.meta.url) && process.argv[2] === '--proof') {
+  console.log(passwordProof(readFileSync(0, 'utf8')));
+} else if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const own = process.argv[2] === '--stdin' ? normalizePassword(readFileSync(0, 'utf8')) : undefined;
   if (own !== undefined && own.length < 12) {
     console.error('Use 12 characters or more, or let the script make a random one.');

@@ -43,6 +43,7 @@ apps/split-flip-island/
   web/                         # React frontend
   api/                         # Lambda API
   shared/                      # TypeScript types shared by web and api
+docs/ui-review/                # Mockups (SVG) and screenshots of every screen; see its README
 ```
 
 Each Terraform stack keeps its **own state**. Split modules by concern (site, API, data) so

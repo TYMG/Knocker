@@ -14,7 +14,10 @@ live standings, and a public audit log.
 - Planning docs (source of truth for rules and requirements): Notion
   - League Plan: https://app.notion.com/p/3f02d5b5a256814a888af2a826a2a61b
   - Proposal: https://app.notion.com/p/3f02d5b5a2568113a4b3cd2fd452e42b
-  - Technical Design: https://app.notion.com/p/3f02d5b5a25681cc85daf7c96a2f452b
+  - Web App (features, hosting, build phases): https://app.notion.com/p/3f12d5b5a2568153b156cb6f2c344213
+    - Technical Design: https://app.notion.com/p/3f02d5b5a25681cc85daf7c96a2f452b
+    - UI/UX (every screen, with mockups): https://app.notion.com/p/3f12d5b5a25681acbd1ce88aced43c09
+      - Color Palette: https://app.notion.com/p/3f12d5b5a2568122b736dc5de331a5aa
   - Scoring: https://app.notion.com/p/3f02d5b5a256812791e4d609b32922f5
 
 ## Hard rules

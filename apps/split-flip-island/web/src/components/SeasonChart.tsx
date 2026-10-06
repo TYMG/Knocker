@@ -16,8 +16,8 @@ const ordinal = (n: number) => {
  * Season race, two views of the same weeks:
  *   1. Running points: each team's total, week by week.
  *   2. Rank by week: where that total put them in the standings (1st at the top).
- * Your team is drawn in flipper yellow, the current top 4 in lagoon teal,
- * everyone else in muted grey so the charts stay readable with 10+ teams.
+ * Your team is drawn in the highlight color, the current top 4 in the lead color,
+ * everyone else muted so the charts stay readable with 10+ teams.
  */
 export default function SeasonChart({
   byNight, rows, option, myTeamId
@@ -38,8 +38,9 @@ export default function SeasonChart({
     );
   }
   const topFour = new Set(rows.filter((r) => r.rank <= 4).map((r) => r.team.teamId));
-  const teal = dark ? colors.lagoonBright : colors.lagoon;
-  const muted = dark ? 'rgba(231,240,238,0.34)' : 'rgba(19,33,43,0.2)';
+  const lead = dark ? { color: colors.lime, name: 'Lime' } : { color: colors.black, name: 'Black' };
+  const mineLine = { color: colors.coral, name: 'Coral' };
+  const muted = dark ? 'rgba(164,154,135,0.45)' : 'rgba(0,0,0,0.18)';
   const weeks = byNight.map((n) => `Wk ${n.week}`);
 
   // One entry per team, highlighted lines last so they draw on top.
@@ -52,7 +53,7 @@ export default function SeasonChart({
       return {
         id,
         label: r.team.teamName,
-        color: mine ? colors.flipper : top ? teal : muted,
+        color: mine ? mineLine.color : top ? lead.color : muted,
         showMark: mine,
         order: mine ? 2 : top ? 1 : 0,
         points: byNight.map((n) => (total += n[option][id] ?? 0)),
@@ -97,7 +98,7 @@ export default function SeasonChart({
         />
       </Box>
       <Typography variant="body2" color="text.secondary">
-        {myTeamId ? 'Yellow is your team. ' : ''}Teal lines are the current top 4. Tap a week to see every team.
+        {myTeamId ? `${mineLine.name} is your team. ` : ''}{lead.name} lines are the current top 4. Tap a week to see every team.
       </Typography>
     </Stack>
   );

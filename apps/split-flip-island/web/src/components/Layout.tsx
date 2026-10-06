@@ -76,7 +76,7 @@ export default function Layout() {
             <Tabs
               value={current === -1 ? false : current}
               textColor="inherit"
-              slotProps={{ indicator: { sx: { bgcolor: 'secondary.main', height: 3 } } }}
+              slotProps={{ indicator: { sx: { bgcolor: 'common.black', height: 3 } } }}
               sx={{ flexGrow: 1 }}
             >
               {NAV.map((n) => (

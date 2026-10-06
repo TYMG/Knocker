@@ -1,15 +1,17 @@
 import { createTheme } from '@mui/material/styles';
 
-// Palette pulled from a pinball playfield at a beach bar:
-// lagoon teal, flipper-button yellow, and an amber dot-matrix display.
+// "Blacklight": the palette Matt picked on 2026-10-06. It is dark first.
+// Every color in the app comes from this object, so a new palette is a change to this file only.
 export const colors = {
-  lagoon: '#0f6e6a',
-  lagoonBright: '#3fb8af',
-  flipper: '#f5b700',
-  ink: '#13212b',
-  mist: '#eef4f2',
-  night: '#0c1a22',
-  nightPaper: '#13252f',
+  // Matt's palette (coolors.co/palette/ff616b-000000-a49a87-ffff99-ccff00)
+  coral: '#ff616b',
+  black: '#000000',
+  sand: '#a49a87',
+  paleYellow: '#ffff99',
+  lime: '#ccff00',
+  // Added: a near-black so cards separate from the black page
+  card: '#1c1a16',
+  // Amber dot-matrix score display
   dmdGlass: '#140b02',
   dmdAmber: '#ffa51f'
 };
@@ -20,20 +22,25 @@ const body = "'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif";
 export const theme = createTheme({
   cssVariables: { colorSchemeSelector: 'class' },
   colorSchemes: {
+    // Dark is Blacklight as picked, and the default. Light is the same colors on a pale yellow page.
     light: {
       palette: {
-        primary: { main: colors.lagoon },
-        secondary: { main: colors.flipper, contrastText: colors.ink },
-        background: { default: colors.mist, paper: '#ffffff' },
-        text: { primary: colors.ink }
+        primary: { main: colors.black, contrastText: '#ffffff' },
+        secondary: { main: colors.coral, contrastText: colors.black },
+        background: { default: colors.paleYellow, paper: '#ffffff' },
+        text: { primary: colors.black, secondary: 'rgba(0, 0, 0, 0.72)' },
+        divider: 'rgba(0, 0, 0, 0.18)'
       }
     },
     dark: {
       palette: {
-        primary: { main: colors.lagoonBright, contrastText: colors.night },
-        secondary: { main: colors.flipper, contrastText: colors.ink },
-        background: { default: colors.night, paper: colors.nightPaper },
-        text: { primary: '#e7f0ee' }
+        primary: { main: colors.lime, contrastText: colors.black },
+        secondary: { main: colors.coral, contrastText: colors.black },
+        success: { main: colors.lime, contrastText: colors.black },
+        error: { main: colors.coral, contrastText: colors.black },
+        background: { default: colors.black, paper: colors.card },
+        text: { primary: colors.paleYellow, secondary: colors.sand },
+        divider: 'rgba(164, 154, 135, 0.32)'
       }
     }
   },
@@ -52,7 +59,17 @@ export const theme = createTheme({
       defaultProps: { disableElevation: true },
       styleOverrides: { sizeLarge: { minHeight: 52 } }
     },
-    MuiPaper: { defaultProps: { elevation: 0 } },
+    // The top bar is sand with black type in both schemes.
+    // MUI swaps the bar to the card color in dark mode, so the override is repeated for that scheme.
+    MuiAppBar: {
+      styleOverrides: {
+        root: ({ theme }) => {
+          const bar = { '--AppBar-background': colors.sand, '--AppBar-color': colors.black, backgroundColor: colors.sand, color: colors.black, backgroundImage: 'none' };
+          return { ...bar, ...theme.applyStyles('dark', bar) };
+        }
+      }
+    },
+    MuiPaper: { defaultProps: { elevation: 0 }, styleOverrides: { root: { backgroundImage: 'none' } } },
     MuiCard: { defaultProps: { variant: 'outlined' } },
     MuiTextField: { defaultProps: { fullWidth: true } }
   }

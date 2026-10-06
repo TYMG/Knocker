@@ -14,7 +14,7 @@ import { theme } from './theme';
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Provider store={store}>
-      <ThemeProvider theme={theme} defaultMode="system">
+      <ThemeProvider theme={theme} defaultMode="dark">
         <CssBaseline enableColorScheme />
         <App />
       </ThemeProvider>

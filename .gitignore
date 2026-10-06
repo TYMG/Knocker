@@ -6,6 +6,8 @@
 crash.log
 .build/
 infra/backend.hcl
+tfplan
+.deploy-logs/
 # Node / build
 node_modules/
 dist/

@@ -34,6 +34,10 @@ npx tsx scripts/seed.ts --night 2026-10-14 --week 1 --machines "Godzilla,Pulp Fi
 
 Then visit https://knckr.com/split-flip-island.
 
+Steps 1 to 5 can also be run one at a time with `./scripts/deploy-step.sh <step>` (run it with no
+step to list them). Each `plan-*` step saves a plan and changes nothing; the matching `apply-*` step
+applies exactly that plan. Output is saved to `.deploy-logs/`.
+
 ## Everyday commands
 
 - API change: `cd apps/split-flip-island/api && npm run build`, then `terraform apply` in its `infra/`

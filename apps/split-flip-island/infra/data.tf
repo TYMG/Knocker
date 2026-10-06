@@ -78,18 +78,33 @@ resource "aws_s3_bucket_cors_configuration" "photos" {
   }
 }
 
-# Old score photos move to cheaper storage after a season.
 resource "aws_s3_bucket_lifecycle_configuration" "photos" {
   bucket = aws_s3_bucket.photos.id
+
+  # Old score photos move to cheaper storage after a season.
   rule {
     id     = "archive-old-score-photos"
     status = "Enabled"
     filter {
-      prefix = "leagues/"
+      prefix = "leagues/${var.league_id}/scores/"
     }
     transition {
       days          = 120
       storage_class = "GLACIER_IR"
+    }
+  }
+
+  # Sign-up photos wait under pending/ until an admin approves the team, which copies the
+  # photo to teams/. Whatever is left (abandoned or unapproved sign-ups) is deleted here, a
+  # day after the approval window closes.
+  rule {
+    id     = "delete-unapproved-sign-up-photos"
+    status = "Enabled"
+    filter {
+      prefix = "leagues/${var.league_id}/pending/"
+    }
+    expiration {
+      days = ceil(var.pending_team_hours / 24) + 1
     }
   }
 }

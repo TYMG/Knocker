@@ -21,7 +21,7 @@ import DarkModeIcon from '@mui/icons-material/DarkMode';
 import BrightnessAutoIcon from '@mui/icons-material/BrightnessAuto';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useAppDispatch, useAppSelector } from '../hooks';
-import { loggedOut } from '../store';
+import { adminLoggedOut, loggedOut } from '../store';
 import { api } from '../api';
 
 const NAV = [
@@ -52,6 +52,9 @@ export default function Layout() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const team = useAppSelector((s) => s.auth.team);
+  const adminName = useAppSelector((s) => s.admin.name);
+  // Admin pages are reached by buttons from the admin home, so they hide the player tabs.
+  const adminArea = pathname.startsWith('/admin');
   const current = NAV.findIndex((n) => n.to === pathname);
 
   const logOut = () => {
@@ -72,7 +75,7 @@ export default function Layout() {
           >
             Split Flipper Island
           </Typography>
-          {wide && (
+          {wide && !adminArea && (
             <Tabs
               value={current === -1 ? false : current}
               textColor="inherit"
@@ -84,9 +87,16 @@ export default function Layout() {
               ))}
             </Tabs>
           )}
-          <Box sx={{ flexGrow: wide ? 0 : 1 }} />
+          <Box sx={{ flexGrow: wide && !adminArea ? 0 : 1 }} />
           <ThemeToggle />
-          {team && (
+          {adminArea && adminName && (
+            <Tooltip title={`Log out admin ${adminName}`}>
+              <IconButton color="inherit" aria-label="Log out of admin" onClick={() => dispatch(adminLoggedOut())}>
+                <LogoutIcon />
+              </IconButton>
+            </Tooltip>
+          )}
+          {!adminArea && team && (
             <Tooltip title={`Log out ${team.teamName}`}>
               <IconButton color="inherit" aria-label="Log out" onClick={logOut}>
                 <LogoutIcon />
@@ -96,11 +106,11 @@ export default function Layout() {
         </Toolbar>
       </AppBar>
 
-      <Box component="main" sx={{ flexGrow: 1, px: 2, pt: 3, pb: wide ? 6 : 12 }}>
+      <Box component="main" sx={{ flexGrow: 1, px: 2, pt: 3, pb: wide || adminArea ? 6 : 12 }}>
         <Outlet />
       </Box>
 
-      {!wide && (
+      {!wide && !adminArea && (
         <Paper sx={{ position: 'fixed', left: 0, right: 0, bottom: 0, pb: 'env(safe-area-inset-bottom)', borderTop: 1, borderColor: 'divider' }}>
           <BottomNavigation showLabels value={current === -1 ? false : current}>
             {NAV.map((n) => (

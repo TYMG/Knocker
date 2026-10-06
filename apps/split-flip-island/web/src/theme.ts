@@ -38,6 +38,7 @@ export const theme = createTheme({
         secondary: { main: colors.coral, contrastText: colors.black },
         success: { main: colors.lime, contrastText: colors.black },
         error: { main: colors.coral, contrastText: colors.black },
+        info: { main: colors.sand, contrastText: colors.black },
         background: { default: colors.black, paper: colors.card },
         text: { primary: colors.paleYellow, secondary: colors.sand },
         divider: 'rgba(164, 154, 135, 0.32)'

@@ -1,6 +1,9 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, QueryCommand, type QueryCommandInput } from '@aws-sdk/lib-dynamodb';
+import { S3Client } from '@aws-sdk/client-s3';
 import { env } from './util.js';
+
+export const s3 = new S3Client({});
 
 export const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}), {
   marshallOptions: { removeUndefinedValues: true }
@@ -21,7 +24,10 @@ export const keys = {
   nightPartition: (l: string, date: string) => `NIGHT#${l}#${date}`,
   score: (teamId: string, machineId: string, at: string, id: string) => `SCORE#${teamId}#${machineId}#${at}#${id}`,
   audit: (l: string) => `AUDIT#${l}`,
-  teamScores: (l: string, teamId: string) => `TEAM#${l}#${teamId}`
+  teamScores: (l: string, teamId: string) => `TEAM#${l}#${teamId}`,
+  // Admin accounts sit in their own partition so league queries never load them.
+  admins: (l: string) => `ADMIN#${l}`,
+  admin: (name: string) => `ADMIN#${normalizeName(name)}`
 };
 
 export function normalizeName(name: string) {

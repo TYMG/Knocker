@@ -1,6 +1,7 @@
 import { Link as RouterLink } from 'react-router';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import ScoreDisplay from '../components/ScoreDisplay';
@@ -29,6 +30,11 @@ export default function Welcome() {
           See the standings
         </Button>
       </Stack>
+      <Typography variant="body2" sx={{ mt: 4, textAlign: 'center' }}>
+        <Link component={RouterLink} to="/admin" color="text.secondary" sx={{ display: 'inline-block', py: 1.5, px: 2 }}>
+          League admin
+        </Link>
+      </Typography>
     </Box>
   );
 }

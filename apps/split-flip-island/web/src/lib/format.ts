@@ -13,6 +13,20 @@ export function formatNight(date: string) {
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
+/** How long until a moment in the future: "in 21 hr", "in 40 min", "any minute now". */
+export function timeUntil(iso: string) {
+  const mins = Math.round((new Date(iso).getTime() - Date.now()) / 60000);
+  if (mins < 2) return 'any minute now';
+  if (mins < 90) return `in ${mins} min`;
+  return `in ${Math.round(mins / 60)} hr`;
+}
+
+/** 2025550142 -> (202) 555-0142 */
+export function formatPhone(digits: string) {
+  const d = digits.replace(/\D/g, '').slice(-10);
+  return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : digits;
+}
+
 export function timeAgo(iso: string) {
   const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
   if (mins < 1) return 'just now';

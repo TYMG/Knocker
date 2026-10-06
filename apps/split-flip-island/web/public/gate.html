@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#000000">
+  <title>Split Flipper Island</title>
+  <!-- The demo password page. It is the only thing served until the right password is
+       entered (see infra/gate.js). It stands alone: no app code, fonts or images. -->
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; background: #000000; color: #ffff99;
+           font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 17px; line-height: 1.45; }
+    main { width: 100%; max-width: 26rem; padding: 2rem 1.25rem; }
+    h1 { margin: 0 0 0.5rem; color: #ccff00; font-size: clamp(2rem, 9vw, 2.75rem); line-height: 1; font-weight: 900; text-transform: uppercase; letter-spacing: 0.01em; }
+    p { margin: 0 0 1.5rem; color: #a49a87; }
+    label { display: block; margin-bottom: 0.4rem; font-weight: 700; }
+    input { width: 100%; height: 3.25rem; padding: 0 0.9rem; border: 2px solid #a49a87; border-radius: 10px; background: #1c1a16; color: #ffff99; font: inherit; }
+    input:focus-visible, button:focus-visible { outline: 3px solid #ccff00; outline-offset: 2px; }
+    button { width: 100%; height: 3.25rem; margin-top: 1rem; border: 0; border-radius: 10px; background: #ff616b; color: #000000; font: inherit; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: 0.6; cursor: default; }
+    #message { min-height: 1.5rem; margin: 1rem 0 0; color: #ff616b; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Split Flipper Island</h1>
+    <p>This is a private demo. Enter the password you were given.</p>
+    <form id="gate" novalidate>
+      <label for="password">Demo password</label>
+      <input id="password" name="password" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" required autofocus>
+      <button id="enter" type="submit">Enter</button>
+      <p id="message" role="alert"></p>
+    </form>
+  </main>
+  <script>
+    (function () {
+      var form = document.getElementById('gate');
+      var input = document.getElementById('password');
+      var button = document.getElementById('enter');
+      var message = document.getElementById('message');
+
+      // Same rule as scripts/gate-record.ts: capitals and stray spaces don't matter.
+      function normalize(text) { return text.trim().toLowerCase().replace(/\s+/g, ' '); }
+
+      function sha256(text) {
+        return crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(function (buffer) {
+          return Array.prototype.map.call(new Uint8Array(buffer), function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+        });
+      }
+
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        var password = normalize(input.value);
+        if (!password) { message.textContent = 'Type the demo password first.'; input.focus(); return; }
+        if (!window.crypto || !window.crypto.subtle || !window.TextEncoder) {
+          message.textContent = "This browser can't open the demo. Try an up-to-date browser.";
+          return;
+        }
+        button.disabled = true;
+        message.textContent = '';
+        sha256(password)
+          .then(function (hash) { return fetch('/gate/enter', { headers: { 'x-demo-pass': hash }, cache: 'no-store', credentials: 'same-origin' }); })
+          .then(function (response) {
+            if (response.ok) { window.location.reload(); return; }
+            message.textContent = response.status === 401 ? "That password didn't work. Check it and try again."
+              : response.status === 503 ? 'The demo is closed right now.'
+              : "Something went wrong. Try again in a moment.";
+            button.disabled = false;
+            input.select();
+          })
+          .catch(function () {
+            message.textContent = "Can't reach the site. Check your connection and try again.";
+            button.disabled = false;
+          });
+      });
+    })();
+  </script>
+</body>
+</html>

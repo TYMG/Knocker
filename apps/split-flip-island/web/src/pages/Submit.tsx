@@ -34,6 +34,7 @@ export default function Submit() {
 
   if (isLoading) return <CircularProgress sx={{ display: 'block', mx: 'auto', mt: 6 }} />;
   if (loadError || !data) return <Alert severity="error">{errorMessage(loadError)}</Alert>;
+  if (data.team.status === 'pending') return <Alert severity="info">Your team is waiting for the league to approve it. You can submit scores once it is approved.</Alert>;
   if (!data.night?.open) return <Alert severity="info">Scores can only be submitted during league night.</Alert>;
 
   const toPlay = data.machines.filter((m) => m.attempts === 0);

@@ -9,6 +9,10 @@ export interface Team {
   teamId: string;
   teamName: string;
   photoUrl: string | null;
+  /** New teams wait for an admin. Only approved teams play, score and appear in standings. */
+  status: 'pending' | 'approved';
+  /** Pending teams only: when the sign-up is deleted if nobody approves it. */
+  expiresAt?: string;
 }
 
 export interface Night {
@@ -148,6 +152,36 @@ export interface NightPoints {
 
 export interface AuditResponse {
   entries: AuditEntry[];
+}
+
+// ---- Admin ----
+
+export interface AdminLoginRequest {
+  name: string;
+  password: string;
+}
+
+export interface AdminAuthResponse {
+  token: string;
+  admin: { name: string };
+}
+
+/** A team as admins see it. Phone numbers never leave the admin pages. */
+export interface AdminTeam extends Team {
+  createdAt: string;
+  phone1: string;
+  phone2: string;
+}
+
+export interface AdminTeamsResponse {
+  pending: AdminTeam[]; // oldest first
+  approved: AdminTeam[];
+  /** Hours a sign-up waits before it is deleted. */
+  pendingHours: number;
+}
+
+export interface RemoveTeamRequest {
+  reason: string;
 }
 
 export interface ApiError {

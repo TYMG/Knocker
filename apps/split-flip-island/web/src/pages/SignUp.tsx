@@ -56,7 +56,8 @@ export default function SignUp() {
         Sign up your team
       </Typography>
       <Typography color="text.secondary" sx={{ mb: 3 }}>
-        Couples get first priority. You'll use your team name and PIN to log in on league nights.
+        Couples get first priority. You'll use your team name and PIN to log in on league nights. The league approves each
+        new team before it can play.
       </Typography>
       <Stack spacing={2.5}>
         <TextField label="Team name" value={teamName} onChange={(e) => setTeamName(e.target.value)} required slotProps={{ htmlInput: { maxLength: 30 } }} />

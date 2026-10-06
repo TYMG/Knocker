@@ -37,6 +37,18 @@ variable "league_id" {
   default = "sfi-s1"
 }
 
+variable "pending_team_hours" {
+  description = "Hours a new sign-up waits for an admin before it is deleted."
+  type        = number
+  default     = 24
+}
+
+variable "max_pending_teams" {
+  description = "Most sign-ups allowed to wait for approval at once."
+  type        = number
+  default     = 25
+}
+
 locals {
   name     = "split-flip-island"
   app_host = "${var.subdomain}.${var.domain}"

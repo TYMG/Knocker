@@ -8,6 +8,9 @@ import Home from './pages/Home';
 import Submit from './pages/Submit';
 import Standings from './pages/Standings';
 import AuditLog from './pages/AuditLog';
+import RequireAdmin from './pages/admin/RequireAdmin';
+import AdminHome from './pages/admin/AdminHome';
+import AdminTeams from './pages/admin/AdminTeams';
 
 export default function App() {
   return (
@@ -22,6 +25,10 @@ export default function App() {
           <Route element={<RequireTeam />}>
             <Route path="/" element={<Home />} />
             <Route path="/submit" element={<Submit />} />
+          </Route>
+          <Route element={<RequireAdmin />}>
+            <Route path="/admin" element={<AdminHome />} />
+            <Route path="/admin/teams" element={<AdminTeams />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

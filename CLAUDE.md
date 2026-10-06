@@ -77,7 +77,7 @@ exists — reference it with a data source; do not create a new zone.
 | Layer | Choice |
 |---|---|
 | Frontend | React + TypeScript, Vite, Redux Toolkit, RTK Query, MUI, React Router |
-| Theming | MUI dark + light mode, following the system setting |
+| Theming | MUI dark + light mode; dark (the Blacklight palette in `web/src/theme.ts`) is the default |
 | API | TypeScript on Lambda, types shared via `shared/` |
 | Data | DynamoDB, single-table design |
 | Photos | S3 via short-lived presigned upload links |
@@ -105,6 +105,7 @@ the app.
 | Score | `NIGHT#<leagueId>#<date>` | `SCORE#<teamId>#<machineId>#<timestamp>` |
 | Night results | `LEAGUE#<leagueId>` | `RESULT#<date>` |
 | Audit entry | `AUDIT#<leagueId>` | `<timestamp>#<id>` |
+| Admin account | `ADMIN#<leagueId>` | `ADMIN#<lowercased name>` |
 
 Indexes (login uses the team name claim item, which also guarantees unique names):
 - **GSI1 (by team):** all of a team's scores across the season, sorted by night
@@ -115,7 +116,31 @@ photo path, thumbnail path, `photoUnavailable` (boolean), reason (required for a
 and changes), status (`active` | `voided`).
 
 Phone numbers and the PIN hash live **only** in the `#PRIVATE` item and are never returned by
-any public endpoint.
+any public endpoint. Admin endpoints return phone numbers so organizers can reach a team.
+
+Team record fields include `status` (`pending` | `approved`) and, while pending, `expiresAt`.
+
+## Access control (private demo)
+
+The app is not open to the public. Keep all three layers working when changing anything:
+
+1. **Demo password gate, at CloudFront.** `infra/gate.js` runs as a viewer-request function on
+   every behavior (site, `/api/*`, `/leagues/*`). Without a valid signed `sfi_gate` cookie a
+   visitor gets only `gate.html`; the API answers 401 `{ "gate": true }` and photos 403. The
+   password record lives in a CloudFront KeyValueStore (key `gate`: salt, hash, cookie signing
+   key), written by `scripts/demo-password.sh`. An empty store means locked. Terraform never
+   holds the password. Any new CloudFront behavior must get the same function association.
+2. **Origin secret.** CloudFront adds `x-origin-verify` to API requests and the Lambda refuses
+   requests without it, so the API Gateway URL can't be used to go around the gate.
+3. **Sign-up approval.** New teams are `pending` until an admin approves them. Pending teams
+   can log in but can't upload score photos or submit scores, and never appear in standings.
+   A schedule invokes the Lambda with `{ "task": "purge" }` every 15 minutes to delete sign-ups
+   past `expiresAt` (team, private info, name claim and photo), with an audit entry.
+
+**Admins** have per-person accounts (name + scrypt password hash, `tokenVersion`). They are
+created only with `scripts/admin.sh` from the organizer's computer, never through the API.
+Admin tokens (`x-admin-token`, 12 hours) are signed with a different prefix than team tokens,
+and every admin request re-reads the account, so removal or a password reset is immediate.
 
 ## League rules the code must enforce
 
@@ -143,12 +168,13 @@ any public endpoint.
   limit). Phone uploads directly to S3.
 - Bucket layout:
   ```
-  leagues/<leagueId>/teams/<teamId>/photo.jpg
+  leagues/<leagueId>/pending/<uuid>.jpg          # sign-up photos; the bucket deletes these after a few days
+  leagues/<leagueId>/teams/<teamId>.jpg          # copied here when the team is approved
   leagues/<leagueId>/scores/<date>/<scoreId>.jpg
   leagues/<leagueId>/scores/<date>/<scoreId>-thumb.jpg
   ```
-- Score photos are public: thumbnail next to every score, tap to enlarge. Missing photo →
-  "No photo" badge.
+- Score photos are visible to everyone inside the app (anyone past the demo password):
+  thumbnail next to every score, tap to enlarge. Missing photo → "No photo" badge.
 
 ## Build phases
 
@@ -158,6 +184,12 @@ any public endpoint.
 2. **League-ready:** admin pages (verify, correct, void, enter scores, manage machines and
    outages); nightly results for both scoring options; finals; public audit log; flags.
 3. **Long-term:** Season Wrapped recaps, player accounts and history, multiple leagues.
+
+## Deploying
+
+`scripts/deploy-step.sh <step>` runs the deploy one step at a time and saves the output to
+`.deploy-logs/`. `plan-*` steps change nothing; `apply-*` applies exactly the saved plan.
+Summarize every plan and wait for a yes before the matching apply.
 
 ## Open decisions (ask before assuming)
 

@@ -2,6 +2,8 @@
 #   /            -> site bucket (SPA)
 #   /api/*       -> API Gateway (no caching)
 #   /leagues/*   -> photos bucket
+#
+# Every path runs the gate function first (gate.js): no demo password, no app, API or photos.
 
 resource "aws_s3_bucket" "site" {
   bucket_prefix = "${local.name}-site-"
@@ -22,20 +24,29 @@ resource "aws_cloudfront_origin_access_control" "s3" {
   signing_protocol                  = "sigv4"
 }
 
-# Sends app routes (no file extension) to index.html so refreshes don't 404.
-resource "aws_cloudfront_function" "spa" {
-  name    = "${local.name}-spa-rewrite"
-  runtime = "cloudfront-js-2.0"
-  publish = true
-  code    = <<-JS
-    function handler(event) {
-      var request = event.request;
-      if (request.uri.indexOf('.') === -1) {
-        request.uri = '/index.html';
-      }
-      return request;
-    }
-  JS
+# Holds the demo password record (scrambled password + cookie signing key). It starts empty,
+# which keeps the site locked; scripts/demo-password.sh writes it. Terraform never sees the
+# password or the record.
+resource "aws_cloudfront_key_value_store" "gate" {
+  name    = "${local.name}-gate"
+  comment = "Demo password gate, written by scripts/demo-password.sh"
+}
+
+# The demo password gate. Also sends app routes (no file extension) to index.html so
+# refreshes don't 404.
+resource "aws_cloudfront_function" "gate" {
+  name                         = "${local.name}-gate"
+  runtime                      = "cloudfront-js-2.0"
+  publish                      = true
+  code                         = file("${path.module}/gate.js")
+  key_value_store_associations = [aws_cloudfront_key_value_store.gate.arn]
+}
+
+# CloudFront adds this header when it passes a request to the API. The API refuses anything
+# without it, so nobody can go around the gate by calling API Gateway directly.
+resource "random_password" "origin_secret" {
+  length  = 48
+  special = false
 }
 
 resource "aws_cloudfront_distribution" "app" {
@@ -67,6 +78,10 @@ resource "aws_cloudfront_distribution" "app" {
       origin_protocol_policy = "https-only"
       origin_ssl_protocols   = ["TLSv1.2"]
     }
+    custom_header {
+      name  = "x-origin-verify"
+      value = random_password.origin_secret.result
+    }
   }
 
   default_cache_behavior {
@@ -78,7 +93,7 @@ resource "aws_cloudfront_distribution" "app" {
     compress               = true
     function_association {
       event_type   = "viewer-request"
-      function_arn = aws_cloudfront_function.spa.arn
+      function_arn = aws_cloudfront_function.gate.arn
     }
   }
 
@@ -90,6 +105,10 @@ resource "aws_cloudfront_distribution" "app" {
     cached_methods           = ["GET", "HEAD"]
     cache_policy_id          = data.aws_cloudfront_cache_policy.disabled.id
     origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.gate.arn
+    }
   }
 
   ordered_cache_behavior {
@@ -99,6 +118,10 @@ resource "aws_cloudfront_distribution" "app" {
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
     cache_policy_id        = data.aws_cloudfront_cache_policy.optimized.id
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.gate.arn
+    }
   }
 
   restrictions {
@@ -186,4 +209,9 @@ output "table_name" {
 
 output "api_endpoint" {
   value = aws_apigatewayv2_api.http.api_endpoint
+}
+
+output "gate_store_arn" {
+  description = "Where scripts/demo-password.sh writes the demo password record."
+  value       = aws_cloudfront_key_value_store.gate.arn
 }

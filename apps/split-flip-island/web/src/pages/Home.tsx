@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link as RouterLink } from 'react-router';
 import Alert from '@mui/material/Alert';
 import Avatar from '@mui/material/Avatar';
@@ -10,8 +11,10 @@ import Typography from '@mui/material/Typography';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import ScoreDisplay from '../components/ScoreDisplay';
-import { errorMessage, useMeQuery } from '../api';
-import { formatNight } from '../lib/format';
+import { api, errorMessage, isSignedOut, useMeQuery } from '../api';
+import { useAppDispatch } from '../hooks';
+import { formatNight, timeUntil } from '../lib/format';
+import { loggedOut } from '../store';
 import type { MachineStatus } from '../../../shared/types';
 
 function MachineRow({ status }: { status: MachineStatus }) {
@@ -36,6 +39,14 @@ function MachineRow({ status }: { status: MachineStatus }) {
 
 export default function Home() {
   const { data, error, isLoading } = useMeQuery(undefined, { pollingInterval: 15000 });
+  const dispatch = useAppDispatch();
+  // The team is gone (a sign-up that was removed or never approved) or the login ran out.
+  const signedOut = isSignedOut(error);
+  useEffect(() => {
+    if (!signedOut) return;
+    dispatch(loggedOut());
+    dispatch(api.util.resetApiState());
+  }, [signedOut, dispatch]);
 
   if (isLoading) return <CircularProgress sx={{ display: 'block', mx: 'auto', mt: 6 }} />;
   if (error || !data) return <Alert severity="error">{errorMessage(error)}</Alert>;
@@ -57,7 +68,13 @@ export default function Home() {
         </Box>
       </Stack>
 
-      {!data.night?.open ? (
+      {data.team.status === 'pending' ? (
+        <Alert severity="info">
+          <Typography sx={{ fontWeight: 700 }}>Waiting for approval</Typography>
+          The league checks every new team before it can play. You don't need to do anything, and this page updates on its own.
+          {data.team.expiresAt ? ` If nobody approves it, this sign-up is deleted ${timeUntil(data.team.expiresAt)}.` : ''}
+        </Alert>
+      ) : !data.night?.open ? (
         <Alert severity="info">No league night is open right now. Scores open at 7 PM on league night.</Alert>
       ) : (
         <Stack spacing={3}>

@@ -29,13 +29,13 @@ resource "aws_iam_role" "api" {
 data "aws_iam_policy_document" "api" {
   statement {
     actions = [
-      "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Query",
+      "dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:Query",
       "dynamodb:BatchGetItem", "dynamodb:TransactWriteItems", "dynamodb:ConditionCheckItem"
     ]
     resources = [aws_dynamodb_table.main.arn, "${aws_dynamodb_table.main.arn}/index/*"]
   }
   statement {
-    actions   = ["s3:PutObject", "s3:GetObject"]
+    actions   = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
     resources = ["${aws_s3_bucket.photos.arn}/*"]
   }
   statement {
@@ -71,6 +71,10 @@ resource "aws_lambda_function" "api" {
       PHOTOS_BUCKET = aws_s3_bucket.photos.bucket
       LEAGUE_ID     = var.league_id
       TOKEN_SECRET  = random_password.token_secret.result
+      ORIGIN_SECRET = random_password.origin_secret.result
+      # Sign-up approval: how long a team waits, and how many can wait at once.
+      PENDING_TEAM_HOURS = tostring(var.pending_team_hours)
+      MAX_PENDING_TEAMS  = tostring(var.max_pending_teams)
     }
   }
 
@@ -112,4 +116,27 @@ resource "aws_lambda_permission" "apigw" {
   function_name = aws_lambda_function.api.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.http.execution_arn}/*/*"
+}
+
+# ---------- Clears out sign-ups nobody approved ----------
+# Runs the same function every 15 minutes with {"task": "purge"} instead of a web request.
+
+resource "aws_cloudwatch_event_rule" "purge" {
+  name                = "${local.name}-purge-sign-ups"
+  description         = "Deletes sign-ups that were not approved in time"
+  schedule_expression = "rate(15 minutes)"
+}
+
+resource "aws_cloudwatch_event_target" "purge" {
+  rule  = aws_cloudwatch_event_rule.purge.name
+  arn   = aws_lambda_function.api.arn
+  input = jsonencode({ task = "purge" })
+}
+
+resource "aws_lambda_permission" "purge" {
+  statement_id  = "AllowPurgeSchedule"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.api.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.purge.arn
 }

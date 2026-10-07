@@ -62,7 +62,8 @@ export const theme = createTheme({
   components: {
     MuiButton: {
       defaultProps: { disableElevation: true },
-      styleOverrides: { sizeLarge: { minHeight: 52 } }
+      // Buttons give a little when pressed, unless calm mode is on (PlayerLayout sets data-calm).
+      styleOverrides: { root: { transition: 'transform 120ms ease, background-color 250ms, border-color 250ms, color 250ms', 'html:not([data-calm]) &:active': { transform: 'scale(0.97)' } }, sizeLarge: { minHeight: 52 } }
     },
     // The top bar is sand with black type in both schemes.
     // MUI swaps the bar to the card color in dark mode, so the override is repeated for that scheme.

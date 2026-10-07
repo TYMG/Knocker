@@ -268,13 +268,14 @@ export default function Challenges() {
         {lists.settled.length > 0 && (
           <Section title="Settled">
             <RowCard>
-              {lists.settled.map((v) => {
+              {lists.settled.map((v, i) => {
                 // No winner means the two teams tied, and no points moved.
                 const tied = !v.leader;
                 const winner = v.leader ?? v.from;
                 const loser = winner.teamId === v.from.teamId ? v.to : v.from;
                 return (
-                  <Row key={v.challenge.id} mine={v.from.teamId === myTeamId || v.to.teamId === myTeamId}>
+                  // Each result flips over, one after another, like turning a card.
+                  <Row key={v.challenge.id} arrive="flip" order={i} mine={v.from.teamId === myTeamId || v.to.teamId === myTeamId}>
                     <TeamAvatar team={winner} mine={winner.teamId === myTeamId} />
                     <RowText
                       primary={

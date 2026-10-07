@@ -22,6 +22,7 @@ import { Mascot } from '../pages/LoveDr';
 import { currentWeek, teamTonight } from '../sample/league';
 import { closingOrders, doctorsOrders, lateOrders } from '../sample/loveDr';
 import { setOrdersOpen } from '../store';
+import { PopIn } from '../ui/motion';
 
 const BUSY = ['/submit', '/admin', '/lines/join', '/tour'];
 
@@ -75,6 +76,7 @@ export default function DoctorsOrdersPopup() {
 
   return (
     <Dialog open={asked || auto} onClose={close} fullWidth maxWidth="xs" aria-labelledby="doctors-orders-title">
+      <PopIn>
       <DialogContent sx={{ pb: 1 }}>
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 2 }}>
           <Mascot size={64} />
@@ -101,6 +103,7 @@ export default function DoctorsOrdersPopup() {
           {kind === 'closing' ? 'Got it' : "Let's play"}
         </Button>
       </DialogActions>
+      </PopIn>
     </Dialog>
   );
 }

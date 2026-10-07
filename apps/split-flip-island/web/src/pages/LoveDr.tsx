@@ -17,7 +17,8 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
-import { useAppDispatch, useAppSelector, useLeague } from '../hooks';
+import { motion } from 'motion/react';
+import { useAppDispatch, useAppSelector, useCalm, useLeague } from '../hooks';
 import { currentWeek, teamForm, teamsIn } from '../sample/league';
 import { closingOrders, doctorsOrders, lateOrders, machineHistory, machineStatuses } from '../sample/loveDr';
 import { ordinal } from '../sample/time';
@@ -27,9 +28,16 @@ import Section from '../ui/Section';
 import Tag from '../ui/Tag';
 
 /** The mascot: a heart in round glasses with a stethoscope. Drawn here so there is no image file to lose. */
-export function Mascot({ size = 72 }: { size?: number }) {
+export function Mascot({ size = 72, lean = 0 }: { size?: number; /** Degrees to lean: negative is left. */ lean?: number }) {
+  const calm = useCalm();
   return (
-    <Box component="svg" viewBox="0 0 100 100" role="img" aria-label="The Love Dr., a heart wearing glasses and a stethoscope" sx={{ width: size, height: size, flexShrink: 0 }}>
+    <Box
+      component={motion.svg}
+      // A slow bob, like breathing. The lean is toward the team's best machine on the chart.
+      animate={calm ? { y: 0, rotate: 0 } : { y: [0, -4, 0], rotate: lean }}
+      transition={calm ? { duration: 0 } : { y: { duration: 2.6, repeat: Infinity, ease: 'easeInOut' }, rotate: { type: 'spring', stiffness: 60, damping: 8, delay: 0.6 } }}
+      style={{ originX: 0.5, originY: 0.9 }}
+      viewBox="0 0 100 100" role="img" aria-label="The Love Dr., a heart wearing glasses and a stethoscope" sx={{ width: size, height: size, flexShrink: 0 }}>
       <path d="M50 88 C18 64 8 46 8 32 C8 18 19 9 31 9 C39 9 46 13 50 20 C54 13 61 9 69 9 C81 9 92 18 92 32 C92 46 82 64 50 88 Z" fill={colors.coral} stroke={colors.black} strokeWidth="3" />
       {/* glasses */}
       <circle cx="36" cy="36" r="10" fill="#ffffff" stroke={colors.black} strokeWidth="3" />
@@ -65,6 +73,9 @@ export default function LoveDr({ teamId, full = false }: { teamId: string; full?
 
   // A radar needs at least three machines to be a shape.
   const enough = form.length >= 3;
+  // The Dr. leans toward the team's best machine: left if it sits on the left of the chart, otherwise right.
+  const best = form.reduce((a, f, i) => (f.average > form[a]!.average ? i : a), 0);
+  const lean = enough ? (Math.sin((best / form.length) * 2 * Math.PI) < -0.3 ? -8 : 8) : 0;
 
   return (
     // The id lets "See the analysis" in the Doctor's orders pop-up scroll here.
@@ -72,12 +83,12 @@ export default function LoveDr({ teamId, full = false }: { teamId: string; full?
       <Section title="The Love Dr." aside="Only your team sees this">
         <Card sx={{ p: 2 }}>
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: enough ? 1 : 0 }}>
-            <Mascot />
+            <Mascot lean={lean} />
             <Box sx={{ minWidth: 0 }}>
               <Typography sx={{ fontWeight: 700 }}>The doctor is in.</Typography>
               <Typography sx={{ color: 'text.secondary' }}>
                 {enough
-                  ? 'There are many kinds of love, and I have checked your chart for every one of them.'
+                  ? `There are many kinds of love, and I have checked your chart for every one of them. Right now I lean toward ${form[best]!.machine.name}.`
                   : 'Play three different machines and I will have a diagnosis for you.'}
               </Typography>
             </Box>

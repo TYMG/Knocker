@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Link as RouterLink, Outlet, useLocation, useNavigate } from 'react-router';
 import AppBar from '@mui/material/AppBar';
 import BottomNavigation from '@mui/material/BottomNavigation';
@@ -21,7 +21,8 @@ import GroupsIcon from '@mui/icons-material/Groups';
 import HomeIcon from '@mui/icons-material/Home';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 import LogoutIcon from '@mui/icons-material/Logout';
-import { useAppDispatch, useLeague, useMe } from '../hooks';
+import { motion } from 'motion/react';
+import { useAppDispatch, useCalm, useLeague, useMe } from '../hooks';
 import { sample } from '../sample/slice';
 import { colors } from '../theme';
 import Toaster from '../ui/Toaster';
@@ -92,6 +93,17 @@ export default function PlayerLayout() {
     window.scrollTo(0, 0);
   }, [pathname]);
 
+  // Pages slide in from the side of the tab you tapped: a tab to the right comes from the right.
+  // Moving around inside one tab, the new page just rises a little.
+  const calm = useCalm();
+  const lastTab = useRef(current);
+  const side = current === -1 || lastTab.current === -1 || current === lastTab.current ? 0 : current > lastTab.current ? 1 : -1;
+  useEffect(() => {
+    lastTab.current = current;
+    // The theme reads this to switch off the button press.
+    document.documentElement.toggleAttribute('data-calm', calm);
+  }, [current, calm]);
+
   return (
     <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ position: 'sticky', top: 0, zIndex: 'appBar' }}>
@@ -147,7 +159,9 @@ export default function PlayerLayout() {
       </Box>
 
       <Box component="main" sx={{ flexGrow: 1, px: 2, pt: 3, pb: !wide && tabs ? 12 : 6 }}>
-        <Outlet />
+        <motion.div key={pathname} initial={calm ? false : { opacity: 0, x: side * 32, y: side === 0 ? 10 : 0 }} animate={{ opacity: 1, x: 0, y: 0 }} transition={{ duration: 0.26, ease: [0.2, 0.8, 0.2, 1] }}>
+          <Outlet />
+        </motion.div>
       </Box>
 
       {!wide && tabs && (

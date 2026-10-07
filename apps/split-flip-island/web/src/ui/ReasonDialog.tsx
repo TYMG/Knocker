@@ -6,6 +6,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import { PopIn } from './motion';
 
 /**
  * Asks an admin to confirm something and say why. The reason goes in the public league log, so
@@ -29,6 +30,7 @@ export default function ReasonDialog({
   }, [open]);
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
+      <PopIn>
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
         {body && <Typography sx={{ mb: 2 }}>{body}</Typography>}
@@ -40,6 +42,7 @@ export default function ReasonDialog({
           {confirmLabel}
         </Button>
       </DialogActions>
+      </PopIn>
     </Dialog>
   );
 }

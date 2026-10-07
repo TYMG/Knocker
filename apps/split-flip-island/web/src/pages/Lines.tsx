@@ -22,6 +22,7 @@ import Page from '../ui/Page';
 import Tag from '../ui/Tag';
 import { capital, Fact, Facts, smallLabel, teamsBeforeYou } from './lineWords';
 import { useTopOfPage } from './useTopOfPage';
+import { Slide } from '../ui/motion';
 
 /** The highlighted card at the top when the team is in a line. */
 function MyLineCard({ mine }: { mine: MyLine }) {
@@ -182,7 +183,9 @@ export default function Lines() {
         )}
         {lines.length === 0 && <EmptyNote>No machines are picked for tonight yet.</EmptyNote>}
         {lines.map((line) => (
-          <LineCard key={line.machine.machineId} line={line} mine={mine} myTeamId={me.team.teamId} onLeave={leave} />
+          <Slide key={line.machine.machineId}>
+            <LineCard line={line} mine={mine} myTeamId={me.team.teamId} onLeave={leave} />
+          </Slide>
         ))}
       </Stack>
     </Page>

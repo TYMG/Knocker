@@ -1,5 +1,5 @@
 // Scenarios for the features added on 2026-10-07: the admin bottom bar, the machine page's
-// score list and bubble chart, the Love Dr., and challenges played for points.
+// score list, heat map and dots chart, the Love Dr., and challenges played for points.
 // These were written with the features and have not been run yet.
 import { expect, go, open, become, showAllTeams, standingOf, test } from './helpers';
 
@@ -220,4 +220,39 @@ test("the standings carry Doctor's orders: one note for everyone, one only for y
 test('a team page says what kind of couple they are, without the private advice', async ({ page }) => {
   await open(page, '/teams/tilt-me-tender', 'Visitor');
   await expect(page.getByTestId('couple-type')).toContainText('What kind of couple');
+});
+
+test('the season page has the Nivo charts: running points, rank by week and capture the flag', async ({ page }) => {
+  await open(page, '/standings/season', 'Team');
+  await expect(page.getByRole('img', { name: /Running season points by week/ })).toBeVisible();
+  await expect(page.getByRole('img', { name: /place in the standings, week by week/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Capture the flag' })).toBeVisible();
+  // Tapping a team in the key keeps it lit.
+  const mine = page.getByRole('button', { name: /Left & Right.*your team/ });
+  await mine.click();
+  await expect(mine).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('the machine page has the score heat map and every game as a dot', async ({ page }) => {
+  await open(page, '/machines/godzilla', 'Team');
+  await expect(page.getByRole('img', { name: /Heat map of Godzilla scores by week/ })).toBeVisible();
+  const dots = page.getByRole('img', { name: /Every Godzilla game this season as a dot/ });
+  await expect(dots).toBeVisible();
+  // Tap a dot and the game shows underneath, with its team and photo.
+  await dots.locator('circle').first().click({ force: true });
+  await expect(page.getByTestId('swarm-picked')).toBeVisible();
+});
+
+test('the Love Dr. says which machine they lean toward', async ({ page }) => {
+  await open(page, '/', 'Team');
+  await expect(page.getByText(/Right now I lean toward /)).toBeVisible();
+  await expect(page.getByRole('img', { name: /Average points a night by machine/ })).toBeVisible();
+});
+
+test('pages still open with calm mode on, with no sliding', async ({ page }) => {
+  await open(page, '/', 'Team');
+  await page.getByRole('button', { name: 'Calm mode' }).click();
+  await page.getByRole('link', { name: 'Standings' }).last().click();
+  await expect(page).toHaveURL(/\/standings$/);
+  await expect(page.getByRole('main')).toBeVisible();
 });

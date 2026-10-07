@@ -1,19 +1,15 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import { useColorScheme } from '@mui/material/styles';
 import { ScatterChart } from '@mui/x-charts/ScatterChart';
 import { shortScore, type ScoreSpread } from '../sample/league';
 import { formatScore } from '../lib/format';
 import { colors } from '../theme';
+import { useSeriesColors } from './chartColors';
 import { chartMotion } from './chartMotion';
 
-// One color per week, in a fixed order so week 3 is the same color on every machine. These eight
-// were checked for color-blind readers on each background; the row labels carry the week too,
-// so nothing depends on color alone. The "All" row is neutral because it is not a week.
-const WEEK_COLORS = {
-  light: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'],
-  dark: ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767']
-};
+// One color per week, in a fixed order so week 3 is the same color on every machine. The row
+// labels carry the week too, so nothing depends on color alone. The "All" row is neutral
+// because it is not a week.
 
 /**
  * Bubble chart of where scores land on one machine. Score ranges run across the bottom, one row
@@ -21,9 +17,7 @@ const WEEK_COLORS = {
  * week. The bottom row adds every week together.
  */
 export default function ScoreSpreadChart({ spread, machineName }: { spread: ScoreSpread; machineName: string }) {
-  const { mode, systemMode } = useColorScheme();
-  const dark = (mode === 'system' ? systemMode : mode) === 'dark';
-  const palette = dark ? WEEK_COLORS.dark : WEEK_COLORS.light;
+  const { palette } = useSeriesColors();
   const all = spread.rows[spread.rows.length - 1]!;
   const mostAll = Math.max(...all.counts);
   const busiest = spread.bands[all.counts.indexOf(mostAll)]!;

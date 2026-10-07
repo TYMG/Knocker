@@ -11,7 +11,7 @@ import { LINE_STYLES, useSeriesColors } from './chartColors';
 import { chartMotion } from './chartMotion';
 
 /** How long the lines take to draw themselves in when the chart appears. Slow enough to watch the season unfold. */
-const DRAW_MS = 1800;
+const DRAW_MS = 3000;
 
 /**
  * Season race, two views of the same weeks:

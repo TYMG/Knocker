@@ -175,15 +175,49 @@ test("Doctor's orders pops up once after check-in and can be opened again by han
   await go(page, '/');
   await expect(orders).toBeHidden();
 
-  // The Love Dr. card can open it again, and "See the analysis" lands on that card.
+  // The Love Dr. card can open it again, and "See the analysis" opens the full analysis page.
   await page.getByRole('button', { name: "Tonight's Doctor's orders" }).click();
   await orders.getByRole('button', { name: 'See the analysis' }).click();
   await expect(orders).toBeHidden();
-  await expect(page.getByText('Relationship status')).toBeInViewport();
+  await expect(page).toHaveURL(/\/love-dr$/);
+  await expect(page.getByRole('heading', { name: 'The Love Dr.', exact: true })).toBeVisible();
 });
 
 test("the Dr.'s pop-ups can be switched off", async ({ page }) => {
   await open(page, '/', 'Team');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('checkbox', { name: 'Pop-ups from the Dr.' })).not.toBeChecked();
+});
+
+test("the Love Dr.'s full analysis has every part and is for the team only", async ({ page }) => {
+  await open(page, '/', 'Team');
+  await page.getByRole('link', { name: 'See the full analysis' }).click();
+  await expect(page).toHaveURL(/\/love-dr$/);
+  await expect(page.getByTestId('couple-type')).toContainText('What kind of couple');
+  await expect(page.getByTestId('prescription')).toBeVisible();
+  await expect(page.getByTestId('relationship-status')).toContainText(/Week 1: \d/);
+  await expect(page.getByTestId('check-up')).toContainText("Doctor's orders");
+  await expect(page.getByText('How the Dr. decides')).toBeVisible();
+});
+
+test('team home shows what the Dr. noticed tonight', async ({ page }) => {
+  await open(page, '/', 'Team');
+  await expect(page.getByTestId('dr-notes')).toContainText('Heartbreaker');
+});
+
+test("the standings carry Doctor's orders: one note for everyone, one only for your team", async ({ page }) => {
+  await open(page, '/standings', 'Visitor');
+  const note = page.getByTestId('dr-standings-note');
+  await expect(note).toContainText("Doctor's orders");
+  await expect(note.getByText(/Nobody else sees this/)).toHaveCount(0);
+
+  await open(page, '/standings', 'Team');
+  await expect(note.getByText(/Just for Left & Right/)).toBeVisible();
+  await go(page, '/standings/season');
+  await expect(note.getByText(/You are 3rd in the season/)).toBeVisible();
+});
+
+test('a team page says what kind of couple they are, without the private advice', async ({ page }) => {
+  await open(page, '/teams/tilt-me-tender', 'Visitor');
+  await expect(page.getByTestId('couple-type')).toContainText('What kind of couple');
 });

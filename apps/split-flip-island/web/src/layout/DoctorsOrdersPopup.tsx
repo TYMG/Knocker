@@ -1,6 +1,8 @@
-// "Doctor's orders": the Love Dr.'s pop-up. It appears once, on its own, after a team is checked
-// in for the night, with advice drawn from how the team played in earlier weeks. The team can open
-// the full analysis or close it and start playing.
+// "Doctor's orders": the Love Dr.'s pop-up. It appears on its own at three moments, once each:
+//   - after a team is checked in for the night, with advice from how it played in earlier weeks
+//   - with 20 minutes left, if the team still has a machine it has not played
+//   - when the night has closed, with the check-up
+// The team can open the full analysis or close it and carry on.
 //
 // It stays away while someone is posting a score or joining a line, in calm mode, and when the
 // team has switched the Dr.'s pop-ups off on the Love Dr. card. The same pop-up can be opened by
@@ -17,8 +19,8 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useAppDispatch, useAppSelector, useCalm, useLeague, useMe } from '../hooks';
 import { Mascot } from '../pages/LoveDr';
-import { teamTonight } from '../sample/league';
-import { doctorsOrders } from '../sample/loveDr';
+import { currentWeek, teamTonight } from '../sample/league';
+import { closingOrders, doctorsOrders, lateOrders } from '../sample/loveDr';
 import { setOrdersOpen } from '../store';
 
 const BUSY = ['/submit', '/admin', '/lines/join', '/tour'];
@@ -36,12 +38,19 @@ export default function DoctorsOrdersPopup() {
 
   const playing = me.isTeam && me.team.status === 'approved';
   const teamId = me.team.teamId;
-  const orders = playing ? doctorsOrders(league, teamId) : undefined;
   const checkedIn = playing && !!teamTonight(league, teamId).checkedInAt;
+  // The latest moment wins: the check-up once the night has closed, then the 20-minute warning,
+  // then the orders from check-in.
+  const closing = playing ? closingOrders(league, teamId) : undefined;
+  const late = playing ? lateOrders(league, teamId) : undefined;
+  const start = playing ? doctorsOrders(league, teamId) : undefined;
+  const kind = closing ? 'closing' : late ? 'late' : 'start';
+  const orders = closing ?? late ?? start;
   const busy = BUSY.some((p) => pathname.startsWith(p));
-  const ready = !!orders && checkedIn && !calm && popups && !busy;
-  // Once per night for each team, in this browser tab.
-  const seenKey = `sfi-orders:${orders?.heading ?? ''}:${teamId}`;
+  // The first pop-up waits for check-in. The later two do not: they matter either way.
+  const ready = !!orders && (kind !== 'start' || checkedIn) && !calm && popups && !busy;
+  // Each moment shows once per night for each team, in this browser tab.
+  const seenKey = `sfi-orders:${kind}:${currentWeek(league).week}:${teamId}`;
 
   useEffect(() => {
     if (!ready) return;
@@ -61,9 +70,7 @@ export default function DoctorsOrdersPopup() {
   };
   const seeAnalysis = () => {
     close();
-    navigate('/');
-    // Team home scrolls to the top when it opens, so wait a moment before going to the Love Dr.
-    window.setTimeout(() => document.getElementById('love-dr')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
+    navigate('/love-dr');
   };
 
   return (
@@ -91,7 +98,7 @@ export default function DoctorsOrdersPopup() {
           See the analysis
         </Button>
         <Button onClick={close} variant="contained" color="secondary" sx={{ minHeight: 44 }}>
-          Let's play
+          {kind === 'closing' ? 'Got it' : "Let's play"}
         </Button>
       </DialogActions>
     </Dialog>

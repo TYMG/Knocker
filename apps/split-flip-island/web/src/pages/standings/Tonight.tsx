@@ -16,6 +16,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useLeague, useMe } from '../../hooks';
 import { lineCount, linesView, machine as machineOf, machineBoard, nightStatus, tonightRows, weekLabel, type BoardRow } from '../../sample/league';
 import { clock } from '../../sample/time';
+import { DrStandingsNote } from '../DrParts';
 import type { SMachine } from '../../sample/types';
 import EmptyNote from '../../ui/EmptyNote';
 import MachineArt from '../../ui/MachineArt';
@@ -91,6 +92,7 @@ export default function Tonight() {
 
   return (
     <Stack spacing={4}>
+      <DrStandingsNote view="tonight" />
       <Section title={night.open ? "Tonight's points" : `${weekLabel(week.week)} points`}>
         {!night.open && (
           <Typography color="textSecondary" sx={{ mb: 1.5 }}>

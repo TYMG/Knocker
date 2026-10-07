@@ -19,7 +19,8 @@ import Typography from '@mui/material/Typography';
 import { RadarChart } from '@mui/x-charts/RadarChart';
 import { useAppDispatch, useAppSelector, useLeague } from '../hooks';
 import { currentWeek, teamForm, teamsIn } from '../sample/league';
-import { doctorsOrders, machineStatuses } from '../sample/loveDr';
+import { closingOrders, doctorsOrders, lateOrders, machineHistory, machineStatuses } from '../sample/loveDr';
+import { ordinal } from '../sample/time';
 import { setDrPopups, setOrdersOpen } from '../store';
 import { colors } from '../theme';
 import { chartMotion } from '../ui/chartMotion';
@@ -48,7 +49,8 @@ export function Mascot({ size = 72 }: { size?: number }) {
 
 const tagTone = { good: 'good', work: 'warn', plain: 'plain' } as const;
 
-export default function LoveDr({ teamId }: { teamId: string }) {
+/** `full` is the analysis page: it adds the week-by-week record under every machine. */
+export default function LoveDr({ teamId, full = false }: { teamId: string; full?: boolean }) {
   const league = useLeague();
   const dispatch = useAppDispatch();
   const popups = useAppSelector((s) => s.ui.drPopups);
@@ -56,7 +58,8 @@ export default function LoveDr({ teamId }: { teamId: string }) {
   const week = currentWeek(league);
   const top = teamsIn(league, week.week).length; // 1st place on a machine earns this many points
   const statuses = machineStatuses(league, teamId);
-  const orders = doctorsOrders(league, teamId);
+  const orders = closingOrders(league, teamId) ?? lateOrders(league, teamId) ?? doctorsOrders(league, teamId);
+  const history = full ? machineHistory(league, teamId) : [];
 
   // A radar needs at least three machines to be a shape.
   const enough = form.length >= 3;
@@ -111,6 +114,13 @@ export default function LoveDr({ teamId }: { teamId: string }) {
                     <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                       {st.why} {st.advice}
                     </Typography>
+                    {full && (
+                      <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.25 }}>
+                        {(history.find((h) => h.machine.machineId === st.machine.machineId)?.nights ?? [])
+                          .map((n) => `Week ${n.week}: ${ordinal(n.rank)}`)
+                          .join(' · ')}
+                      </Typography>
+                    )}
                   </Box>
                 ))}
               </Stack>
@@ -118,6 +128,12 @@ export default function LoveDr({ teamId }: { teamId: string }) {
           )}
 
           {enough && <Typography sx={{ fontStyle: 'italic', mt: 2 }}>Doctor's orders: you only need one great love to win. Find yours.</Typography>}
+
+          {!full && (
+            <Button component={RouterLink} to="/love-dr" variant="text" sx={{ mt: 1, px: 0, minHeight: 44 }}>
+              See the full analysis
+            </Button>
+          )}
 
           <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, mt: 2, pt: 1.5, borderTop: 1, borderColor: 'divider' }}>
             {orders && (

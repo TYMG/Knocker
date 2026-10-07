@@ -12,7 +12,12 @@
 // Pages ask three questions:
 //   machineStatuses(league, teamId)   a phrase for every machine: "Godzilla: It's a keeper"
 //   prescription(league, teamId)      tonight's prescription: the one machine to play next, and why
-//   doctorsOrders(league, teamId)     the short pep talk for the pop-up after check-in
+//   doctorsOrders(league, teamId)     the pop-up: after check-in, late in the night, and at the close
+//   drNotes(league, teamId)           what the Dr. noticed tonight: heartbreak, near misses, sparks
+//   checkUp(league, teamId, week)     the recap of one finished night
+//   coupleType(league, teamId)        what kind of couple: Naturals, Grinders, Loyalists, One and Done
+//   leagueNotes(league, view)         the Dr.'s notes everyone sees in the standings
+//   privateNote(league, teamId, view) the note only your own team sees there
 
 import {
   countedMachines,
@@ -25,11 +30,16 @@ import {
   placeInLine,
   playedWeeks,
   season,
+  seasonHighBonuses,
   shortScore,
+  team as teamOf,
   teamsIn,
-  teamTonight
+  teamTonight,
+  tonightRows,
+  weekLabel,
+  weekOf
 } from './league';
-import { ordinal } from './time';
+import { clock, ordinal } from './time';
 import type { SampleState, SMachine } from './types';
 
 /** With this many minutes left, an unplayed machine becomes urgent ("Cold feet"). */
@@ -370,7 +380,7 @@ export function prescription(s: SampleState, teamId: string): Prescription | und
   if (myLine?.machine.machineId === pick.machine.machineId) {
     // Already in the right line.
     phrase = 'Going steady';
-    says = `Stay put. You are ${placeInLine(myLine.position)} for ${pick.machine.name}, and that is the one I would pick. ${pick.says}`;
+    says = `Stay put. You are ${myLine.position === 1 ? 'up on' : `${placeInLine(myLine.position)} for`} ${pick.machine.name}, and that is the one I would pick. ${pick.says}`;
     action = undefined;
   } else if (myLine) {
     says = `${pick.says} That means leaving the ${myLine.machine.name} line: you can only be in one.`;
@@ -431,4 +441,314 @@ export function doctorsOrders(s: SampleState, teamId: string): DoctorsOrders | u
   if (lines.length === 0) return undefined;
   lines.push('Play every machine in the lineup. No score means no points.');
   return { heading: `Week ${currentWeek(s).week}`, lines: lines.slice(0, 4) };
+}
+
+// ---- What the Dr. noticed tonight ----
+
+export interface DrNote {
+  phrase: string;
+  text: string;
+  tone: 'good' | 'work' | 'plain';
+  /** Where tapping it goes. */
+  to?: string;
+}
+
+/**
+ * Short notes for team home while the night is open: someone took your 1st place, you just
+ * missed a place, you set a personal best, how your challenges stand. Most pressing first.
+ * A challenge is only ever reported on. The Dr. never suggests one.
+ */
+export function drNotes(s: SampleState, teamId: string): DrNote[] {
+  const night = nightStatus(s);
+  if (!night.open) return [];
+  const week = night.week.week;
+  const notes: DrNote[] = [];
+  const history = machineHistory(s, teamId);
+
+  for (const machineId of countedMachines(s, night.week)) {
+    const m = machineOf(s, machineId);
+    const board = machineBoard(s, week, machineId);
+    const mine = board.find((r) => r.team.teamId === teamId);
+    if (!mine) continue;
+    const leader = board[0]!;
+    // Heartbreaker: you were top of this machine until the leader's best score went in.
+    if (leader.team.teamId !== teamId && leader.best.at > mine.best.at) {
+      const before = s.scores.filter((x) => x.week === week && x.machineId === machineId && x.status === 'active' && x.at < leader.best.at);
+      const topBefore = Math.max(...before.map((x) => x.score));
+      const wasMine = before.some((x) => x.teamId === teamId && x.score === topBefore);
+      if (wasMine) {
+        notes.push({ phrase: 'Heartbreaker', tone: 'work', to: `/machines/${machineId}`, text: `${leader.team.teamName} took ${m.name} from you by ${shortScore(leader.best.score - mine.best.score)}. Go win it back.` });
+        continue;
+      }
+    }
+    // The one that got away: within a tenth of the next place up.
+    const next = board.filter((r) => r.best.score > mine.best.score).sort((a, b) => a.best.score - b.best.score)[0];
+    if (next && (next.best.score - mine.best.score) / mine.best.score <= 0.1) {
+      notes.push({ phrase: 'The one that got away', tone: 'plain', to: `/machines/${machineId}`, text: `${shortScore(next.best.score - mine.best.score)} short of ${ordinal(mine.rank - 1)} on ${m.name}. One more try.` });
+    }
+    // Spark: your best score of the season on this machine came tonight.
+    const h = history.find((x) => x.machine.machineId === machineId);
+    const earlier = h ? h.nights.filter((x) => x.week < week) : [];
+    if (earlier.length > 0 && mine.best.score > Math.max(...earlier.map((x) => x.best))) {
+      notes.push({ phrase: 'Spark', tone: 'good', to: `/machines/${machineId}`, text: `${shortScore(mine.best.score)} on ${m.name} is your best of the season there.` });
+    }
+  }
+
+  // Tonight's table: on top, or just passed by the team behind.
+  const rows = tonightRows(s, week);
+  const me = rows.find((r) => r.team.teamId === teamId);
+  if (me?.rank === 1 && me.points > 0) notes.push({ phrase: 'Power couple', tone: 'good', to: '/standings', text: 'You are 1st tonight. Defend the machine where your lead is thinnest.' });
+  if (me && (me.change ?? 0) < 0) {
+    const passer = rows.find((r) => r.rank === me.rank - 1 && (r.change ?? 0) > 0);
+    if (passer) notes.push({ phrase: 'Jealous', tone: 'work', to: '/standings', text: `${passer.team.teamName} just passed you tonight.` });
+  }
+
+  // The season table: did tonight drop them out of the top 4?
+  const nights = season(s).byNight;
+  const now = nights.find((n) => n.week === week)?.ranks.option1[teamId];
+  const lastWeek = nights.find((n) => n.week === week - 1)?.ranks.option1[teamId];
+  if (now !== undefined && lastWeek !== undefined && lastWeek <= 4 && now > 4) {
+    notes.push({ phrase: 'Dumped', tone: 'work', to: '/standings/season', text: `You have dropped out of the top 4, to ${ordinal(now)}. There is still time tonight.` });
+  }
+
+  // Challenges: a report on where yours stand, nothing more.
+  for (const c of s.challenges) {
+    if (c.week !== week) continue;
+    const other = c.fromTeamId === teamId ? c.toTeamId : c.toTeamId === teamId ? c.fromTeamId : undefined;
+    if (!other) continue;
+    const where = machineOf(s, c.machineId).name;
+    if (c.status === 'live') notes.push({ phrase: "It's a match", tone: 'good', to: '/challenges', text: `Your challenge with ${teamOf(s, other).teamName} on ${where} is on. The better score there tonight wins.` });
+    else if (c.status === 'waiting' && c.fromTeamId === teamId) notes.push({ phrase: 'Left on read', tone: 'plain', to: '/challenges', text: `${teamOf(s, other).teamName} has not answered your challenge on ${where}. Keep posting scores.` });
+  }
+
+  const order = { work: 0, plain: 1, good: 2 };
+  return notes.sort((a, b) => order[a.tone] - order[b.tone]).slice(0, 4);
+}
+
+// ---- The check-up: one finished night, looked back on ----
+
+export interface CheckUp {
+  week: number;
+  /** "3rd that night with 24 points. Up one in the season, to 4th." */
+  headline: string;
+  best?: string;
+  worst?: string;
+  /** Phrases the team earned that night, each with its reason. */
+  earned: { phrase: string; text: string }[];
+  /** One thing to try next week. */
+  next: string;
+}
+
+/** The latest week that has closed and that the team posted a score in. */
+export function lastPlayedWeek(s: SampleState, teamId: string): number | undefined {
+  const finished = playedWeeks(s).filter((w) => w.state === 'final').map((w) => w.week).sort((a, b) => b - a);
+  return finished.find((w) => teamTonight(s, teamId, w).played.length > 0);
+}
+
+/** The Dr.'s recap of one closed night. Undefined if the night is still open or the team did not play. */
+export function checkUp(s: SampleState, teamId: string, weekNumber = lastPlayedWeek(s, teamId)): CheckUp | undefined {
+  if (weekNumber === undefined) return undefined;
+  const week = weekOf(s, weekNumber);
+  if (!week || week.state !== 'final') return undefined;
+  const night = teamTonight(s, teamId, weekNumber);
+  if (!night.row || night.played.length === 0) return undefined;
+  const pts = (n: number) => `${n} ${n === 1 ? 'point' : 'points'}`;
+
+  // Where the season table moved.
+  const nights = season(s).byNight;
+  const after = nights.find((n) => n.week === weekNumber)?.ranks.option1[teamId];
+  const before = nights.find((n) => n.week === weekNumber - 1)?.ranks.option1[teamId];
+  let move = '';
+  if (after !== undefined) {
+    if (before === undefined || before === after) move = ` ${before === undefined ? 'That puts you' : 'Still'} ${ordinal(after)} in the season.`;
+    else move = before > after ? ` Up ${before - after} in the season, to ${ordinal(after)}.` : ` Down ${after - before} in the season, to ${ordinal(after)}.`;
+  }
+
+  const byRank = [...night.played].sort((a, b) => a.rank - b.rank);
+  const top = byRank[0]!;
+  const bottom = byRank[byRank.length - 1]!;
+  const history = machineHistory(s, teamId);
+  const earned: CheckUp['earned'] = [];
+  if (night.row.rank === 1) earned.push({ phrase: 'Power couple', text: '1st on the night.' });
+  const prevNight = nights.find((n) => n.week === weekNumber - 1);
+  if (prevNight) {
+    const prevRows = tonightRows(s, weekNumber - 1);
+    const prev = prevRows.find((r) => r.team.teamId === teamId);
+    if (prev && prev.rank > prevRows.length / 2 && prev.rank - night.row.rank >= 3) earned.push({ phrase: 'Rebound', text: `${ordinal(prev.rank)} the week before, ${ordinal(night.row.rank)} this time. That is how you do it.` });
+  }
+  for (const p of night.played) {
+    const h = history.find((x) => x.machine.machineId === p.machine.machineId);
+    const earlier = h ? h.nights.filter((x) => x.week < weekNumber) : [];
+    const tonight = h?.nights.find((x) => x.week === weekNumber);
+    if (earlier.length === 0 && p.rank <= 2 && tonight?.bestGame === 1) earned.push({ phrase: 'Love at first sight', text: `${ordinal(p.rank)} on ${p.machine.name} with your very first game on it.` });
+    else if (earlier.length > 0 && p.best.score > Math.max(...earlier.map((x) => x.best))) earned.push({ phrase: 'Spark', text: `${shortScore(p.best.score)} on ${p.machine.name}, your best of the season there.` });
+  }
+
+  const missed = night.toPlay;
+  return {
+    week: weekNumber,
+    headline: `${ordinal(night.row.rank)} of ${night.teamCount} that night with ${pts(night.row.points)}.${move}`,
+    best: `${ordinal(top.rank)} on ${top.machine.name} with ${shortScore(top.best.score)}.`,
+    worst: missed.length > 0
+      ? `No score on ${missed.map((m) => m.name).join(' or ')}. That was worth nothing.`
+      : byRank.length > 1 ? `${ordinal(bottom.rank)} on ${bottom.machine.name}.` : undefined,
+    earned: earned.slice(0, 3),
+    next: missed.length > 0
+      ? `Next week, play every machine in the lineup before you go back to a favorite.`
+      : byRank.length > 1 ? `Next week, start on ${bottom.machine.name} while you are fresh.` : 'Next week, play every machine in the lineup.'
+  };
+}
+
+// ---- What kind of couple ----
+
+export interface CoupleType {
+  /** The Naturals, The Grinders, The Loyalists, One and Done, or Playing the field. */
+  label: string;
+  why: string;
+  says: string;
+}
+
+/**
+ * How a team plays, from every game it has posted. Needs six machine-nights before it will say.
+ * The four types come from the league's Season Wrapped idea; "Playing the field" is the rest.
+ */
+export function coupleType(s: SampleState, teamId: string): CoupleType | undefined {
+  const history = machineHistory(s, teamId).filter((h) => h.nights.length > 0);
+  const nights = history.flatMap((h) => h.nights);
+  if (nights.length < 6) return undefined;
+  const games = nights.reduce((a, n) => a + n.scores.length, 0);
+  const perNight = games / nights.length;
+  const favorite = [...history].sort((a, b) => b.nights.reduce((x, n) => x + n.scores.length, 0) - a.nights.reduce((x, n) => x + n.scores.length, 0))[0]!;
+  const favoriteGames = favorite.nights.reduce((x, n) => x + n.scores.length, 0);
+  const multi = nights.filter((n) => n.scores.length >= 2);
+  const improved = multi.filter((n) => n.bestGame > 1).length;
+  const place = nights.reduce((a, n) => a + n.rank / n.teamCount, 0) / nights.length;
+  const each = perNight.toFixed(1);
+
+  if (history.length >= 3 && favoriteGames / games >= 0.4) {
+    return { label: 'The Loyalists', why: `${favoriteGames} of ${games} games were on ${favorite.machine.name}.`, says: `Going exclusive with ${favorite.machine.name}. Sweet, but every machine you skip is worth nothing.` };
+  }
+  if (perNight <= 1.2) {
+    return { label: 'One and Done', why: `${each} games a machine, most nights.`, says: 'One game, take it or leave it. There is no penalty for playing more.' };
+  }
+  if (perNight <= 1.6 && place <= 0.45) {
+    return { label: 'The Naturals', why: `${each} games a machine, and still a top-half finish most nights.`, says: 'Few games, high finishes. Imagine if you tried.' };
+  }
+  if (perNight >= 1.8 || (multi.length >= 3 && improved / multi.length >= 0.6)) {
+    return { label: 'The Grinders', why: multi.length ? `Going back for another game beat the first one ${improved} of ${multi.length} times.` : `${each} games a machine.`, says: 'Love takes work, and you put it in.' };
+  }
+  return { label: 'Playing the field', why: `${each} games a machine, spread across ${history.length} machines.`, says: 'A good habit. Now pick one machine to get serious about.' };
+}
+
+// ---- Notes in the standings ----
+
+export interface LeagueNote {
+  phrase: string;
+  text: string;
+}
+
+/**
+ * The Dr.'s notes for the whole room, shown at the top of the standings. They are about machines
+ * and races, and kind about teams: the public notes only ever say something good about a team.
+ */
+export function leagueNotes(s: SampleState, view: 'tonight' | 'season'): LeagueNote[] {
+  const notes: LeagueNote[] = [];
+  const night = nightStatus(s);
+  const week = night.week.week;
+
+  if (view === 'tonight') {
+    const rows = tonightRows(s, week);
+    if (night.open) {
+      for (const machineId of countedMachines(s, night.week)) {
+        const m = machineOf(s, machineId);
+        const board = machineBoard(s, week, machineId);
+        // Love triangle: three teams in a row within 5% of each other.
+        for (let i = 0; i + 2 < board.length; i++) {
+          const a = board[i]!, c = board[i + 2]!;
+          if ((a.best.score - c.best.score) / a.best.score <= 0.05) {
+            notes.push({ phrase: 'Love triangle', text: `${a.team.teamName}, ${board[i + 1]!.team.teamName} and ${c.team.teamName} are within ${shortScore(a.best.score - c.best.score)} of each other on ${m.name}.` });
+            break;
+          }
+        }
+        const here = rows.filter((r) => r.here).length;
+        const waiting = here - board.filter((r) => rows.find((x) => x.team.teamId === r.team.teamId)?.here).length;
+        if (waiting >= 2 && night.minutesLeft <= LATE_MINUTES) notes.push({ phrase: 'Cold feet', text: `${waiting} teams still have cold feet on ${m.name}, with ${night.minutesLeft} minutes left.` });
+        else if (waiting >= 3) notes.push({ phrase: 'Playing hard to get', text: `${m.name} is playing hard to get: ${waiting} teams have not played it yet.` });
+      }
+    }
+    const leader = rows[0];
+    if (leader && leader.points > 0) notes.push({ phrase: 'Power couple', text: night.open ? `${leader.team.teamName} lead the night with ${leader.points} points.` : `${leader.team.teamName} won ${weekLabel(week)} with ${leader.points} points.` });
+  } else {
+    const table = season(s).option1;
+    const fourth = table.find((r) => r.rank === 4);
+    const fifth = table.find((r) => r.rank === 5);
+    if (fourth && fifth && fourth.points - fifth.points <= 3) {
+      const gap = fourth.points - fifth.points;
+      notes.push({ phrase: 'Third wheel', text: gap === 0 ? `${fourth.team.teamName} and ${fifth.team.teamName} are level for the last finals spot.` : `${fifth.team.teamName} are ${gap} ${gap === 1 ? 'point' : 'points'} behind ${fourth.team.teamName} for the last finals spot.` });
+    }
+    // The season high that has stood the longest.
+    const oldest = [...seasonHighBonuses(s)].sort((a, b) => a.score.week - b.score.week)[0];
+    if (oldest && week - oldest.score.week >= 2) {
+      notes.push({ phrase: 'Put a ring on it', text: `Nobody has beaten ${oldest.team.teamName}'s ${shortScore(oldest.score.score)} on ${oldest.machine.name} since week ${oldest.score.week}. It is worth 10 points if it stands.` });
+    }
+    // A team that has climbed the table two weeks running.
+    const nights = season(s).byNight.filter((n) => weekOf(s, n.week)?.state === 'final');
+    if (nights.length >= 3) {
+      const [a, b, c] = nights.slice(-3) as [typeof nights[0], typeof nights[0], typeof nights[0]];
+      const climber = table.find((r) => {
+        const x = a.ranks.option1[r.team.teamId], y = b.ranks.option1[r.team.teamId], z = c.ranks.option1[r.team.teamId];
+        return x !== undefined && y !== undefined && z !== undefined && y < x && z < y;
+      });
+      if (climber) notes.push({ phrase: 'Slow burn', text: `${climber.team.teamName} have climbed the table two weeks running.` });
+    }
+  }
+  return notes.slice(0, 2);
+}
+
+/** Where a team stands in the season, in one line, with who is in the way. */
+export function standingLine(s: SampleState, teamId: string): string | undefined {
+  const table = season(s).option1;
+  const me = table.find((r) => r.team.teamId === teamId);
+  if (!me) return undefined;
+  if (me.rank <= 4) {
+    const chaser = table.find((r) => r.rank === 5);
+    return `You are ${ordinal(me.rank)} in the season.${chaser ? ` ${chaser.team.teamName} are the first team outside the top 4, ${me.points - chaser.points} ${me.points - chaser.points === 1 ? 'point' : 'points'} behind you.` : ''}`;
+  }
+  const cut = table.find((r) => r.rank === 4);
+  if (!cut) return `You are ${ordinal(me.rank)} in the season.`;
+  const gap = cut.points - me.points;
+  return `You are ${ordinal(me.rank)}, ${gap} ${gap === 1 ? 'point' : 'points'} off the top 4. ${cut.team.teamName} hold the last finals spot.`;
+}
+
+/** The note only a team sees about itself in the standings. */
+export function privateNote(s: SampleState, teamId: string, view: 'tonight' | 'season'): string | undefined {
+  if (view === 'season') return standingLine(s, teamId);
+  return prescription(s, teamId)?.says ?? checkUp(s, teamId, currentWeek(s).week)?.next;
+}
+
+// ---- The later pop-ups ----
+
+/** With 20 minutes or less to go and a machine still unplayed: the "Cold feet" pop-up. */
+export function lateOrders(s: SampleState, teamId: string): DoctorsOrders | undefined {
+  const night = nightStatus(s);
+  if (!night.open || night.minutesLeft > LATE_MINUTES) return undefined;
+  const waiting = teamTonight(s, teamId).toPlay;
+  if (waiting.length === 0) return undefined;
+  const names = waiting.map((m) => m.name).join(' and ');
+  return {
+    heading: `${night.minutesLeft} minutes left`,
+    lines: [`Cold feet? ${names} ${waiting.length === 1 ? 'has' : 'have'} not heard from you tonight.`, 'No score on a machine means no points from it.', `Scores close at ${clock(night.closesAt)}.`]
+  };
+}
+
+/** When the night has closed: the check-up, as a pop-up. */
+export function closingOrders(s: SampleState, teamId: string): DoctorsOrders | undefined {
+  const week = currentWeek(s);
+  if (week.state !== 'final') return undefined;
+  const c = checkUp(s, teamId, week.week);
+  if (!c) return undefined;
+  return {
+    heading: `The check-up, week ${c.week}`,
+    lines: [c.headline, ...(c.best ? [`Best moment: ${c.best}`] : []), ...c.earned.slice(0, 1).map((e) => `${e.phrase}: ${e.text}`), c.next].slice(0, 4)
+  };
 }

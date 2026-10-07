@@ -12,6 +12,7 @@ import SeasonChart from '../../ui/SeasonChart';
 import Section from '../../ui/Section';
 import SeasonHighBonusList from '../../ui/SeasonHighBonusList';
 import StandingsTable from '../../ui/StandingsTable';
+import { DrStandingsNote } from '../DrParts';
 import Switcher from './Switcher';
 
 const OPTIONS: { value: SeasonOption; label: string; explain: string }[] = [
@@ -42,6 +43,7 @@ export default function Season() {
 
   return (
     <Stack spacing={3}>
+      <DrStandingsNote view="season" />
       <div>
         <Switcher value={option} onChange={setOption} options={OPTIONS} label="How the season is scored" />
         <Typography color="textSecondary" sx={{ mt: 1.5, maxWidth: 640 }}>

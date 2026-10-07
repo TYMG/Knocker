@@ -112,6 +112,19 @@ export const TOUR: TourPage[] = [
     ],
     tryIt: 'Accept the challenge from Flip City for 10 points. Then, as an admin, void their flagged Godzilla score and close the night: the points come to you.'
   },
+  {
+    path: '/love-dr', example: '/love-dr', title: 'The Love Dr.: full analysis', group: 'On league night', role: 'team',
+    who: 'A logged-in team. Only that team sees it.',
+    when: "Any time. The Doctor's orders pop-up links here.",
+    does: [
+      'What kind of couple you are, from how you play.',
+      "Tonight's prescription: the one machine to play next, and why.",
+      'What the Dr. noticed tonight: a lead you lost, a near miss, a new best.',
+      'A relationship status for every machine, with your place on it week by week.',
+      'The check-up: a recap of your last finished night.'
+    ],
+    tryIt: 'Open it from the Love Dr. card on team home with "See the full analysis".'
+  },
 
   // ---- Following the league ----
   {

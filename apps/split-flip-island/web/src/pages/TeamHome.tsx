@@ -24,6 +24,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
 import GroupsIcon from '@mui/icons-material/Groups';
 import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
+import { DrCheckUp, DrNotes } from './DrParts';
 import DrPrescription from './DrPrescription';
 import LoveDr from './LoveDr';
 import { useLeague, useMe } from '../hooks';
@@ -220,6 +221,7 @@ export default function TeamHome() {
               See the standings
             </Button>
           </Card>
+          <DrCheckUp teamId={team.teamId} week={week.week} />
           {played}
           <LoveDr teamId={team.teamId} />
           {justHappened}
@@ -273,6 +275,7 @@ export default function TeamHome() {
         </Card>
 
         <DrPrescription teamId={team.teamId} />
+        <DrNotes teamId={team.teamId} />
 
         <ActionCard
           to="/lines"

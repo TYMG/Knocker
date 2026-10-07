@@ -7,6 +7,7 @@ import BareLayout from './layout/BareLayout';
 import { AdminOnly, TeamOnly } from './layout/guards';
 import PlayerLayout from './layout/PlayerLayout';
 import Challenges from './pages/Challenges';
+import LoveDrAnalysis from './pages/LoveDrAnalysis';
 import FrontDoor from './pages/FrontDoor';
 import LineJoin from './pages/LineJoin';
 import Lines from './pages/Lines';
@@ -95,6 +96,7 @@ export default function App() {
             <Route path="/lines/join/:machineId" element={<LineJoin />} />
             <Route path="/submit" element={<Submit />} />
             <Route path="/challenges" element={<Challenges />} />
+            <Route path="/love-dr" element={<LoveDrAnalysis />} />
           </Route>
           {/* The page's first name. Old links still work. */}
           <Route path="/call-outs" element={<Navigate to="/challenges" replace />} />

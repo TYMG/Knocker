@@ -11,6 +11,8 @@ tfplan
 # Node / build
 node_modules/
 dist/
+test-results/
+test-report/
 # Secrets and OS files
 .env
 .env.*

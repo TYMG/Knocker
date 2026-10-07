@@ -1,5 +1,8 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
-import { useMe } from './hooks';
+import { useEffect } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router';
+import { useAppDispatch, useAppSelector, useMe } from './hooks';
+import { sample } from './sample/slice';
+import { setPendingRole } from './store';
 import AdminLayout from './layout/AdminLayout';
 import BareLayout from './layout/BareLayout';
 import { AdminOnly, TeamOnly } from './layout/guards';
@@ -42,10 +45,28 @@ function Root() {
   return useMe().isTeam ? <TeamHome /> : <FrontDoor />;
 }
 
+/**
+ * Second half of switching away from admin in the sample strip. The strip sends the app home
+ * first; once the address is no longer an admin page, this changes who you are. It lives here,
+ * above the page frames, because the strip itself is replaced when the frame changes.
+ */
+function FinishRoleSwitch() {
+  const pending = useAppSelector((s) => s.ui.pendingRole);
+  const { pathname } = useLocation();
+  const dispatch = useAppDispatch();
+  useEffect(() => {
+    if (!pending || pathname.startsWith('/admin')) return;
+    dispatch(sample.setRole(pending));
+    dispatch(setPendingRole(null));
+  }, [pending, pathname, dispatch]);
+  return null;
+}
+
 // Every address in the app. sample/tour.ts describes each page; keep the two in step.
 export default function App() {
   return (
     <BrowserRouter>
+      <FinishRoleSwitch />
       <Routes>
         <Route element={<PlayerLayout />}>
           <Route path="/" element={<Root />} />

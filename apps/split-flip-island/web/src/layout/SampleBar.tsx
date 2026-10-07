@@ -4,10 +4,10 @@ import Button from '@mui/material/Button';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
-import { useAppDispatch, useLeague } from '../hooks';
+import { useAppDispatch, useAppSelector, useLeague } from '../hooks';
 import { sample } from '../sample/slice';
 import type { Role } from '../sample/types';
-import { setTourOpen } from '../store';
+import { setPendingRole, setTourOpen } from '../store';
 import { colors } from '../theme';
 
 export const SAMPLE_BAR_HEIGHT = 44;
@@ -23,11 +23,20 @@ export default function SampleBar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
+  // Leaving admin while on an admin page happens in two steps: go home first, then stop being
+  // an admin (FinishRoleSwitch in App.tsx does the second step). Done the other way round, the
+  // admin pages see a non-admin for a moment and send them to the admin log-in instead of home.
+  const leavingFor = useAppSelector((s) => s.ui.pendingRole);
+
   const change = (role: Role | null) => {
     if (!role) return;
+    if (role !== 'admin' && pathname.startsWith('/admin')) {
+      dispatch(setPendingRole(role));
+      navigate('/');
+      return;
+    }
     dispatch(sample.setRole(role));
     if (role === 'admin') navigate('/admin');
-    else if (pathname.startsWith('/admin')) navigate('/');
   };
 
   const button = { color: colors.paleYellow, borderColor: 'rgba(255,255,153,0.4)', py: 0.25, px: 1.25, fontSize: '0.8rem', minWidth: 0, lineHeight: 1.6 };
@@ -45,7 +54,7 @@ export default function SampleBar() {
       <ToggleButtonGroup
         exclusive
         size="small"
-        value={league.role}
+        value={leavingFor ?? league.role}
         onChange={(_, role: Role | null) => change(role)}
         aria-label="View the app as"
         sx={{

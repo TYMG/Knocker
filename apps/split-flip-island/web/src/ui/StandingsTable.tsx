@@ -42,7 +42,14 @@ export default function StandingsTable({
       <MovingList items={shown} keyOf={(r) => r.team.teamId}>
         {(r, i) => (
           <Fragment>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 2, py: 1.1, bgcolor: r.team.teamId === myTeamId ? 'action.selected' : 'background.paper' }}>
+            {/* The data- attributes are for the scenario tests in web/tests: they read the table from them. */}
+            <Box
+              data-testid="standing-row"
+              data-team={r.team.teamId}
+              data-rank={r.rank}
+              data-points={r.points}
+              sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 2, py: 1.1, bgcolor: r.team.teamId === myTeamId ? 'action.selected' : 'background.paper' }}
+            >
               <Typography sx={{ width: 26, fontFamily: "'Bungee', sans-serif", textAlign: 'right', flexShrink: 0, color: r.rank <= 4 ? 'primary.main' : 'text.secondary' }}>{r.rank}</Typography>
               {arrows && <Movement change={r.change} since={since} />}
               <TeamAvatar team={r.team} mine={r.team.teamId === myTeamId} />

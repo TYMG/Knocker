@@ -27,7 +27,10 @@ export type Viewer = 'Visitor' | 'Team' | 'Admin';
  * Opens a page as a visitor, as the team Left & Right, or as the admin. Every scenario starts
  * from the same story: 8:12 PM, week 5, 48 minutes left (see src/sample/README.md).
  */
-export async function open(page: Page, path: string, as: Viewer = 'Visitor') {
+export async function open(page: Page, path: string, as: Viewer = 'Visitor', options: { drPopups?: boolean } = {}) {
+  // The Love Dr.'s pop-up would sit on top of the page and get in the way of every scenario, so
+  // it is switched off unless a scenario asks for it with { drPopups: true }.
+  if (!options.drPopups) await page.addInitScript(() => window.localStorage.setItem('sfi-dr-popups', '0'));
   await page.goto('/tour');
   if (as !== 'Visitor') await page.getByRole('group', { name: 'View the app as' }).getByRole('button', { name: as, exact: true }).click();
   await go(page, path);

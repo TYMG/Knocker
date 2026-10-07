@@ -11,10 +11,19 @@ function savedCalm(): boolean {
   }
 }
 
+const POPUPS_KEY = 'sfi-dr-popups';
+function savedPopups(): boolean {
+  try {
+    return window.localStorage.getItem(POPUPS_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
 // Small pieces of screen state shared by every page.
 const uiSlice = createSlice({
   name: 'ui',
-  initialState: { toast: null as string | null, tourOpen: false, pendingRole: null as Role | null, calm: savedCalm() },
+  initialState: { toast: null as string | null, tourOpen: false, pendingRole: null as Role | null, calm: savedCalm(), drPopups: savedPopups(), ordersOpen: false },
   reducers: {
     /** A short confirmation at the bottom of the screen: "Checked in Slam Tilt". */
     showToast: (state, action: PayloadAction<string>) => {
@@ -33,11 +42,19 @@ const uiSlice = createSlice({
     /** Calm mode: effects off. Remembered on this phone or computer. See ui/calm.ts. */
     setCalm: (state, action: PayloadAction<boolean>) => {
       state.calm = action.payload;
+    },
+    /** Whether the Love Dr. may pop up on its own. Remembered on this phone or computer. */
+    setDrPopups: (state, action: PayloadAction<boolean>) => {
+      state.drPopups = action.payload;
+    },
+    /** Opens or closes the Doctor's orders pop-up by hand. See layout/DoctorsOrdersPopup.tsx. */
+    setOrdersOpen: (state, action: PayloadAction<boolean>) => {
+      state.ordersOpen = action.payload;
     }
   }
 });
 
-export const { showToast, hideToast, setTourOpen, setPendingRole, setCalm } = uiSlice.actions;
+export const { showToast, hideToast, setTourOpen, setPendingRole, setCalm, setDrPopups, setOrdersOpen } = uiSlice.actions;
 
 // The app runs on a made-up league for now (see sample/README.md). The real API and its login
 // state are in live/, ready to be added back here.
@@ -46,8 +63,18 @@ export const store = configureStore({
 });
 
 let savedCalmValue = store.getState().ui.calm;
+let savedPopupsValue = store.getState().ui.drPopups;
 let saved = store.getState().sample;
 store.subscribe(() => {
+  const popups = store.getState().ui.drPopups;
+  if (popups !== savedPopupsValue) {
+    savedPopupsValue = popups;
+    try {
+      window.localStorage.setItem(POPUPS_KEY, popups ? '1' : '0');
+    } catch {
+      // Storage can be blocked. The choice then lasts until the page is closed.
+    }
+  }
   const calm = store.getState().ui.calm;
   if (calm !== savedCalmValue) {
     savedCalmValue = calm;

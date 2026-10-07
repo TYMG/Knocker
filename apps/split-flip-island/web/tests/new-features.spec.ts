@@ -54,7 +54,8 @@ test('the Love Dr. is on a team\'s own home and nowhere public', async ({ page }
   await open(page, '/', 'Team');
   await expect(page.getByRole('heading', { name: 'The Love Dr.' })).toBeVisible();
   await expect(page.getByText('Only your team sees this')).toBeVisible();
-  await expect(page.getByText(/True love/)).toBeVisible();
+  await expect(page.getByText('Relationship status')).toBeVisible();
+  await expect(page.getByTestId('relationship-status').getByText('Tough love')).toBeVisible();
   await become(page, 'Visitor');
   await go(page, '/teams/left-and-right');
   await expect(page.getByText('The Love Dr.')).toHaveCount(0);
@@ -147,4 +148,42 @@ test('calm mode stops the confetti and is remembered', async ({ page }) => {
   await expect(page.getByText('New season high on South Park! Worth 10 bonus points if it stands.')).toBeVisible();
   await expect(page.locator('body > canvas')).toHaveCount(0);
   expect(await page.evaluate(() => window.localStorage.getItem('sfi-calm'))).toBe('1');
+});
+
+// ---- The Love Dr. as coach (Build Plan phase 2, steps 2.1 to 2.4) ----
+
+test("tonight's prescription tells the team which machine to play next", async ({ page }) => {
+  await open(page, '/', 'Team');
+  const rx = page.getByTestId('prescription');
+  // Left & Right have not played South Park yet, and are in the Godzilla line.
+  await expect(rx.getByText('Playing hard to get: South Park')).toBeVisible();
+  await expect(rx.getByText(/That means leaving the Godzilla line/)).toBeVisible();
+  await rx.getByRole('link', { name: 'Switch to the South Park line' }).click();
+  await expect(page).toHaveURL(/\/lines\/join\/south-park$/);
+});
+
+test("Doctor's orders pops up once after check-in and can be opened again by hand", async ({ page }) => {
+  await open(page, '/', 'Team', { drPopups: true });
+  const orders = page.getByRole('dialog', { name: "Doctor's orders" });
+  await expect(orders).toBeVisible();
+  await expect(orders.getByText(/You are 3rd in the season/)).toBeVisible();
+  await orders.getByRole('button', { name: "Let's play" }).click();
+  await expect(orders).toBeHidden();
+
+  // It does not come back on its own.
+  await go(page, '/standings');
+  await go(page, '/');
+  await expect(orders).toBeHidden();
+
+  // The Love Dr. card can open it again, and "See the analysis" lands on that card.
+  await page.getByRole('button', { name: "Tonight's Doctor's orders" }).click();
+  await orders.getByRole('button', { name: 'See the analysis' }).click();
+  await expect(orders).toBeHidden();
+  await expect(page.getByText('Relationship status')).toBeInViewport();
+});
+
+test("the Dr.'s pop-ups can be switched off", async ({ page }) => {
+  await open(page, '/', 'Team');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('checkbox', { name: 'Pop-ups from the Dr.' })).not.toBeChecked();
 });

@@ -2,21 +2,32 @@
 // so only that team sees it. They read the team's results machine by machine and say, with a
 // straight face, which machine loves the team back and which one needs work.
 //
+// The thinking is in sample/loveDr.ts. This file is what the team sees: the chart, a relationship
+// status for every machine, and the switch for the Dr.'s pop-ups.
+//
 // Coaching is for fun and for practice. Nothing here changes points or standings.
 
+import { Link as RouterLink } from 'react-router';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
+import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 import { RadarChart } from '@mui/x-charts/RadarChart';
-import { useLeague } from '../hooks';
-import { currentWeek, teamForm, teamsIn, teamTonight } from '../sample/league';
+import { useAppDispatch, useAppSelector, useLeague } from '../hooks';
+import { currentWeek, teamForm, teamsIn } from '../sample/league';
+import { doctorsOrders, machineStatuses } from '../sample/loveDr';
+import { setDrPopups, setOrdersOpen } from '../store';
 import { colors } from '../theme';
 import { chartMotion } from '../ui/chartMotion';
 import Section from '../ui/Section';
+import Tag from '../ui/Tag';
 
 /** The mascot: a heart in round glasses with a stethoscope. Drawn here so there is no image file to lose. */
-function Mascot({ size = 72 }: { size?: number }) {
+export function Mascot({ size = 72 }: { size?: number }) {
   return (
     <Box component="svg" viewBox="0 0 100 100" role="img" aria-label="The Love Dr., a heart wearing glasses and a stethoscope" sx={{ width: size, height: size, flexShrink: 0 }}>
       <path d="M50 88 C18 64 8 46 8 32 C8 18 19 9 31 9 C39 9 46 13 50 20 C54 13 61 9 69 9 C81 9 92 18 92 32 C92 46 82 64 50 88 Z" fill={colors.coral} stroke={colors.black} strokeWidth="3" />
@@ -35,70 +46,93 @@ function Mascot({ size = 72 }: { size?: number }) {
   );
 }
 
-const pts = (n: number) => `${n} ${n === 1 ? 'point' : 'points'}`;
+const tagTone = { good: 'good', work: 'warn', plain: 'plain' } as const;
 
 export default function LoveDr({ teamId }: { teamId: string }) {
   const league = useLeague();
+  const dispatch = useAppDispatch();
+  const popups = useAppSelector((s) => s.ui.drPopups);
   const form = teamForm(league, teamId);
   const week = currentWeek(league);
   const top = teamsIn(league, week.week).length; // 1st place on a machine earns this many points
-  const waiting = week.state === 'open' ? teamTonight(league, teamId).toPlay : [];
+  const statuses = machineStatuses(league, teamId);
+  const orders = doctorsOrders(league, teamId);
 
   // A radar needs at least three machines to be a shape.
   const enough = form.length >= 3;
-  const best = [...form].sort((a, b) => b.average - a.average)[0];
-  const worst = [...form].sort((a, b) => a.average - b.average)[0];
-
-  const lines: { kind: string; text: string }[] = [];
-  if (enough && best && worst && best.machine.machineId !== worst.machine.machineId) {
-    lines.push({ kind: 'True love', text: `${best.machine.name}. ${pts(best.average)} a night. Whatever you two have, keep it going.` });
-    lines.push({ kind: 'Tough love', text: `${worst.machine.name}. Only ${pts(worst.average)} a night. It is not you, it is the outlanes. Give it two extra games this week.` });
-  }
-  if (waiting.length > 0) lines.push({ kind: 'Playing hard to get', text: `${waiting.map((m) => m.name).join(' and ')} ${waiting.length === 1 ? 'is' : 'are'} still waiting to hear from you tonight.` });
 
   return (
-    <Section title="The Love Dr." aside="Only your team sees this">
-      <Card sx={{ p: 2 }}>
-        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: enough ? 1 : 0 }}>
-          <Mascot />
-          <Box sx={{ minWidth: 0 }}>
-            <Typography sx={{ fontWeight: 700 }}>The doctor is in.</Typography>
-            <Typography sx={{ color: 'text.secondary' }}>
-              {enough
-                ? 'There are many kinds of love, and I have checked your chart for every one of them.'
-                : 'Play three different machines and I will have a diagnosis for you.'}
-            </Typography>
-          </Box>
-        </Stack>
-
-        {enough && (
-          <>
-            <RadarChart
-              height={260}
-              hideLegend
-              sx={chartMotion}
-              margin={{ top: 24, bottom: 24, left: 40, right: 40 }}
-              series={[{ id: 'form', label: 'Points a night', data: form.map((f) => f.average), color: colors.coral, fillArea: true }]}
-              radar={{ max: top, metrics: form.map((f) => f.machine.name) }}
-            />
-            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
-              Your average points a night on each machine. The further out, the better. {top} is a win.
-            </Typography>
-          </>
-        )}
-
-        <Stack spacing={1.25}>
-          {lines.map((l) => (
-            <Box key={l.kind}>
-              <Typography component="span" sx={{ fontWeight: 700, color: 'primary.main' }}>
-                {l.kind}:{' '}
+    // The id lets "See the analysis" in the Doctor's orders pop-up scroll here.
+    <Box id="love-dr" sx={{ scrollMarginTop: '80px' }}>
+      <Section title="The Love Dr." aside="Only your team sees this">
+        <Card sx={{ p: 2 }}>
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: enough ? 1 : 0 }}>
+            <Mascot />
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontWeight: 700 }}>The doctor is in.</Typography>
+              <Typography sx={{ color: 'text.secondary' }}>
+                {enough
+                  ? 'There are many kinds of love, and I have checked your chart for every one of them.'
+                  : 'Play three different machines and I will have a diagnosis for you.'}
               </Typography>
-              <Typography component="span">{l.text}</Typography>
             </Box>
-          ))}
-          {enough && <Typography sx={{ fontStyle: 'italic' }}>Doctor's orders: you only need one great love to win. Find yours.</Typography>}
-        </Stack>
-      </Card>
-    </Section>
+          </Stack>
+
+          {enough && (
+            <>
+              <RadarChart
+                height={260}
+                hideLegend
+                sx={chartMotion}
+                margin={{ top: 24, bottom: 24, left: 40, right: 40 }}
+                series={[{ id: 'form', label: 'Points a night', data: form.map((f) => f.average), color: colors.coral, fillArea: true }]}
+                radar={{ max: top, metrics: form.map((f) => f.machine.name) }}
+              />
+              <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
+                Your average points a night on each machine. The further out, the better. {top} is a win.
+              </Typography>
+            </>
+          )}
+
+          {statuses.length > 0 && (
+            <>
+              <Typography variant="overline" component="h4" sx={{ display: 'block', color: 'text.secondary', fontWeight: 700, letterSpacing: '0.08em', mb: 0.5 }}>
+                Relationship status
+              </Typography>
+              <Stack spacing={1.5} data-testid="relationship-status">
+                {statuses.map((st) => (
+                  <Box key={st.machine.machineId}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', columnGap: 1, rowGap: 0.25 }}>
+                      <Link component={RouterLink} to={`/machines/${st.machine.machineId}`} color="inherit" sx={{ fontWeight: 700 }}>
+                        {st.machine.name}
+                      </Link>
+                      <Tag tone={tagTone[st.tone]}>{st.phrase}</Tag>
+                    </Box>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      {st.why} {st.advice}
+                    </Typography>
+                  </Box>
+                ))}
+              </Stack>
+            </>
+          )}
+
+          {enough && <Typography sx={{ fontStyle: 'italic', mt: 2 }}>Doctor's orders: you only need one great love to win. Find yours.</Typography>}
+
+          <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, mt: 2, pt: 1.5, borderTop: 1, borderColor: 'divider' }}>
+            {orders && (
+              <Button variant="outlined" size="small" onClick={() => dispatch(setOrdersOpen(true))}>
+                Tonight's Doctor's orders
+              </Button>
+            )}
+            <FormControlLabel
+              sx={{ ml: 'auto', mr: 0 }}
+              control={<Switch checked={popups} onChange={(e) => dispatch(setDrPopups(e.target.checked))} />}
+              label="Pop-ups from the Dr."
+            />
+          </Box>
+        </Card>
+      </Section>
+    </Box>
   );
 }

@@ -27,6 +27,7 @@ import { colors } from '../theme';
 import Toaster from '../ui/Toaster';
 import SampleBar from './SampleBar';
 import CalmToggle from './CalmToggle';
+import DoctorsOrdersPopup from './DoctorsOrdersPopup';
 import { ApprovalCheer } from './guards';
 import ThemeToggle from './ThemeToggle';
 import TourDrawer from './TourDrawer';
@@ -159,6 +160,7 @@ export default function PlayerLayout() {
           </BottomNavigation>
         </Paper>
       )}
+      <DoctorsOrdersPopup />
       <Toaster />
       <TourDrawer />
     </Box>

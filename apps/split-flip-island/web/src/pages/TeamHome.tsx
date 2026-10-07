@@ -24,6 +24,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
 import GroupsIcon from '@mui/icons-material/Groups';
 import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
+import DrPrescription from './DrPrescription';
 import LoveDr from './LoveDr';
 import { useLeague, useMe } from '../hooks';
 import { WaitingForApproval } from '../layout/guards';
@@ -270,6 +271,8 @@ export default function TeamHome() {
             )}
           </Typography>
         </Card>
+
+        <DrPrescription teamId={team.teamId} />
 
         <ActionCard
           to="/lines"

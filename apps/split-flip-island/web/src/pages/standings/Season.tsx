@@ -2,18 +2,22 @@
 // a switch between the two ways of scoring the league is testing, two charts of the weeks so
 // far, and the full table with the lines that mark who would play in each final.
 
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
+import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useLeague, useMe } from '../../hooks';
 import { nightStatus, season, type SeasonOption } from '../../sample/league';
-import SeasonChart from '../../ui/SeasonChart';
 import Section from '../../ui/Section';
 import SeasonHighBonusList from '../../ui/SeasonHighBonusList';
 import StandingsTable from '../../ui/StandingsTable';
 import { DrStandingsNote } from '../DrParts';
 import Switcher from './Switcher';
+
+// The charts are a big download, so they arrive only when this page opens.
+const SeasonChart = lazy(() => import('../../ui/SeasonChart'));
+const FlagMap = lazy(() => import('../../ui/charts/FlagMap'));
 
 const OPTIONS: { value: SeasonOption; label: string; explain: string }[] = [
   { value: 'option1', label: 'Machine points add up', explain: "Every machine's points go straight into the season total." },
@@ -52,8 +56,20 @@ export default function Season() {
       </div>
 
       <Card sx={{ p: 2 }}>
-        <SeasonChart byNight={data.byNight} rows={rows} option={option} myTeamId={myTeamId} />
+        <Suspense fallback={<Box sx={{ height: 600 }} />}>
+          <SeasonChart byNight={data.byNight} rows={rows} option={option} myTeamId={myTeamId} />
+        </Suspense>
       </Card>
+
+      {data.nightsPlayed > 0 && (
+        <Section title="Capture the flag" aside="Nights finished 1st">
+          <Card sx={{ p: 2 }}>
+            <Suspense fallback={<Box sx={{ height: 400 }} />}>
+              <FlagMap rows={rows} />
+            </Suspense>
+          </Card>
+        </Section>
+      )}
 
       <Section title="Season points">
         <StandingsTable rows={rows} myTeamId={myTeamId} cuts={CUTS} />

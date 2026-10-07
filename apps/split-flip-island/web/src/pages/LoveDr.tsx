@@ -7,6 +7,7 @@
 //
 // Coaching is for fun and for practice. Nothing here changes points or standings.
 
+import { lazy, Suspense } from 'react';
 import { Link as RouterLink } from 'react-router';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -16,14 +17,12 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
-import { RadarChart } from '@mui/x-charts/RadarChart';
 import { useAppDispatch, useAppSelector, useLeague } from '../hooks';
 import { currentWeek, teamForm, teamsIn } from '../sample/league';
 import { closingOrders, doctorsOrders, lateOrders, machineHistory, machineStatuses } from '../sample/loveDr';
 import { ordinal } from '../sample/time';
 import { setDrPopups, setOrdersOpen } from '../store';
 import { colors } from '../theme';
-import { chartMotion } from '../ui/chartMotion';
 import Section from '../ui/Section';
 import Tag from '../ui/Tag';
 
@@ -46,6 +45,9 @@ export function Mascot({ size = 72 }: { size?: number }) {
     </Box>
   );
 }
+
+// The chart is a big download, so it arrives after the page does.
+const FormRadar = lazy(() => import('../ui/charts/FormRadar'));
 
 const tagTone = { good: 'good', work: 'warn', plain: 'plain' } as const;
 
@@ -83,14 +85,9 @@ export default function LoveDr({ teamId, full = false }: { teamId: string; full?
 
           {enough && (
             <>
-              <RadarChart
-                height={260}
-                hideLegend
-                sx={chartMotion}
-                margin={{ top: 24, bottom: 24, left: 40, right: 40 }}
-                series={[{ id: 'form', label: 'Points a night', data: form.map((f) => f.average), color: colors.coral, fillArea: true }]}
-                radar={{ max: top, metrics: form.map((f) => f.machine.name) }}
-              />
+              <Suspense fallback={<Box sx={{ height: 260 }} />}>
+                <FormRadar form={form.map((f) => ({ name: f.machine.name, average: f.average }))} max={top} />
+              </Suspense>
               <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
                 Your average points a night on each machine. The further out, the better. {top} is a win.
               </Typography>

@@ -19,7 +19,6 @@
     "@gsap/react": "^2.1.2",
     "@mui/icons-material": "^9.4.0",
     "@mui/material": "^9.4.0",
-    "@mui/x-charts": "^9.14.0",
     "@nivo/bump": "^0.99.0",
     "@nivo/core": "^0.99.0",
     "@nivo/heatmap": "^0.99.0",

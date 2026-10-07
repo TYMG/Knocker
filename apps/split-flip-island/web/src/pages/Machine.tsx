@@ -2,7 +2,7 @@
 // link can read it. From here a team submits a score in one tap and joins or leaves the line.
 // Everyone sees the line, tonight's board for this machine and its season high score.
 
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Link as RouterLink, useParams } from 'react-router';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -21,7 +21,6 @@ import Page from '../ui/Page';
 import { Row, RowCard } from '../ui/Rows';
 import ScoreDisplay from '../ui/ScoreDisplay';
 import ScorePhoto from '../ui/ScorePhoto';
-import ScoreSpreadChart from '../ui/ScoreSpreadChart';
 import Tag from '../ui/Tag';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
@@ -29,6 +28,10 @@ import Section from '../ui/Section';
 import TeamAvatar, { TeamLink } from '../ui/TeamAvatar';
 import { smallLabel, spotLabel } from './lineWords';
 import { useTopOfPage } from './useTopOfPage';
+
+// The charts are a big download, so they arrive only when this page opens.
+const ScoreSpreadChart = lazy(() => import('../ui/ScoreSpreadChart'));
+const GameSwarm = lazy(() => import('../ui/charts/GameSwarm'));
 
 /**
  * Every game posted on this machine, a week at a time, newest first. The board above shows only
@@ -297,12 +300,24 @@ export default function Machine() {
         <Section title="Where scores land">
           {spread ? (
             <Card sx={{ p: 2 }}>
-              <ScoreSpreadChart spread={spread} machineName={machine.name} />
+              <Suspense fallback={<Box sx={{ height: 300 }} />}>
+                <ScoreSpreadChart spread={spread} machineName={machine.name} />
+              </Suspense>
             </Card>
           ) : (
             <EmptyNote>The chart appears once someone has played {machine.name}.</EmptyNote>
           )}
         </Section>
+
+        {allScores.some((x) => x.status === 'active') && (
+          <Section title="Every game as a dot">
+            <Card sx={{ p: 2 }}>
+              <Suspense fallback={<Box sx={{ height: 300 }} />}>
+                <GameSwarm scores={allScores} machineName={machine.name} myId={myId} />
+              </Suspense>
+            </Card>
+          </Section>
+        )}
 
         <EveryScore
           key={machine.machineId}

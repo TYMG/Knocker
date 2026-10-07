@@ -102,7 +102,7 @@ export default function TeamPage() {
 
   const stats = teamSeason(league, team.teamId);
   // Calling out is one approved team to another, and only while a night is open.
-  const canCallOut = me.isTeam && !isMine && me.team.status === 'approved';
+  const canChallenge = me.isTeam && !isMine && me.team.status === 'approved';
   const bestWeekOpen = stats.weeks.find((w) => w.week === stats.bestNight?.week)?.open;
 
   return (
@@ -110,11 +110,11 @@ export default function TeamPage() {
       <Stack spacing={4}>
         <Stack spacing={2} sx={{ alignItems: 'flex-start' }}>
           {isMine && <Tag tone="good">This is your team</Tag>}
-          {canCallOut &&
+          {canChallenge &&
             (night.open ? (
               <>
-                <Button component={RouterLink} to={`/call-outs?team=${team.teamId}`} variant="contained" color="secondary" size="large" fullWidth>
-                  Call them out
+                <Button component={RouterLink} to={`/challenges?team=${team.teamId}`} variant="contained" color="secondary" size="large" fullWidth>
+                  Challenge them
                 </Button>
                 {!league.checkIns[team.teamId] && (
                   <Typography variant="body2" sx={{ color: 'text.secondary', mt: '8px !important' }}>
@@ -124,7 +124,7 @@ export default function TeamPage() {
               </>
             ) : (
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                League night is closed. You can call them out when the next night opens.
+                League night is closed. You can challenge them when the next night opens.
               </Typography>
             ))}
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 1, width: '100%' }}>

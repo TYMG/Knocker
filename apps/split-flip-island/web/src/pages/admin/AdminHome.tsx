@@ -134,7 +134,7 @@ export default function AdminHome() {
           </Buttons>
         </Section>
 
-        <Link component={RouterLink} to="/tv" underline="hover" color="text.secondary" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, alignSelf: 'flex-start', py: 1.25 }}>
+        <Link component={RouterLink} to="/tv" underline="hover" color="textSecondary" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, alignSelf: 'flex-start', py: 1.25 }}>
           <TvIcon fontSize="small" />
           Open the bar TV view
         </Link>

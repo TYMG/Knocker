@@ -19,10 +19,14 @@ The clock is frozen at **8:12 PM, Wednesday, November 11, 2026: week 5 of 8 at L
   are 3rd in line for Godzilla behind Drain Gang (playing) and Bumper Crop.
 - **Two scores need a look:** Flip City's 147,270,340 on Godzilla (far above the season best) and
   Drain Gang's 124,000,000 on Pulp Fiction (a library photo taken before the night opened).
-- Flip City has called Left & Right out on Godzilla. Nudge Nudge and Drain Gang have a call-out
-  running on Pulp Fiction.
+- Flip City has challenged Left & Right on Godzilla for 10 points. Nudge Nudge and Drain Gang
+  have a 5-point challenge running on Pulp Fiction. A challenge moves points from the loser to
+  the winner when the night closes (at most 10, one a night between any two teams).
 - Two sign-ups (Shoot Again, Ball Hogs) are waiting for approval and two solo players are on the
   waitlist. The league holds 12 teams.
+- You can view the app four ways from the strip at the top: Visitor, Team, Admin (an admin with
+  no team) and Admin + team (an admin who also plays for Left & Right). An admin is a player
+  with extra powers: same bottom bar, plus an Admin tab.
 - Phone numbers are the 555-01xx kind that are reserved for fiction. No real ones belong here.
 
 Every number on every page is worked out from the scores with the same scoring code the API

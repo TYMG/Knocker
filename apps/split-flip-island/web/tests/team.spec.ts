@@ -76,11 +76,11 @@ test('posting a score on a machine takes the team out of that machine\'s line', 
   await expect(page.getByText('You are not in a line')).toBeVisible();
 });
 
-test('accepting a call-out makes it live', async ({ page }) => {
-  await open(page, '/call-outs', 'Team');
-  await expect(page.getByText('Flip City called you out on Godzilla.')).toBeVisible();
+test('accepting a challenge makes it live', async ({ page }) => {
+  await open(page, '/challenges', 'Team');
+  await expect(page.getByText('Flip City challenged you on Godzilla.')).toBeVisible();
   await page.getByRole('button', { name: 'Accept' }).click();
-  await expect(page.getByText('Flip City called you out on Godzilla.')).toHaveCount(0);
+  await expect(page.getByText('Flip City challenged you on Godzilla.')).toHaveCount(0);
   // Flip City's 147 million is ahead of Left & Right's 89 million.
   await expect(page.getByText('Flip City leads.')).toBeVisible();
 });

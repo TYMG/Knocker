@@ -63,7 +63,8 @@ export const TOUR: TourPage[] = [
       'See where you stand tonight and how long is left.',
       'See your place in line, what you still have to play and what you have played.',
       'Jump to Submit a score.',
-      'Read what just happened to you: someone beat your score, passed you, or called you out.'
+      'Read what just happened to you: someone beat your score, passed you, or challenged you.',
+      'Get coaching from the Love Dr.: a chart of your strong and weak machines that only your team sees.'
     ],
     tryIt: 'Submit a South Park score, then come back: it moves from "still to play" to "played" and your place changes.'
   },
@@ -91,14 +92,24 @@ export const TOUR: TourPage[] = [
     path: '/machines/:machineId', example: '/machines/godzilla', title: 'One machine', group: 'On league night', role: 'team',
     who: 'Anyone. Teams get here by scanning the code stuck to the machine.',
     when: 'Standing at the machine.',
-    does: ['Submit a score on this machine in one tap.', 'See its line and join or leave it.', "See tonight's board for this machine and the season high score."]
+    does: [
+      'Submit a score on this machine in one tap.',
+      'See its line and join or leave it.',
+      "See tonight's board, every score ever posted on it, and the season high.",
+      'See where scores land in a bubble chart: score ranges across, one row per week, bigger bubbles where more games landed.'
+    ]
   },
   {
-    path: '/call-outs', example: '/call-outs', title: 'Call-outs', group: 'On league night', role: 'team',
+    path: '/challenges', example: '/challenges', title: 'Challenges', group: 'On league night', role: 'team',
     who: 'A logged-in team.',
-    when: 'Any time during the night, for fun.',
-    does: ['Call out another team on one machine: best score tonight wins.', 'Accept or pass on a call-out sent to you.', 'Watch live ones and look back at settled ones.', 'Bragging rights only. No league points.'],
-    tryIt: 'Accept the call-out from Flip City. It moves to Live with both scores side by side.'
+    when: 'Any time during the night, like a dollar game.',
+    does: [
+      'Challenge another team on one machine and put up to 10 of your own points on it.',
+      'Accept or pass on a challenge sent to you.',
+      'Post your score for a live challenge from here.',
+      "When the night closes, the loser's points go to the winner. One challenge a night between any two teams."
+    ],
+    tryIt: 'Accept the challenge from Flip City for 10 points. Then, as an admin, void their flagged Godzilla score and close the night: the points come to you.'
   },
 
   // ---- Following the league ----
@@ -146,8 +157,9 @@ export const TOUR: TourPage[] = [
   {
     path: '/admin', example: '/admin', title: 'Admin home', group: 'Running the night', role: 'admin',
     who: 'A league admin.',
-    when: 'All night. Every other admin page is one tap from here.',
-    does: ['See whether the night is open and how long is left.', 'See what needs attention: teams not here, scores to look at, sign-ups waiting.', 'Go to one job at a time. Each button is one job.']
+    when: 'All night. It is the Admin tab in the bottom bar, and every other admin page is one tap from here.',
+    does: [
+      'An admin is a player with extra powers: the bottom bar is Home, Lines, Submit, Standings and Admin.','See whether the night is open and how long is left.', 'See what needs attention: teams not here, scores to look at, sign-ups waiting.', 'Go to one job at a time. Each button is one job.']
   },
   {
     path: '/admin/check-in', example: '/admin/check-in', title: 'Check in teams', group: 'Running the night', role: 'admin',
@@ -166,13 +178,18 @@ export const TOUR: TourPage[] = [
     who: 'A league admin.',
     when: 'When a score looks wrong.',
     does: ['Zoom the photo, see where it came from and when it was taken.', 'Mark it right, correct the number, or void it.', 'A correction or void needs a reason, and the reason goes in the public log.', 'See the full history of that score.'],
-    tryIt: 'Void this one with a reason, then check the League log and the Call-outs page.'
+    tryIt: 'Void this one with a reason, then check the League log and the Challenges page: Nudge Nudge now lead the 5-point challenge.'
   },
   {
     path: '/admin/enter-score', example: '/admin/enter-score', title: 'Enter a score for a team', group: 'Running the night', role: 'admin',
     who: 'A league admin.',
     when: "A team's phone died, or they cannot get a signal.",
-    does: ['Pick the team and machine and type the score.', 'Say why, and whether there is a photo.', 'It is logged as entered by an admin.']
+    does: [
+      'Pick the team and machine, type the score and add the photo.',
+      'Say why. Tick "No photo available" when there is none.',
+      'It is logged as entered by an admin.',
+      'For an admin who is not on a team, this is what the Submit tab opens.'
+    ]
   },
   {
     path: '/admin/message', example: '/admin/message', title: 'Message everyone', group: 'Running the night', role: 'admin',
@@ -184,7 +201,7 @@ export const TOUR: TourPage[] = [
     path: '/admin/lines', example: '/admin/lines', title: 'Machine lines', group: 'Running the night', role: 'admin',
     who: 'A league admin.',
     when: 'A team is not at the machine when its turn comes.',
-    does: ['Send a team to the back of a line.', 'Take a team off a line.']
+    does: ['Send a team to the back of a line.', 'Take a team off a line.', 'For an admin who is not on a team, this is what the Lines tab opens.']
   },
   {
     path: '/admin/lineup', example: '/admin/lineup', title: "This week's machines", group: 'Running the night', role: 'admin',

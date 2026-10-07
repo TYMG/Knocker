@@ -28,7 +28,7 @@ export default function SeasonChart({
   const dark = (mode === 'system' ? systemMode : mode) === 'dark';
   if (byNight.length < 2) {
     return (
-      <Typography variant="body2" color="text.secondary">
+      <Typography variant="body2" color="textSecondary">
         The season charts appear after week 2.
       </Typography>
     );
@@ -94,7 +94,7 @@ export default function SeasonChart({
           series={teams.map((t) => ({ ...line(t), data: t.ranks, valueFormatter: (v: number | null) => (v === null ? '' : ordinal(v)) }))}
         />
       </Box>
-      <Typography variant="body2" color="text.secondary">
+      <Typography variant="body2" color="textSecondary">
         {myTeamId ? `${mineLine.name} is your team. ` : ''}{lead.name} lines are the current top 4. Tap a week to see every team.
       </Typography>
     </Stack>

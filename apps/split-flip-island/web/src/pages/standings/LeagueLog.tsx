@@ -37,7 +37,7 @@ export default function LeagueLog() {
   const [filter, setFilter] = useState<Filter>('all');
   const [count, setCount] = useState(STEP);
 
-  // 'league' entries (night opened, call-outs) only show under All.
+  // 'league' entries (night opened, challenges) only show under All.
   const matching = filter === 'all' ? league.log : league.log.filter((e) => e.kind === filter);
   const shown = matching.slice(0, count);
   const today = dayOf(league.now);
@@ -54,7 +54,7 @@ export default function LeagueLog() {
 
   return (
     <Section title="League log">
-      <Typography color="text.secondary" sx={{ mb: 2 }}>
+      <Typography color="textSecondary" sx={{ mb: 2 }}>
         Everything that happens, newest first. Admin changes always give a reason.
       </Typography>
 
@@ -95,14 +95,14 @@ export default function LeagueLog() {
                     <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                       <Typography sx={{ overflowWrap: 'anywhere' }}>{e.action}</Typography>
                       {e.reason && (
-                        <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+                        <Typography variant="body2" color="textSecondary" sx={{ overflowWrap: 'anywhere' }}>
                           Reason: {e.reason}
                         </Typography>
                       )}
                     </Box>
                     {/* Today reads "3 min ago". Under an older day's heading the time of day says more than the date again. */}
                     <Box sx={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5, pt: 0.25 }}>
-                      <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                      <Typography variant="body2" color="textSecondary" sx={{ whiteSpace: 'nowrap' }}>
                         {day === today ? ago(e.at, league.now) : clock(e.at)}
                       </Typography>
                       {/* The quiet grey tag, not the coral one: coral outline on white is too faint in the light theme. */}
@@ -115,7 +115,7 @@ export default function LeagueLog() {
           ))}
 
           <Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
               Showing {shown.length} of {matching.length}.
             </Typography>
             {shown.length < matching.length && (

@@ -21,10 +21,25 @@ export function WaitingForApproval() {
   );
 }
 
-/** Pages only a logged-in, approved team can use: lines, submit, call-outs. */
+/**
+ * Pages only a logged-in, approved team can use: lines, submit, challenges. An admin who is on a
+ * team counts as that team. An admin with no team is sent to the admin version of the page.
+ */
 export function TeamOnly() {
   const me = useMe();
   const dispatch = useAppDispatch();
+  const { pathname } = useLocation();
+  if (me.isAdmin && !me.isTeam) {
+    if (pathname.startsWith('/lines')) return <Navigate to="/admin/lines" replace />;
+    if (pathname.startsWith('/submit')) return <Navigate to="/admin/enter-score" replace />;
+    return (
+      <Page title="This page is for a team" subtitle="You are logged in as an admin who is not on a team, so there is nothing of your own here.">
+        <Button component={RouterLink} to="/admin" variant="contained" color="secondary" size="large">
+          Go to Admin
+        </Button>
+      </Page>
+    );
+  }
   if (!me.isTeam) {
     return (
       <Page title="Log in first" subtitle="This page is for a team that is logged in.">

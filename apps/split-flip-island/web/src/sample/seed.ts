@@ -9,7 +9,7 @@
 import { scoreNight } from '../../../shared/scoring';
 import { teamPhoto } from './art';
 import { addMinutes, at, SAMPLE_NOW } from './time';
-import type { CheckState, SCallOut, SFeedItem, SLogEntry, SMachine, SScore, STeam, SWeek, SampleState } from './types';
+import type { CheckState, SChallenge, SFeedItem, SLogEntry, SMachine, SScore, STeam, SWeek, SampleState } from './types';
 
 /** Picked so the season order matches the wireframes. Change it and weeks 1 to 4 come out differently. */
 export const SEED = 53792;
@@ -202,40 +202,42 @@ export function buildSeed(seed = SEED): SampleState {
     else if (check === 'checked') log.push({ id: id('l'), at: addMinutes(time, 4), kind: 'admin', action: `Admin checked ${who}'s ${what} score` });
   }
   log.push(
-    { id: id('l'), at: at(TONIGHT, '19:30'), kind: 'league', action: 'Nudge Nudge called out Drain Gang on Pulp Fiction' },
-    { id: id('l'), at: at(TONIGHT, '19:32'), kind: 'league', action: "Drain Gang accepted Nudge Nudge's call-out on Pulp Fiction" },
+    { id: id('l'), at: at(TONIGHT, '19:30'), kind: 'league', action: 'Nudge Nudge challenged Drain Gang on Pulp Fiction for 5 points' },
+    { id: id('l'), at: at(TONIGHT, '19:32'), kind: 'league', action: "Drain Gang accepted Nudge Nudge's challenge on Pulp Fiction" },
     { id: id('l'), at: at(TONIGHT, '19:40'), kind: 'admin', action: 'Admin took Venom out for the night', reason: 'left flipper stuck' },
     { id: id('l'), at: at(TONIGHT, '19:41'), kind: 'admin', action: 'Admin posted a message to everyone' },
-    { id: id('l'), at: at(TONIGHT, '20:01'), kind: 'league', action: 'Flip City called out Left & Right on Godzilla' }
+    { id: id('l'), at: at(TONIGHT, '20:01'), kind: 'league', action: 'Flip City challenged Left & Right on Godzilla for 10 points' }
   );
   log.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0)); // newest first
 
-  // Settled call-outs from earlier weeks take their winner from the scores above.
-  const settled = (week: number, machineId: string, a: string, b: string): SCallOut => {
+  // Settled challenges from earlier weeks take their winner from the scores above.
+  const settled = (week: number, machineId: string, a: string, b: string, stake: number): SChallenge => {
     const best = (teamId: string) =>
       Math.max(0, ...scores.filter((s) => s.week === week && s.machineId === machineId && s.teamId === teamId && s.status === 'active').map((s) => s.score));
     return {
       id: id('c'), week, machineId, fromTeamId: a, toTeamId: b, at: at(weeks[week - 1]!.date, '19:20'),
-      status: 'settled', winnerTeamId: best(a) >= best(b) ? a : b
+      stake, status: 'settled', winnerTeamId: best(a) >= best(b) ? a : b
     };
   };
-  const callOuts: SCallOut[] = [
-    { id: id('c'), week: 5, machineId: 'godzilla', fromTeamId: 'flip-city', toTeamId: MY_TEAM, at: at(TONIGHT, '20:01'), status: 'waiting' },
-    { id: id('c'), week: 5, machineId: 'pulp-fiction', fromTeamId: 'nudge-nudge', toTeamId: 'drain-gang', at: at(TONIGHT, '19:30'), status: 'live' },
-    settled(4, 'south-park', 'tilt-me-tender', 'outlane-lovers'),
-    settled(3, 'venom', MY_TEAM, 'slam-tilt')
+  const challenges: SChallenge[] = [
+    { id: id('c'), week: 5, machineId: 'godzilla', fromTeamId: 'flip-city', toTeamId: MY_TEAM, at: at(TONIGHT, '20:01'), stake: 10, status: 'waiting' },
+    { id: id('c'), week: 5, machineId: 'pulp-fiction', fromTeamId: 'nudge-nudge', toTeamId: 'drain-gang', at: at(TONIGHT, '19:30'), stake: 5, status: 'live' },
+    // Small stakes between teams that are not neck and neck, so the season table keeps its story.
+    settled(4, 'south-park', 'flip-city', 'slam-tilt', 2),
+    settled(3, 'venom', 'extra-ballers', 'bumper-crop', 3)
   ];
 
   const feed: SFeedItem[] = [
     { id: id('f'), teamId: MY_TEAM, at: at(TONIGHT, '20:09'), text: 'Flip City beat your Godzilla score.', to: '/machines/godzilla', linkLabel: 'See the Godzilla board' },
     { id: id('f'), teamId: MY_TEAM, at: at(TONIGHT, '20:03'), text: 'Extra Ballers passed you for 6th tonight.' },
-    { id: id('f'), teamId: MY_TEAM, at: at(TONIGHT, '20:01'), text: 'Flip City called you out on Godzilla.', to: '/call-outs', linkLabel: 'Answer the call-out' }
+    { id: id('f'), teamId: MY_TEAM, at: at(TONIGHT, '20:01'), text: 'Flip City challenged you on Godzilla.', to: '/challenges', linkLabel: 'Answer the challenge' }
   ];
 
   return {
     now: SAMPLE_NOW,
     role: 'visitor',
     myTeamId: MY_TEAM,
+    adminOnTeam: false,
     adminName: ADMIN,
     teamCap: 12,
     teams,
@@ -262,7 +264,7 @@ export function buildSeed(seed = SEED): SampleState {
       'extra-ballers': at(TONIGHT, '19:10'), 'drain-gang': at(TONIGHT, '19:21')
     },
     message: { text: 'Venom is down for the night. Last scores at 8:45.', postedAt: at(TONIGHT, '19:41'), by: ADMIN },
-    callOuts,
+    challenges,
     log,
     feed,
     waitlist: [

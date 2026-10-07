@@ -56,14 +56,14 @@ export default function StandingsTable({
               <Box sx={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                 <TeamLink team={r.team} />
                 {r.note && (
-                  <Typography variant="body2" color="text.secondary" noWrap>
+                  <Typography variant="body2" color="textSecondary" noWrap>
                     {r.note}
                   </Typography>
                 )}
               </Box>
               <Typography sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', flexShrink: 0 }}>
                 {r.points.toLocaleString('en-US')}{' '}
-                <Typography component="span" variant="body2" color="text.secondary">
+                <Typography component="span" variant="body2" color="textSecondary">
                   {unit}
                 </Typography>
               </Typography>

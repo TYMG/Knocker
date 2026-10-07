@@ -18,7 +18,7 @@ export default function ActionCard({ to, title, note, alert, icon }: { to: strin
         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
           <Typography sx={{ fontWeight: 700, fontSize: '1.05rem' }}>{title}</Typography>
           {note && (
-            <Typography variant="body2" color={alert ? 'secondary.main' : 'text.secondary'}>
+            <Typography variant="body2" color={alert ? 'secondary' : 'textSecondary'}>
               {note}
             </Typography>
           )}

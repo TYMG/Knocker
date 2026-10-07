@@ -4,7 +4,7 @@ import Button from '@mui/material/Button';
 import Drawer from '@mui/material/Drawer';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { useAppDispatch, useAppSelector, useLeague } from '../hooks';
+import { useAppDispatch, useAppSelector, useLeague, useMe } from '../hooks';
 import { sample } from '../sample/slice';
 import { tourFor } from '../sample/tour';
 import { setTourOpen, showToast } from '../store';
@@ -21,7 +21,9 @@ export default function TourDrawer() {
   const { pathname } = useLocation();
   const page = tourFor(pathname, league.role);
   const close = () => dispatch(setTourOpen(false));
-  const wrongRole = page && page.role !== 'visitor' && page.role !== league.role;
+  const me = useMe();
+  // An admin who is on a team sees team pages as that team, so they are not "the wrong person" for one.
+  const wrongRole = !!page && ((page.role === 'team' && !me.isTeam) || (page.role === 'admin' && !me.isAdmin));
 
   const label = { fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'text.secondary' } as const;
 
@@ -61,8 +63,8 @@ export default function TourDrawer() {
               </Box>
             )}
             {wrongRole && (
-              <Typography color="secondary.main">
-                This page is described as {ROLE_NAME[page.role]} sees it. You are viewing as {ROLE_NAME[league.role]}.
+              <Typography color="secondary">
+                This page is described as {ROLE_NAME[page!.role]} sees it. You are viewing as {ROLE_NAME[league.role]}.
               </Typography>
             )}
           </Stack>
@@ -71,8 +73,8 @@ export default function TourDrawer() {
         )}
         <Stack direction="row" spacing={1.5} sx={{ mt: 3, flexWrap: 'wrap', rowGap: 1.5 }}>
           {wrongRole && (
-            <Button variant="contained" onClick={() => { dispatch(sample.setRole(page.role)); close(); }}>
-              View as {ROLE_NAME[page.role]}
+            <Button variant="contained" onClick={() => { dispatch(sample.setRole(page!.role)); close(); }}>
+              View as {ROLE_NAME[page!.role]}
             </Button>
           )}
           <Button variant="outlined" onClick={() => { close(); navigate('/tour'); }}>
@@ -91,7 +93,7 @@ export default function TourDrawer() {
           </Button>
           <Button onClick={close}>Close</Button>
         </Stack>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+        <Typography variant="body2" color="textSecondary" sx={{ mt: 2 }}>
           Everything here is made up and stays in this browser tab. Nothing you do is saved or sent anywhere.
         </Typography>
       </Box>

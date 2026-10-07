@@ -72,7 +72,7 @@ export default function PhotoPicker({
           </Button>
         </Stack>
       )}
-      <Typography variant="body2" color={error ? 'secondary.main' : 'text.secondary'} sx={{ mt: 1 }}>
+      <Typography variant="body2" color={error ? 'secondary' : 'textSecondary'} sx={{ mt: 1 }}>
         {error ?? hint}{' '}
         {!value && (
           <Link component="button" type="button" onClick={() => onChange({ source: 'camera' })} sx={{ verticalAlign: 'baseline' }}>

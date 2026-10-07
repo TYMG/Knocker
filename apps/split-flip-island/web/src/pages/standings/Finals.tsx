@@ -59,7 +59,7 @@ export default function Finals() {
   return (
     <Stack spacing={3}>
       <Section title="Championship night">
-        <Typography color="text.secondary" sx={{ maxWidth: 640 }}>
+        <Typography color="textSecondary" sx={{ maxWidth: 640 }}>
           {finalsWeek ? `${longDate(finalsWeek.date)}. ` : ''}Three games. 4 points for 1st, 3 for 2nd, 2 for 3rd, 1 for 4th. A tie for first is settled with one more game.
         </Typography>
       </Section>
@@ -75,7 +75,7 @@ export default function Finals() {
           ]}
         />
         {away && (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, maxWidth: 640 }}>
+          <Typography variant="body2" color="textSecondary" sx={{ mt: 1, maxWidth: 640 }}>
             Finals are {away}. "On the night" is a preview of how this page will look then, using made-up results.
           </Typography>
         )}
@@ -105,7 +105,7 @@ function BeforeFinals({ myTeamId }: { myTeamId?: string }) {
         <SeedCard title="Championship: top 4" rows={preview.championship} firstSeed={1} myTeamId={myTeamId} outside={preview.secondChance[0]} />
         <SeedCard title="Second-chance final: 5th to 8th" rows={preview.secondChance} firstSeed={5} myTeamId={myTeamId} outside={ninth} />
       </Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5, maxWidth: 640 }}>
+      <Typography variant="body2" color="textSecondary" sx={{ mt: 1.5, maxWidth: 640 }}>
         Seeds come from the season table with machine points added up. The league is also testing a second way to score the season, which can change this order.{' '}
         <Link component={RouterLink} to="/standings/season">
           See both on the Season tab
@@ -149,7 +149,7 @@ function SeedCard({ title, rows, firstSeed, myTeamId, outside }: { title: string
         ))
       )}
       {outsideLine && (
-        <Typography variant="body2" color="text.secondary" sx={{ px: 2, py: 1.25, borderTop: 1, borderColor: 'divider' }}>
+        <Typography variant="body2" color="textSecondary" sx={{ px: 2, py: 1.25, borderTop: 1, borderColor: 'divider' }}>
           {outsideLine}
         </Typography>
       )}
@@ -194,7 +194,7 @@ function OnTheNight({ bracket, onBracket, preview }: { bracket: Bracket; onBrack
       {final.live && final.games[final.live.game] ? (
         <LiveGame final={final} myTeamId={me.myTeamId} />
       ) : rows.length > 0 ? (
-        <Typography color="text.secondary">{allPlayed ? resultLine(league, final) : 'The next game has not started yet.'}</Typography>
+        <Typography color="textSecondary">{allPlayed ? resultLine(league, final) : 'The next game has not started yet.'}</Typography>
       ) : null}
 
       {needs && (
@@ -204,7 +204,7 @@ function OnTheNight({ bracket, onBracket, preview }: { bracket: Bracket; onBrack
           </Typography>
           <Typography>{needs.sentences.join(' ')}</Typography>
           {needs.mentionsTie && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
+            <Typography variant="body2" color="textSecondary" sx={{ mt: 0.75 }}>
               A tie for first is settled with one more game.
             </Typography>
           )}

@@ -3,11 +3,10 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-route
 import { useAppDispatch, useAppSelector, useMe } from './hooks';
 import { sample } from './sample/slice';
 import { setPendingRole } from './store';
-import AdminLayout from './layout/AdminLayout';
 import BareLayout from './layout/BareLayout';
 import { AdminOnly, TeamOnly } from './layout/guards';
 import PlayerLayout from './layout/PlayerLayout';
-import CallOuts from './pages/CallOuts';
+import Challenges from './pages/Challenges';
 import FrontDoor from './pages/FrontDoor';
 import LineJoin from './pages/LineJoin';
 import Lines from './pages/Lines';
@@ -40,9 +39,15 @@ import Season from './pages/standings/Season';
 import StandingsLayout from './pages/standings/StandingsLayout';
 import Tonight from './pages/standings/Tonight';
 
-/** "/" is the team's home once logged in, and the front door for everyone else. */
+/**
+ * "/" is the team's home once logged in, the standings for an admin who is not on a team, and
+ * the front door for everyone else.
+ */
 function Root() {
-  return useMe().isTeam ? <TeamHome /> : <FrontDoor />;
+  const me = useMe();
+  if (me.isTeam) return <TeamHome />;
+  if (me.isAdmin) return <Navigate to="/standings" replace />;
+  return <FrontDoor />;
 }
 
 /**
@@ -89,11 +94,12 @@ export default function App() {
             <Route path="/lines" element={<Lines />} />
             <Route path="/lines/join/:machineId" element={<LineJoin />} />
             <Route path="/submit" element={<Submit />} />
-            <Route path="/call-outs" element={<CallOuts />} />
+            <Route path="/challenges" element={<Challenges />} />
           </Route>
-        </Route>
+          {/* The page's first name. Old links still work. */}
+          <Route path="/call-outs" element={<Navigate to="/challenges" replace />} />
 
-        <Route element={<AdminLayout />}>
+          {/* An admin: the same frame and bottom bar as a team, plus the Admin tab */}
           <Route path="/admin/login" element={<AdminLogIn />} />
           <Route element={<AdminOnly />}>
             <Route path="/admin" element={<AdminHome />} />

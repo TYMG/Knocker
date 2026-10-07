@@ -43,7 +43,7 @@ export default function Season() {
     <Stack spacing={3}>
       <div>
         <Switcher value={option} onChange={setOption} options={OPTIONS} label="How the season is scored" />
-        <Typography color="text.secondary" sx={{ mt: 1.5, maxWidth: 640 }}>
+        <Typography color="textSecondary" sx={{ mt: 1.5, maxWidth: 640 }}>
           {chosen.explain} The league is testing both ways this season and has not picked one yet.
         </Typography>
       </div>
@@ -54,14 +54,14 @@ export default function Season() {
 
       <Section title="Season points">
         <StandingsTable rows={rows} myTeamId={myTeamId} cuts={CUTS} />
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+        <Typography variant="body2" color="textSecondary" sx={{ mt: 1.5 }}>
           {data.nightsPlayed === 0
             ? 'No league nights have been played yet.'
             : `${nights}${nightStatus(league).open ? '. Tonight is included so far, so this can still change before the night closes.' : '.'}`}
           {rows.some((r) => r.change !== undefined) ? ' Arrows show places moved since last week.' : ''}
         </Typography>
         {tiedAtLine.map((text) => (
-          <Typography key={text} variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+          <Typography key={text} variant="body2" color="textSecondary" sx={{ mt: 1 }}>
             {text}
           </Typography>
         ))}

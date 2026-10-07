@@ -39,7 +39,7 @@ export default function Tour() {
           <Typography variant="h4" sx={{ mb: 0.5 }}>
             The sample league
           </Typography>
-          <Typography color="text.secondary">
+          <Typography color="textSecondary">
             It is always {clock(league.now)} on {longDate(week.date)}: week {week.week} of 8 at Lyman's
             {night.open ? `, with ${night.minutesLeft} minutes left` : ', and the night is closed'}. You are the team Left &amp; Right. Venom broke at 7:40 PM, two teams never showed up, and two scores are waiting for an
             admin to look at them. Everything is made up and stays in this browser tab.
@@ -60,7 +60,7 @@ export default function Tour() {
 
         {GROUPS.map(({ group, blurb }) => (
           <Section key={group} title={group}>
-            <Typography color="text.secondary" sx={{ mb: 1.5 }}>
+            <Typography color="textSecondary" sx={{ mb: 1.5 }}>
               {blurb}
             </Typography>
             <Stack spacing={1}>
@@ -72,7 +72,7 @@ export default function Tour() {
                         <Typography sx={{ fontWeight: 700, fontSize: '1.05rem' }}>{page.title}</Typography>
                         <Tag tone={page.role === 'admin' ? 'warn' : page.role === 'team' ? 'good' : 'plain'}>{VIEW_AS[page.role]}</Tag>
                       </Stack>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" color="textSecondary">
                         {page.when}
                       </Typography>
                       <Typography variant="body2" sx={{ mt: 0.5 }}>

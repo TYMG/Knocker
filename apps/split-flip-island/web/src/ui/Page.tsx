@@ -37,7 +37,7 @@ export default function Page({
         </Box>
       )}
       {subtitle && (
-        <Typography color="text.secondary" sx={{ mb: 2.5 }}>
+        <Typography color="textSecondary" sx={{ mb: 2.5 }}>
           {subtitle}
         </Typography>
       )}

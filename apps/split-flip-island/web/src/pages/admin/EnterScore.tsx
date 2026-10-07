@@ -21,6 +21,8 @@ import { sample } from '../../sample/slice';
 import { showToast } from '../../store';
 import MachineArt from '../../ui/MachineArt';
 import Page from '../../ui/Page';
+import PhotoPicker, { type PickedPhoto } from '../../ui/PhotoPicker';
+import { scorePhoto } from '../../sample/art';
 import TeamAvatar from '../../ui/TeamAvatar';
 import { ADMIN_HOME, NightClosed } from './nightShared';
 
@@ -39,6 +41,7 @@ export default function EnterScore() {
   const [score, setScore] = useState('');
   const [reason, setReason] = useState('');
   const [noPhoto, setNoPhoto] = useState(false);
+  const [photo, setPhoto] = useState<PickedPhoto | null>(null);
   // Errors show after the first try at saving, not while the form is still being filled in.
   const [tried, setTried] = useState(false);
   /** What was just entered, shown above the cleared form. */
@@ -65,7 +68,7 @@ export default function EnterScore() {
     if (!teamOk || !machineOk || value === null || !reasonOk) return;
     const who = picked!.teamName;
     const what = machine(league, machineId).name;
-    dispatch(sample.adminEnterScore({ teamId, machineId, score: value, reason: reason.trim(), noPhoto }));
+    dispatch(sample.adminEnterScore({ teamId, machineId, score: value, reason: reason.trim(), noPhoto, photo: noPhoto ? undefined : photo?.photo, photoSource: photo?.source }));
     dispatch(showToast(`Entered ${formatScore(value)} for ${who} on ${what}`));
     setDone(`${formatScore(value)} for ${who} on ${what} is in and counts now.`);
     setTeamId('');
@@ -73,6 +76,7 @@ export default function EnterScore() {
     setScore('');
     setReason('');
     setNoPhoto(false);
+    setPhoto(null);
     setTried(false);
   };
 
@@ -152,10 +156,23 @@ export default function EnterScore() {
               slotProps={{ htmlInput: { maxLength: 120 } }}
             />
 
+            {/* The same photo step a team gets, so an admin posting for a team can attach the picture too. */}
+            {!noPhoto && (
+              <Box>
+                <Typography sx={{ fontWeight: 700, mb: 1 }}>Photo of the score</Typography>
+                <PhotoPicker
+                  value={photo}
+                  onChange={setPhoto}
+                  standIn={scorePhoto(value ?? 0, machineOk ? machine(league, machineId).name : 'Score', 'full')}
+                  hint="Get the whole score display in the frame."
+                />
+              </Box>
+            )}
+
             <Box>
               <FormControlLabel control={<Checkbox checked={noPhoto} onChange={(e) => setNoPhoto(e.target.checked)} />} label="No photo available" sx={{ minHeight: 44 }} />
               <Typography variant="body2" color="textSecondary">
-                Tick this when nobody got a picture of the score. In the sample league, leaving it unticked attaches a drawn stand-in photo.
+                Tick this when nobody got a picture of the score. In the sample league, a score entered without choosing a photo gets a drawn stand-in.
               </Typography>
             </Box>
 

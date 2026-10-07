@@ -3,9 +3,9 @@
 //
 // In a page:   const league = useLeague();   const rows = tonightRows(league);
 
-import { rankChange, rankTotals, runningRanks, scoreNight, type NightResult } from '../../../shared/scoring';
+import { rankChange, rankPoints, rankTotals, runningRanks, scoreNight, type NightResult } from '../../../shared/scoring';
 import { addMinutes, at, minutesBetween, ordinal } from './time';
-import type { SCallOut, SFinal, SMachine, SScore, STeam, SWeek, SampleState } from './types';
+import type { SChallenge, SFinal, SMachine, SScore, STeam, SWeek, SampleState } from './types';
 
 export type SeasonOption = 'option1' | 'option2';
 
@@ -82,6 +82,21 @@ export function weekResult(s: SampleState, weekNumber: number, upTo?: string): W
   const teamIds = teamsIn(s, weekNumber).map((t) => t.teamId);
   const scores = s.scores.filter((x) => x.week === weekNumber && x.status === 'active' && teamIds.includes(x.teamId) && (!upTo || x.at <= upTo));
   const result = { ...scoreNight(scores, week ? countedMachines(s, week) : [], teamIds.length), teamIds };
+
+  // Settled challenges move points from the loser to the winner. A challenge only counts once
+  // the night has closed; a live one changes nothing yet. A team cannot lose more than it has.
+  let moved = false;
+  for (const c of s.challenges) {
+    if (c.week !== weekNumber || c.status !== 'settled' || !c.winnerTeamId) continue;
+    const loserId = c.winnerTeamId === c.fromTeamId ? c.toTeamId : c.fromTeamId;
+    const paid = Math.min(c.stake, result.machinePoints.get(loserId) ?? 0);
+    if (paid <= 0) continue;
+    result.machinePoints.set(loserId, (result.machinePoints.get(loserId) ?? 0) - paid);
+    result.machinePoints.set(c.winnerTeamId, (result.machinePoints.get(c.winnerTeamId) ?? 0) + paid);
+    moved = true;
+  }
+  // "Rank the night" ranks the night's points, so it has to be worked out again after they move.
+  if (moved) result.nightPoints = rankPoints(result.machinePoints, teamIds.length);
   cache.set(key, result);
   return result;
 }
@@ -403,10 +418,10 @@ export const placeInLine = (position: number) => (position === 1 ? 'playing now'
 /** "Nobody in line", "1 team in line", "3 teams in line" */
 export const lineCount = (count: number) => (count === 0 ? 'Nobody in line' : `${count} ${count === 1 ? 'team' : 'teams'} in line`);
 
-// ---- Call-outs ----
+// ---- Challenges ----
 
-export interface CallOutView {
-  callOut: SCallOut;
+export interface ChallengeView {
+  challenge: SChallenge;
   machine: SMachine;
   from: STeam;
   to: STeam;
@@ -416,7 +431,7 @@ export interface CallOutView {
   leader: STeam | undefined;
 }
 
-export function callOutView(s: SampleState, c: SCallOut): CallOutView {
+export function challengeView(s: SampleState, c: SChallenge): ChallengeView {
   const best = (teamId: string) => {
     const scores = s.scores.filter((x) => x.week === c.week && x.machineId === c.machineId && x.teamId === teamId && x.status === 'active');
     return scores.length ? Math.max(...scores.map((x) => x.score)) : undefined;
@@ -425,18 +440,18 @@ export function callOutView(s: SampleState, c: SCallOut): CallOutView {
   const toBest = best(c.toTeamId);
   let leaderId = c.winnerTeamId;
   if (c.status === 'live' && (fromBest ?? 0) !== (toBest ?? 0)) leaderId = (fromBest ?? 0) > (toBest ?? 0) ? c.fromTeamId : c.toTeamId;
-  return { callOut: c, machine: machine(s, c.machineId), from: team(s, c.fromTeamId), to: team(s, c.toTeamId), fromBest, toBest, leader: leaderId ? team(s, leaderId) : undefined };
+  return { challenge: c, machine: machine(s, c.machineId), from: team(s, c.fromTeamId), to: team(s, c.toTeamId), fromBest, toBest, leader: leaderId ? team(s, leaderId) : undefined };
 }
 
-export function callOuts(s: SampleState, teamId = s.myTeamId) {
-  const views = s.callOuts.map((c) => callOutView(s, c));
+export function challenges(s: SampleState, teamId = s.myTeamId) {
+  const views = s.challenges.map((c) => challengeView(s, c));
   return {
-    /** Someone called this team out and is waiting for an answer. */
-    waitingOnMe: views.filter((v) => v.callOut.status === 'waiting' && v.to.teamId === teamId),
-    /** This team called someone out who has not answered. */
-    sentByMe: views.filter((v) => v.callOut.status === 'waiting' && v.from.teamId === teamId),
-    live: views.filter((v) => v.callOut.status === 'live'),
-    settled: views.filter((v) => v.callOut.status === 'settled').sort((a, b) => b.callOut.week - a.callOut.week)
+    /** Someone challenged this team and is waiting for an answer. */
+    waitingOnMe: views.filter((v) => v.challenge.status === 'waiting' && v.to.teamId === teamId),
+    /** This team challenged someone who has not answered. */
+    sentByMe: views.filter((v) => v.challenge.status === 'waiting' && v.from.teamId === teamId),
+    live: views.filter((v) => v.challenge.status === 'live'),
+    settled: views.filter((v) => v.challenge.status === 'settled').sort((a, b) => b.challenge.week - a.challenge.week)
   };
 }
 
@@ -487,3 +502,104 @@ export function adminSummary(s: SampleState) {
 /** Week numbers a machine was or is picked for, e.g. [1, 2, 3, 4, 5]. */
 export const machineWeeks = (s: SampleState, machineId: string) =>
   s.weeks.filter((w) => w.week <= 8 && w.state !== 'upcoming' && w.machineIds.includes(machineId)).map((w) => w.week);
+
+// ---- Charts ----
+
+/** 61,204,880 -> "61M"; 2,500,000 -> "2.5M"; 850,000 -> "850K". For chart axes, where the full number will not fit. */
+export function shortScore(n: number): string {
+  const trim = (x: number) => (Number.isInteger(x) ? String(x) : x.toFixed(1));
+  if (n >= 1_000_000_000) return `${trim(n / 1_000_000_000)}B`;
+  if (n >= 1_000_000) return `${trim(n / 1_000_000)}M`;
+  if (n >= 1_000) return `${trim(n / 1_000)}K`;
+  return String(n);
+}
+
+export interface ScoreSpreadRow {
+  /** A week number, or 'all' for every week added together. */
+  week: number | 'all';
+  label: string;
+  /** Games that landed in each score range, in the same order as `bands`. */
+  counts: number[];
+  games: number;
+  average: number;
+}
+
+export interface ScoreSpread {
+  /** The width of one score range, e.g. 10,000,000. */
+  step: number;
+  bands: { from: number; to: number; label: string }[];
+  /** One row per week the machine has scores in, oldest first, then the 'all' row. */
+  rows: ScoreSpreadRow[];
+  /** The largest count in any single week's range. The 'all' row can go higher. */
+  biggest: number;
+}
+
+/**
+ * Where scores land on one machine across the season. Pinball scores almost never repeat
+ * exactly, so they are grouped into ranges ("60M to 70M") and each range counts the games that
+ * landed in it. Every game counts once, including a team's second and third tries. Voided
+ * scores are left out.
+ */
+export function scoreSpread(s: SampleState, machineId: string): ScoreSpread | undefined {
+  const scores = s.scores.filter((x) => x.machineId === machineId && x.status === 'active');
+  if (scores.length === 0) return undefined;
+  const top = Math.max(...scores.map((x) => x.score));
+  // A round range width that gives about eight ranges: 1, 2, 2.5 or 5 times a power of ten.
+  const rough = top / 8;
+  const power = Math.pow(10, Math.floor(Math.log10(rough)));
+  const step = [1, 2, 2.5, 5, 10].map((m) => m * power).find((w) => w >= rough) ?? 10 * power;
+  const count = Math.floor(top / step) + 1;
+  const bands = Array.from({ length: count }, (_, i) => ({ from: i * step, to: (i + 1) * step, label: `${shortScore(i * step)} to ${shortScore((i + 1) * step)}` }));
+  const row = (week: number | 'all', label: string, list: SScore[]): ScoreSpreadRow => {
+    const counts = bands.map(() => 0);
+    for (const x of list) counts[Math.min(Math.floor(x.score / step), count - 1)]! += 1;
+    return { week, label, counts, games: list.length, average: list.length ? Math.round(list.reduce((sum, x) => sum + x.score, 0) / list.length) : 0 };
+  };
+  const weeks = [...new Set(scores.map((x) => x.week))].sort((a, b) => a - b);
+  const rows = weeks.map((w) => row(w, `Wk ${w}`, scores.filter((x) => x.week === w)));
+  const biggest = Math.max(...rows.flatMap((r) => r.counts));
+  rows.push(row('all', 'All', scores));
+  return { step, bands, rows, biggest };
+}
+
+export interface MachineForm {
+  machine: SMachine;
+  /** Average machine points per night on this machine, over the nights the team played it and it counted. */
+  average: number;
+  nights: number;
+  games: number;
+}
+
+/**
+ * How a team does on each machine, for its own coaching card. Points are already on the same
+ * scale for every machine (1st earns as many points as there are teams), so machines compare fairly.
+ */
+export function teamForm(s: SampleState, teamId: string): MachineForm[] {
+  const out: MachineForm[] = [];
+  for (const m of s.machines) {
+    let points = 0;
+    let nights = 0;
+    let games = 0;
+    for (const w of playedWeeks(s)) {
+      if (!countedMachines(s, w).includes(m.machineId)) continue;
+      const row = machineBoard(s, w.week, m.machineId).find((r) => r.team.teamId === teamId);
+      if (!row) continue;
+      points += row.points;
+      nights += 1;
+      games += row.games;
+    }
+    if (nights > 0) out.push({ machine: m, average: Math.round((points / nights) * 10) / 10, nights, games });
+  }
+  return out;
+}
+
+/** The most a team can put on a challenge right now: 10, or all the points it has tonight if that is fewer. */
+export function maxStake(s: SampleState, teamId = s.myTeamId): number {
+  const mine = tonightRows(s).find((r) => r.team.teamId === teamId)?.points ?? 0;
+  return Math.min(10, mine);
+}
+
+/** True if these two teams already have a challenge this week, whoever sent it and however it went. One a night. */
+export function alreadyChallenged(s: SampleState, a: string, b: string, week = currentWeek(s).week): boolean {
+  return s.challenges.some((c) => c.week === week && ((c.fromTeamId === a && c.toTeamId === b) || (c.fromTeamId === b && c.toTeamId === a)));
+}

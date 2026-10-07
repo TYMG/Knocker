@@ -142,7 +142,7 @@ export default function NightSettings() {
               Reopen week {week}
             </Button>
             <Typography variant="body2" color="textSecondary">
-              For a night closed by mistake. Teams can submit scores again. The lines stay empty and call-outs that were settled stay settled.
+              For a night closed by mistake. Teams can submit scores again. The lines stay empty and challenges that were settled stay settled.
             </Typography>
           </Stack>
         )}
@@ -192,7 +192,7 @@ export default function NightSettings() {
       <Dialog open={closing} onClose={() => setClosing(false)} fullWidth maxWidth="xs">
         <DialogTitle>Close week {week} now?</DialogTitle>
         <DialogContent>
-          <Typography>This locks in tonight's points, empties the lines and settles tonight's call-outs. Teams can no longer submit scores.</Typography>
+          <Typography>This locks in tonight's points, empties the lines and settles tonight's challenges. Teams can no longer submit scores.</Typography>
           {flagged > 0 && (
             <Typography sx={attention({ mt: 1.5 })}>
               {flagged} {flagged === 1 ? 'score still needs' : 'scores still need'} a look. You can still fix or void {flagged === 1 ? 'it' : 'them'} after closing.

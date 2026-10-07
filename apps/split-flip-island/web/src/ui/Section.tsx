@@ -11,7 +11,7 @@ export default function Section({ title, aside, children, small }: { title: Reac
           {title}
         </Typography>
         {aside && (
-          <Typography component="div" variant="body2" color="text.secondary" sx={{ flexShrink: 0 }}>
+          <Typography component="div" variant="body2" color="textSecondary" sx={{ flexShrink: 0 }}>
             {aside}
           </Typography>
         )}

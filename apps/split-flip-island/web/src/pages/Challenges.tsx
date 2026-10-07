@@ -1,6 +1,9 @@
-// Call-outs: a friendly side bet between two teams on one machine. The best score tonight wins.
-// It is for bragging rights only and never changes league points.
-// A team sends call-outs from here, answers the ones sent to it, and watches live and settled ones.
+// Challenges: one team bets some of its own points that it will post the better score on one
+// machine tonight. The other team accepts or passes. When the night closes, the loser's points
+// go to the winner, like a dollar game. A challenge is for 10 points at most, and two teams get
+// one challenge a night between them.
+// A team sends challenges from here, answers the ones sent to it, posts its score, and watches
+// live and settled ones.
 
 import { useEffect, useState } from 'react';
 import { Link as RouterLink, useSearchParams } from 'react-router';
@@ -17,7 +20,7 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useAppDispatch, useLeague, useMe } from '../hooks';
-import { approvedTeams, callOuts, countedMachines, machine as machineOf, nightStatus, weekLabel, type CallOutView } from '../sample/league';
+import { alreadyChallenged, approvedTeams, challenges, countedMachines, machine as machineOf, maxStake, nightStatus, weekLabel, type ChallengeView } from '../sample/league';
 import { sample } from '../sample/slice';
 import { ago, clock } from '../sample/time';
 import type { STeam } from '../sample/types';
@@ -31,7 +34,7 @@ import Tag from '../ui/Tag';
 import TeamAvatar, { TeamLink } from '../ui/TeamAvatar';
 import { useTopOfPage } from './useTopOfPage';
 
-/** One side of a live call-out: photo, name and best score tonight. */
+/** One side of a live challenge: photo, name and best score tonight. */
 function Side({ team, best, mine }: { team: STeam; best: number | undefined; mine: boolean }) {
   return (
     <Box sx={{ minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.75, textAlign: 'center' }}>
@@ -49,9 +52,12 @@ function Side({ team, best, mine }: { team: STeam; best: number | undefined; min
   );
 }
 
-function LiveCard({ view, myTeamId, closesAt }: { view: CallOutView; myTeamId: string; closesAt: string }) {
+const points = (n: number) => `${n} ${n === 1 ? 'point' : 'points'}`;
+
+function LiveCard({ view, myTeamId, closesAt }: { view: ChallengeView; myTeamId: string; closesAt: string }) {
+  const stake = view.challenge.stake;
   const mine = view.from.teamId === myTeamId || view.to.teamId === myTeamId;
-  // callOutView names no leader when the scores are level or neither team has one.
+  // challengeView names no leader when the scores are level or neither team has one.
   const standing = view.leader ? `${view.leader.teamId === myTeamId ? 'You lead' : `${view.leader.teamName} leads`}.` : 'Level so far.';
   return (
     <Card sx={{ p: 2, ...(mine && { borderWidth: 2, borderColor: 'primary.main' }) }}>
@@ -61,6 +67,7 @@ function LiveCard({ view, myTeamId, closesAt }: { view: CallOutView; myTeamId: s
             {view.machine.name}
           </Link>
         </Typography>
+        <Tag tone="live">{points(stake)}</Tag>
         {mine && <Tag tone="good">Yours</Tag>}
       </Box>
       <Box sx={{ position: 'relative', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', columnGap: 1 }}>
@@ -72,13 +79,20 @@ function LiveCard({ view, myTeamId, closesAt }: { view: CallOutView; myTeamId: s
         </Typography>
       </Box>
       <Typography sx={{ color: 'text.secondary', mt: 1.5 }}>
-        {standing} Ends when the night closes at {clock(closesAt)}.
+        {standing} {view.leader ? `They take ${points(stake)} from the other team if it stays that way.` : `${points(stake)} are on the line.`} Ends when the night closes at{' '}
+        {clock(closesAt)}.
       </Typography>
+      {/* The score for a challenge is an ordinary league score on that machine, posted the usual way. */}
+      {mine && (
+        <Button component={RouterLink} to={`/submit?machine=${view.machine.machineId}`} variant="contained" color="secondary" size="large" fullWidth sx={{ mt: 1.5 }}>
+          Submit a score on {view.machine.name}
+        </Button>
+      )}
     </Card>
   );
 }
 
-export default function CallOuts() {
+export default function Challenges() {
   useTopOfPage();
   const league = useLeague();
   const me = useMe();
@@ -87,15 +101,18 @@ export default function CallOuts() {
 
   const myTeamId = me.team.teamId;
   const night = nightStatus(league);
-  const lists = callOuts(league, myTeamId);
+  const lists = challenges(league, myTeamId);
   const others = approvedTeams(league).filter((t) => t.teamId !== myTeamId);
   const machines = night.open ? countedMachines(league, night.week).map((id) => machineOf(league, id)) : [];
 
   const [open, setOpen] = useState(false);
   const [toTeamId, setToTeamId] = useState('');
   const [machineId, setMachineId] = useState('');
+  // You wager your own points, so you can put up no more than you have tonight, and never more than 10.
+  const most = maxStake(league, myTeamId);
+  const [stake, setStake] = useState(1);
 
-  // "Call them out" on a team's page sends people here with ?team=<id>: open the form with that
+  // "Challenge them" on a team's page sends people here with ?team=<id>: open the form with that
   // team chosen. The address is then tidied so a refresh does not open the form again.
   const asked = params.get('team');
   useEffect(() => {
@@ -111,54 +128,52 @@ export default function CallOuts() {
 
   const toTeam = others.find((t) => t.teamId === toTeamId);
   const pickedMachine = machines.find((m) => m.machineId === machineId);
-  // Two call-outs between the same teams on the same machine tonight would be the same bet twice.
-  const repeat =
-    !!toTeam &&
-    !!pickedMachine &&
-    league.callOuts.some(
-      (c) =>
-        c.week === night.week.week &&
-        c.machineId === machineId &&
-        (c.status === 'waiting' || c.status === 'live') &&
-        ((c.fromTeamId === myTeamId && c.toTeamId === toTeamId) || (c.fromTeamId === toTeamId && c.toTeamId === myTeamId))
-    );
+  // One challenge a night between two teams, whoever sent it and however it went.
+  const taken = (teamId: string) => alreadyChallenged(league, myTeamId, teamId);
+  const repeat = !!toTeam && taken(toTeam.teamId);
 
   const start = () => {
     setToTeamId('');
     setMachineId('');
+    setStake(Math.min(5, Math.max(most, 1)));
     setOpen(true);
   };
 
   const send = () => {
-    if (!toTeam || !pickedMachine || repeat) return;
-    dispatch(sample.callOut({ toTeamId: toTeam.teamId, machineId: pickedMachine.machineId }));
-    dispatch(showToast(`You called out ${toTeam.teamName} on ${pickedMachine.name}.`));
+    if (!toTeam || !pickedMachine || repeat || most < 1) return;
+    dispatch(sample.challenge({ toTeamId: toTeam.teamId, machineId: pickedMachine.machineId, stake }));
+    dispatch(showToast(`You challenged ${toTeam.teamName} on ${pickedMachine.name} for ${points(stake)}.`));
     setOpen(false);
   };
 
-  const answer = (view: CallOutView, accept: boolean) => {
-    dispatch(sample.answerCallOut({ id: view.callOut.id, accept }));
-    dispatch(showToast(accept ? `Call-out accepted. Best ${view.machine.name} score tonight wins.` : `You passed on ${view.from.teamName}'s call-out.`));
+  const answer = (view: ChallengeView, accept: boolean) => {
+    dispatch(sample.answerChallenge({ id: view.challenge.id, accept }));
+    dispatch(showToast(accept ? `Challenge accepted. Best ${view.machine.name} score tonight wins ${points(view.challenge.stake)}.` : `You passed on ${view.from.teamName}'s challenge.`));
   };
 
   const nothing = lists.waitingOnMe.length + lists.sentByMe.length + lists.live.length + lists.settled.length === 0;
   const note = (t: STeam) => (t.firstWeek > night.week.week ? ` (starts week ${t.firstWeek})` : league.checkIns[t.teamId] ? '' : ' (not here tonight)');
 
   return (
-    <Page title="Call-outs" subtitle="Pick a team and a machine. Best score tonight wins. Bragging rights only, no league points.">
+    <Page title="Challenges" subtitle="Pick a team and a machine, and put up to 10 of your own points on it. Best score tonight wins, and the loser's points go to the winner. One challenge a night between any two teams.">
       <Stack spacing={4}>
         <Box>
-          <Button variant="contained" color="secondary" size="large" fullWidth disabled={!night.open || machines.length === 0} onClick={start}>
-            Call out a team
+          <Button variant="contained" color="secondary" size="large" fullWidth disabled={!night.open || machines.length === 0 || most < 1} onClick={start}>
+            Challenge a team
           </Button>
+          {night.open && machines.length > 0 && most < 1 && (
+            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
+              You wager your own points, and you have none yet tonight. Post a score first.
+            </Typography>
+          )}
           {!night.open ? (
             <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
-              League night is closed. Call-outs open with the night.
+              League night is closed. Challenges open with the night.
             </Typography>
           ) : (
             machines.length === 0 && (
               <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
-                No machines are in play tonight, so there is nothing to call a team out on.
+                No machines are in play tonight, so there is nothing to challenge a team on.
               </Typography>
             )
           )}
@@ -168,23 +183,23 @@ export default function CallOuts() {
           <Section title="Waiting on you">
             <Stack spacing={1.5}>
               {lists.waitingOnMe.map((v) => (
-                <Card key={v.callOut.id} sx={{ p: 2, borderColor: 'secondary.main', borderLeftWidth: 5 }}>
+                <Card key={v.challenge.id} sx={{ p: 2, borderColor: 'secondary.main', borderLeftWidth: 5 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                     <TeamAvatar team={v.from} size={44} />
                     <Box sx={{ minWidth: 0 }}>
                       <Typography sx={{ fontWeight: 700 }}>
-                        {v.from.teamName} called you out on {v.machine.name}.
+                        {v.from.teamName} challenged you on {v.machine.name}.
                       </Typography>
                       <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                        Sent {ago(v.callOut.at, league.now)}. Accept and the best score tonight wins.
+                        For {points(v.challenge.stake)}. Sent {ago(v.challenge.at, league.now)}. Accept, and whoever posts the better score tonight takes them from the other team.
                       </Typography>
                     </Box>
                   </Box>
                   <Stack direction="row" spacing={1.5} sx={{ mt: 1.5 }}>
-                    <Button fullWidth size="large" onClick={() => answer(v, false)} aria-label={`Pass on ${v.from.teamName}'s call-out`}>
+                    <Button fullWidth size="large" onClick={() => answer(v, false)} aria-label={`Pass on ${v.from.teamName}'s challenge`}>
                       Pass
                     </Button>
-                    <Button fullWidth size="large" variant="outlined" onClick={() => answer(v, true)} aria-label={`Accept ${v.from.teamName}'s call-out`}>
+                    <Button fullWidth size="large" variant="outlined" onClick={() => answer(v, true)} aria-label={`Accept ${v.from.teamName}'s challenge`}>
                       Accept
                     </Button>
                   </Stack>
@@ -198,15 +213,15 @@ export default function CallOuts() {
           <Section title="Waiting on them">
             <Stack spacing={1.5}>
               {lists.sentByMe.map((v) => (
-                <Card key={v.callOut.id} sx={{ p: 2 }}>
+                <Card key={v.challenge.id} sx={{ p: 2 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                     <TeamAvatar team={v.to} size={44} />
                     <Box sx={{ minWidth: 0 }}>
                       <Typography sx={{ fontWeight: 700 }}>
-                        You called out {v.to.teamName} on {v.machine.name}.
+                        You challenged {v.to.teamName} on {v.machine.name}.
                       </Typography>
                       <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                        Sent {ago(v.callOut.at, league.now)}. They have not answered yet.
+                        For {points(v.challenge.stake)}. Sent {ago(v.challenge.at, league.now)}. They have not answered yet.
                       </Typography>
                     </Box>
                   </Box>
@@ -215,8 +230,8 @@ export default function CallOuts() {
                     size="small"
                     sx={{ mt: 1, ml: -0.5, minHeight: 44 }}
                     onClick={() => {
-                      dispatch(sample.theyAccepted(v.callOut.id));
-                      dispatch(showToast(`${v.to.teamName} accepted. The call-out is live.`));
+                      dispatch(sample.theyAccepted(v.challenge.id));
+                      dispatch(showToast(`${v.to.teamName} accepted. The challenge is live.`));
                     }}
                   >
                     Pretend they accepted (sample)
@@ -231,7 +246,7 @@ export default function CallOuts() {
           <Section title="Live tonight">
             <Stack spacing={1.5}>
               {lists.live.map((v) => (
-                <LiveCard key={v.callOut.id} view={v} myTeamId={myTeamId} closesAt={night.closesAt} />
+                <LiveCard key={v.challenge.id} view={v} myTeamId={myTeamId} closesAt={night.closesAt} />
               ))}
             </Stack>
           </Section>
@@ -241,18 +256,20 @@ export default function CallOuts() {
           <Section title="Settled">
             <RowCard>
               {lists.settled.map((v) => {
+                // No winner means the two teams tied, and no points moved.
+                const tied = !v.leader;
                 const winner = v.leader ?? v.from;
                 const loser = winner.teamId === v.from.teamId ? v.to : v.from;
                 return (
-                  <Row key={v.callOut.id} mine={v.from.teamId === myTeamId || v.to.teamId === myTeamId}>
+                  <Row key={v.challenge.id} mine={v.from.teamId === myTeamId || v.to.teamId === myTeamId}>
                     <TeamAvatar team={winner} mine={winner.teamId === myTeamId} />
                     <RowText
                       primary={
                         <Box component="span" sx={{ whiteSpace: 'normal' }}>
-                          {winner.teamName} beat {loser.teamName} on {v.machine.name}
+                          {tied ? `${winner.teamName} and ${loser.teamName} tied on ${v.machine.name}` : `${winner.teamName} beat ${loser.teamName} on ${v.machine.name}`}
                         </Box>
                       }
-                      secondary={weekLabel(v.callOut.week)}
+                      secondary={`${weekLabel(v.challenge.week)}, ${tied ? 'no points moved' : `won ${points(v.challenge.stake)}`}`}
                     />
                   </Row>
                 );
@@ -261,11 +278,11 @@ export default function CallOuts() {
           </Section>
         )}
 
-        {nothing && <EmptyNote>No call-outs yet. {night.open ? 'Be the first: pick a team and a machine, and see who posts the better score.' : 'They start on league night.'}</EmptyNote>}
+        {nothing && <EmptyNote>No challenges yet. {night.open ? 'Be the first: pick a team and a machine, and see who posts the better score.' : 'They start on league night.'}</EmptyNote>}
       </Stack>
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle>Call out a team</DialogTitle>
+        <DialogTitle>Challenge a team</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <TextField
@@ -276,9 +293,9 @@ export default function CallOuts() {
               helperText={toTeam && note(toTeam) ? `${toTeam.teamName} ${toTeam.firstWeek > night.week.week ? 'has not started yet' : 'has not checked in tonight'}. They may not answer.` : undefined}
             >
               {others.map((t) => (
-                <MenuItem key={t.teamId} value={t.teamId} sx={{ minHeight: 44 }}>
+                <MenuItem key={t.teamId} value={t.teamId} disabled={taken(t.teamId)} sx={{ minHeight: 44 }}>
                   {t.teamName}
-                  {note(t)}
+                  {taken(t.teamId) ? ' (already challenged tonight)' : note(t)}
                 </MenuItem>
               ))}
             </TextField>
@@ -287,8 +304,7 @@ export default function CallOuts() {
               label="Machine"
               value={machineId}
               onChange={(e) => setMachineId(e.target.value)}
-              helperText={repeat ? `You and ${toTeam?.teamName} already have a call-out on ${pickedMachine?.name} tonight.` : 'Only machines that count tonight.'}
-              error={repeat}
+              helperText="Only machines that count tonight."
             >
               {machines.map((m) => (
                 <MenuItem key={m.machineId} value={m.machineId} sx={{ minHeight: 44 }}>
@@ -296,8 +312,21 @@ export default function CallOuts() {
                 </MenuItem>
               ))}
             </TextField>
+            <TextField
+              select
+              label="Points to put on it"
+              value={stake}
+              onChange={(e) => setStake(Number(e.target.value))}
+              helperText={most < 10 ? `You have ${points(most)} tonight, so that is the most you can put up.` : 'The most is 10.'}
+            >
+              {Array.from({ length: Math.max(most, 1) }, (_, i) => i + 1).map((n) => (
+                <MenuItem key={n} value={n} sx={{ minHeight: 44 }}>
+                  {points(n)}
+                </MenuItem>
+              ))}
+            </TextField>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              They can accept or pass. If they accept, the better score on that machine when the night closes at {clock(night.closesAt)} wins.
+              They can accept or pass. If they accept, the better score on that machine when the night closes at {clock(night.closesAt)} wins, and the loser's {points(stake)} go to the winner. A tie moves nothing.
             </Typography>
           </Stack>
         </DialogContent>
@@ -305,8 +334,8 @@ export default function CallOuts() {
           <Button onClick={() => setOpen(false)} sx={{ minHeight: 44 }}>
             Cancel
           </Button>
-          <Button variant="contained" color="secondary" disabled={!toTeam || !pickedMachine || repeat} onClick={send} sx={{ minHeight: 44 }}>
-            Send call-out
+          <Button variant="contained" color="secondary" disabled={!toTeam || !pickedMachine || repeat || most < 1} onClick={send} sx={{ minHeight: 44 }}>
+            Send challenge
           </Button>
         </DialogActions>
       </Dialog>

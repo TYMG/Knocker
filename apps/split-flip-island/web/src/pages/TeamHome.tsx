@@ -24,9 +24,10 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
 import GroupsIcon from '@mui/icons-material/Groups';
 import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
+import LoveDr from './LoveDr';
 import { useLeague, useMe } from '../hooks';
 import { WaitingForApproval } from '../layout/guards';
-import { callOuts, lineCount, lineFor, linesView, nightStatus, placeInLine, teamTonight, weekLabel, weekOf } from '../sample/league';
+import { challenges, lineCount, lineFor, linesView, nightStatus, placeInLine, teamTonight, weekLabel, weekOf } from '../sample/league';
 import { ago, clock, clockLabel, longDate, ordinal } from '../sample/time';
 import type { STeam } from '../sample/types';
 import ActionCard from '../ui/ActionCard';
@@ -104,7 +105,7 @@ export default function TeamHome() {
   const tonight = teamTonight(league, team.teamId, week.week);
   const row = tonight.row;
   const place = row ? `${ordinal(row.rank)} of ${tonight.teamCount}` : undefined;
-  const waitingOnMe = callOuts(league, team.teamId).waitingOnMe.length;
+  const waitingOnMe = challenges(league, team.teamId).waitingOnMe.length;
   // Newest first. Dates in the sample are all written the same way, so comparing the text is enough.
   const feed = league.feed.filter((f) => f.teamId === team.teamId).sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
   const myLine = lineFor(league, team.teamId);
@@ -171,11 +172,11 @@ export default function TeamHome() {
     </Section>
   );
 
-  const callOutsRow = (
+  const challengesRow = (
     <ActionCard
-      to="/call-outs"
+      to="/challenges"
       icon={<CampaignIcon />}
-      title="Call-outs"
+      title="Challenges"
       alert={waitingOnMe > 0}
       note={waitingOnMe > 0 ? `${waitingOnMe} waiting on you` : 'Nobody is waiting on you'}
     />
@@ -218,8 +219,9 @@ export default function TeamHome() {
             </Button>
           </Card>
           {played}
+          <LoveDr teamId={team.teamId} />
           {justHappened}
-          {callOutsRow}
+          {challengesRow}
         </Stack>
       </Page>
     );
@@ -308,8 +310,9 @@ export default function TeamHome() {
         </Section>
 
         {played}
+        <LoveDr teamId={team.teamId} />
         {justHappened}
-        {callOutsRow}
+        {challengesRow}
       </Stack>
     </Page>
   );

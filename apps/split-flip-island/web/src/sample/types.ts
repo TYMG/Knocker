@@ -83,14 +83,22 @@ export interface SMessage {
   by: string;
 }
 
-export interface SCallOut {
+/**
+ * A challenge: one team bets some of its own points that it will post the better score on one
+ * machine tonight. The other team accepts or passes. When the night closes, the loser's points
+ * go to the winner. (The first wireframes called these call-outs and played them for nothing.)
+ */
+export interface SChallenge {
   id: string;
   week: number;
   machineId: string;
   fromTeamId: string;
   toTeamId: string;
   at: string;
+  /** Points on the line, 1 to 10. The cap stops a team throwing a game to hand over a pile of points. */
+  stake: number;
   status: 'waiting' | 'live' | 'passed' | 'settled';
+  /** Set when settled. Left out when the two teams tied, and then no points move. */
   winnerTeamId?: string;
 }
 
@@ -141,6 +149,11 @@ export interface SampleState {
   role: Role;
   /** The team you are when viewing as a team. */
   myTeamId: string;
+  /**
+   * An admin is a player with extra powers, and may or may not be on a team. When this is true
+   * and you are viewing as an admin, you are also the team above.
+   */
+  adminOnTeam: boolean;
   adminName: string;
   teamCap: number;
   teams: STeam[];
@@ -153,7 +166,7 @@ export interface SampleState {
   lines: SLine[];
   checkIns: Record<string, string>; // teamId -> time, tonight
   message: SMessage | null;
-  callOuts: SCallOut[];
+  challenges: SChallenge[];
   log: SLogEntry[];
   feed: SFeedItem[];
   waitlist: SWaitlistEntry[];

@@ -6,13 +6,13 @@
 
 import { createSlice, current, type PayloadAction } from '@reduxjs/toolkit';
 import { teamPhoto } from './art';
-import { callOutView, currentWeek, machine, seasonHigh, team, tonightRows, weekOf } from './league';
+import { alreadyChallenged, challengeView, currentWeek, machine, seasonHigh, team, tonightRows, weekOf } from './league';
 import { buildSeed, MY_TEAM } from './seed';
 import { addMinutes as plusMinutes, clockLabel, longDate, ordinal } from './time';
 import type { Role, SampleState, SScore } from './types';
 
 /** Bump this when the shape of the sample data changes, so old saved copies are ignored. */
-const SAVED_KEY = 'sfi-sample-v1';
+const SAVED_KEY = 'sfi-sample-v2';
 
 function load(): SampleState {
   try {
@@ -72,6 +72,10 @@ const slice = createSlice({
     /** The switcher in the sample bar. */
     setRole(s, a: PayloadAction<Role>) {
       s.role = a.payload;
+    },
+    /** Sample strip: is the admin you are viewing as also on a team (Left & Right)? */
+    setAdminOnTeam(s, a: PayloadAction<boolean>) {
+      s.adminOnTeam = a.payload;
     },
     logInAs(s, a: PayloadAction<string>) {
       s.myTeamId = a.payload;
@@ -148,11 +152,11 @@ const slice = createSlice({
       }
     },
     /** Admin: a team's phone died, so the admin types the score in for them. */
-    adminEnterScore(s, a: PayloadAction<{ teamId: string; machineId: string; score: number; reason: string; noPhoto: boolean }>) {
+    adminEnterScore(s, a: PayloadAction<{ teamId: string; machineId: string; score: number; reason: string; noPhoto: boolean; photo?: string; photoSource?: 'camera' | 'library' }>) {
       const { teamId, machineId, score, reason, noPhoto } = a.payload;
       const { who, what } = names(s, a.payload);
       s.scores.push({
-        scoreId: nextId(s, 's'), week: currentWeek(s).week, teamId, machineId, score, at: s.now, enteredBy: 'admin', photoSource: noPhoto ? 'none' : 'camera',
+        scoreId: nextId(s, 's'), week: currentWeek(s).week, teamId, machineId, score, at: s.now, enteredBy: 'admin', photoSource: noPhoto ? 'none' : (a.payload.photoSource ?? 'camera'), photo: noPhoto ? undefined : a.payload.photo,
         check: 'checked', checkedBy: s.adminName, status: 'active', reason,
         history: [{ at: s.now, text: `Entered by ${s.adminName} for ${who}: ${fmt(score)}. ${reason}` }]
       });
@@ -222,19 +226,26 @@ const slice = createSlice({
       if (a.payload.closesAt) s.night.closesAt = a.payload.closesAt;
       addLog(s, 'admin', `Admin set league nights to run ${clockLabel(s.night.opensAt)} to ${clockLabel(s.night.closesAt)}`);
     },
-    /** Locks in the open week's points, empties the lines and settles tonight's call-outs. */
+    /** Locks in the open week's points, empties the lines and settles tonight's challenges. */
     closeNight(s) {
       const week = s.weeks.find((w) => w.state === 'open');
       if (!week) return;
       const snapshot = current(s);
-      const winner = tonightRows(snapshot, week.week)[0];
-      for (const c of s.callOuts) {
+      const settledNow: string[] = [];
+      for (const c of s.challenges) {
         if (c.week !== week.week) continue;
         if (c.status === 'waiting') c.status = 'passed';
         if (c.status === 'live') {
-          const view = callOutView(snapshot, c);
+          const view = challengeView(snapshot, c);
           c.status = 'settled';
-          c.winnerTeamId = view.leader?.teamId ?? c.fromTeamId;
+          // No leader means a tie, or neither team posted a score: nobody wins and no points move.
+          c.winnerTeamId = view.leader?.teamId;
+          if (view.leader) {
+            const loser = view.leader.teamId === c.fromTeamId ? view.to : view.from;
+            settledNow.push(`${view.leader.teamName} won ${c.stake} ${c.stake === 1 ? 'point' : 'points'} from ${loser.teamName} on ${view.machine.name}`);
+          } else {
+            settledNow.push(`${view.from.teamName} and ${view.to.teamName} tied on ${view.machine.name}. No points moved.`);
+          }
         }
       }
       for (const line of s.lines) {
@@ -243,6 +254,9 @@ const slice = createSlice({
         line.joinedAt = {};
       }
       week.state = 'final';
+      for (const line of settledNow) addLog(s, 'league', line);
+      // Worked out after the challenges settle, because the points they move can change who won the night.
+      const winner = tonightRows(current(s), week.week)[0];
       addLog(s, 'league', winner && winner.points > 0 ? `Week ${week.week} closed. ${winner.team.teamName} won the night with ${winner.points} points.` : `Week ${week.week} closed.`);
     },
     /** For a night closed by mistake. Only when no other night is open. */
@@ -358,30 +372,36 @@ const slice = createSlice({
       addLog(s, 'admin', `Admin reset ${team(s, a.payload).teamName}'s PIN`);
     },
 
-    // ---- Call-outs ----
+    // ---- Challenges ----
 
-    callOut(s, a: PayloadAction<{ toTeamId: string; machineId: string }>) {
+    /**
+     * A team puts up to 10 of its own points on beating another team on one machine tonight.
+     * Two teams get one challenge a night between them; they can go again next week.
+     */
+    challenge(s, a: PayloadAction<{ toTeamId: string; machineId: string; stake: number }>) {
+      if (alreadyChallenged(s, s.myTeamId, a.payload.toTeamId)) return;
+      const stake = Math.min(Math.max(Math.round(a.payload.stake), 1), 10);
       const { who } = names(s, { teamId: s.myTeamId, machineId: a.payload.machineId });
       const { who: them, what } = names(s, { teamId: a.payload.toTeamId, machineId: a.payload.machineId });
-      s.callOuts.unshift({ id: nextId(s, 'c'), week: currentWeek(s).week, machineId: a.payload.machineId, fromTeamId: s.myTeamId, toTeamId: a.payload.toTeamId, at: s.now, status: 'waiting' });
-      addLog(s, 'league', `${who} called out ${them} on ${what}`);
+      s.challenges.unshift({ id: nextId(s, 'c'), week: currentWeek(s).week, machineId: a.payload.machineId, fromTeamId: s.myTeamId, toTeamId: a.payload.toTeamId, at: s.now, stake, status: 'waiting' });
+      addLog(s, 'league', `${who} challenged ${them} on ${what} for ${stake} ${stake === 1 ? 'point' : 'points'}`);
     },
-    answerCallOut(s, a: PayloadAction<{ id: string; accept: boolean }>) {
-      const c = s.callOuts.find((x) => x.id === a.payload.id);
+    answerChallenge(s, a: PayloadAction<{ id: string; accept: boolean }>) {
+      const c = s.challenges.find((x) => x.id === a.payload.id);
       if (!c || c.status !== 'waiting') return;
       c.status = a.payload.accept ? 'live' : 'passed';
       const { who, what } = names(s, { teamId: c.toTeamId, machineId: c.machineId });
-      addLog(s, 'league', `${who} ${a.payload.accept ? 'accepted' : 'passed on'} ${team(s, c.fromTeamId).teamName}'s call-out on ${what}`);
+      addLog(s, 'league', `${who} ${a.payload.accept ? 'accepted' : 'passed on'} ${team(s, c.fromTeamId).teamName}'s challenge on ${what}`);
     },
-    /** For the sample only: pretend the team who was called out said yes. */
+    /** For the sample only: pretend the team who was challenged said yes. */
     theyAccepted(s, a: PayloadAction<string>) {
-      const c = s.callOuts.find((x) => x.id === a.payload);
+      const c = s.challenges.find((x) => x.id === a.payload);
       if (c && c.status === 'waiting') c.status = 'live';
     },
 
     /** Puts the whole story back, keeping who you are viewing as. */
     resetSample(s) {
-      return { ...buildSeed(), role: s.role };
+      return { ...buildSeed(), role: s.role, adminOnTeam: s.adminOnTeam };
     }
   }
 });

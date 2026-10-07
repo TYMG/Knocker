@@ -38,7 +38,7 @@ test('voiding a score needs a reason, changes the standings and goes in the publ
   await expect(page.getByText('Reason: photo shows 47 million')).toBeVisible();
 });
 
-test('correcting a score needs a reason and flips the call-out it decided', async ({ page }) => {
+test('correcting a score needs a reason and flips the challenge it decided', async ({ page }) => {
   await open(page, '/admin/scores/dg-pulp-124m', 'Admin');
   const save = page.getByRole('button', { name: 'Save correction' });
   await page.getByRole('textbox', { name: 'What the score should be' }).fill('12400000');
@@ -54,7 +54,7 @@ test('correcting a score needs a reason and flips the call-out it decided', asyn
   expect(await standingOf(page, 'drain-gang')).toMatchObject({ points: 7 });
 
   await become(page, 'Team');
-  await go(page, '/call-outs');
+  await go(page, '/challenges');
   await expect(page.getByText('Nudge Nudge leads.')).toBeVisible();
 });
 

@@ -93,7 +93,7 @@ export default function Tonight() {
     <Stack spacing={4}>
       <Section title={night.open ? "Tonight's points" : `${weekLabel(week.week)} points`}>
         {!night.open && (
-          <Typography color="text.secondary" sx={{ mb: 1.5 }}>
+          <Typography color="textSecondary" sx={{ mb: 1.5 }}>
             The night is closed. These are the final points for {weekLabel(week.week).toLowerCase()}.
           </Typography>
         )}
@@ -167,7 +167,7 @@ function MachineBoard({
               {machine.name}
             </Link>
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="textSecondary">
             {status}
           </Typography>
         </Box>
@@ -185,7 +185,7 @@ function MachineBoard({
       <Collapse in={open} id={bodyId}>
         <Box sx={{ borderTop: 1, borderColor: 'divider' }}>
           {outNote && (
-            <Typography variant="body2" color="text.secondary" sx={{ px: 2, py: 1, borderBottom: rows.length ? 1 : 0, borderColor: 'divider' }}>
+            <Typography variant="body2" color="textSecondary" sx={{ px: 2, py: 1, borderBottom: rows.length ? 1 : 0, borderColor: 'divider' }}>
               {outNote}
             </Typography>
           )}
@@ -239,7 +239,7 @@ function BoardLine({ row, machineName, mine, counts }: { row: BoardRow; machineN
         <ScoreDisplay value={row.best.score} size="sm" />
       </Box>
       <Box sx={{ gridArea: 'meta', display: 'flex', alignItems: 'center', flexWrap: 'wrap', columnGap: 1, rowGap: 0.25 }}>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" color="textSecondary">
           {counts ? `${plural(row.points, 'pt', 'pts')}, ${games}` : `Does not count, ${games}`}
         </Typography>
         {row.best.check === 'checked' && <Tag tone="good">Checked</Tag>}

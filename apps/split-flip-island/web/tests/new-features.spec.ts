@@ -121,3 +121,30 @@ test('the season high on each machine is shown as a 10 point bonus to chase', as
   await go(page, '/machines/godzilla');
   await expect(page.getByText(/gets 10 extra points/)).toBeVisible();
 });
+
+// ---- Rolling numbers, confetti and calm mode (Build Plan phases 0 and 1) ----
+
+test('a score that beats the season high says so and throws confetti', async ({ page }) => {
+  await open(page, '/submit?machine=south-park', 'Team');
+  await page.getByRole('button', { name: 'Use a sample photo' }).click();
+  await page.getByRole('textbox', { name: 'Score' }).fill('999999999');
+  await page.getByRole('button', { name: 'Review score' }).click();
+  await page.getByRole('button', { name: 'Submit score' }).click();
+  await expect(page.getByText('New season high on South Park! Worth 10 bonus points if it stands.')).toBeVisible();
+  // canvas-confetti draws on a canvas it adds to the page.
+  await expect(page.locator('body > canvas')).toHaveCount(1);
+});
+
+test('calm mode stops the confetti and is remembered', async ({ page }) => {
+  await open(page, '/standings', 'Team');
+  await page.getByRole('button', { name: 'Calm mode' }).click();
+  await expect(page.getByText('Calm mode is on. No confetti or big animations.')).toBeVisible();
+  await go(page, '/submit?machine=south-park');
+  await page.getByRole('button', { name: 'Use a sample photo' }).click();
+  await page.getByRole('textbox', { name: 'Score' }).fill('999999999');
+  await page.getByRole('button', { name: 'Review score' }).click();
+  await page.getByRole('button', { name: 'Submit score' }).click();
+  await expect(page.getByText('New season high on South Park! Worth 10 bonus points if it stands.')).toBeVisible();
+  await expect(page.locator('body > canvas')).toHaveCount(0);
+  expect(await page.evaluate(() => window.localStorage.getItem('sfi-calm'))).toBe('1');
+});

@@ -24,10 +24,11 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { useAppDispatch, useLeague, useMe } from '../hooks';
 import { formatScore, formatScoreInput } from '../lib/format';
 import { scorePhoto } from '../sample/art';
-import { countedMachines, findMachine, nightStatus, teamTonight, weekLabel, weekOf } from '../sample/league';
+import { countedMachines, findMachine, machineBoard, nightStatus, seasonHigh, teamTonight, weekLabel, weekOf } from '../sample/league';
 import { sample } from '../sample/slice';
 import { clockLabel, longDate } from '../sample/time';
 import { showToast } from '../store';
+import { celebrate } from '../ui/celebrate';
 import MachineArt from '../ui/MachineArt';
 import Page from '../ui/Page';
 import PhotoPicker, { type PickedPhoto } from '../ui/PhotoPicker';
@@ -136,8 +137,21 @@ export default function Submit() {
   // ---- The review step ----
   if (reviewing && picked && photo && score !== null) {
     const post = () => {
+      // Worked out before the score goes in: does it beat the season high, or take 1st from another team?
+      const high = seasonHigh(league, picked.machineId);
+      const leader = machineBoard(league, week.week, picked.machineId)[0];
+      const newHigh = !!high && score > high.score;
+      const takesFirst = !!leader && leader.team.teamId !== team.teamId && score > leader.best.score;
       dispatch(sample.submitScore({ machineId: picked.machineId, score, photoSource: photo.source, photo: photo.photo }));
-      dispatch(showToast(`Score posted on ${picked.name}`));
+      if (newHigh) {
+        dispatch(showToast(`New season high on ${picked.name}! Worth 10 bonus points if it stands.`));
+        celebrate('seasonHigh');
+      } else if (takesFirst) {
+        dispatch(showToast(`You took 1st on ${picked.name}!`));
+        celebrate('first');
+      } else {
+        dispatch(showToast(`Score posted on ${picked.name}`));
+      }
       navigate('/standings');
     };
     return (

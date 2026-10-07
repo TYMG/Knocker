@@ -20,7 +20,7 @@ import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useAppDispatch, useLeague, useMe } from '../hooks';
-import { alreadyChallenged, approvedTeams, challenges, countedMachines, machine as machineOf, maxStake, nightStatus, weekLabel, type ChallengeView } from '../sample/league';
+import { alreadyChallenged, approvedTeams, challenges, countedMachines, machine as machineOf, maxStake, nightStatus, weekLabel, type ChallengeView, currentWeek } from '../sample/league';
 import { sample } from '../sample/slice';
 import { ago, clock } from '../sample/time';
 import type { STeam } from '../sample/types';
@@ -33,6 +33,8 @@ import Section from '../ui/Section';
 import Tag from '../ui/Tag';
 import TeamAvatar, { TeamLink } from '../ui/TeamAvatar';
 import { useTopOfPage } from './useTopOfPage';
+import { celebrateOnce } from '../ui/celebrate';
+import RollingNumber from '../ui/RollingNumber';
 
 /** One side of a live challenge: photo, name and best score tonight. */
 function Side({ team, best, mine }: { team: STeam; best: number | undefined; mine: boolean }) {
@@ -67,7 +69,11 @@ function LiveCard({ view, myTeamId, closesAt }: { view: ChallengeView; myTeamId:
             {view.machine.name}
           </Link>
         </Typography>
-        <Tag tone="live">{points(stake)}</Tag>
+        <Tag tone="live">
+          <span aria-label={points(stake)}>
+            <RollingNumber value={stake} rollIn /> {stake === 1 ? 'point' : 'points'}
+          </span>
+        </Tag>
         {mine && <Tag tone="good">Yours</Tag>}
       </Box>
       <Box sx={{ position: 'relative', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', columnGap: 1 }}>
@@ -110,6 +116,13 @@ export default function Challenges() {
   const [machineId, setMachineId] = useState('');
   // You wager points you already have, so you can put up no more than your season total, and never more than 10.
   const most = maxStake(league, myTeamId);
+
+  // Confetti the first time you see a challenge you won this week.
+  const thisWeek = currentWeek(league).week;
+  const wonThisWeek = lists.settled.filter((v) => v.challenge.week === thisWeek && v.leader?.teamId === myTeamId).map((v) => v.challenge.id).join(',');
+  useEffect(() => {
+    for (const id of wonThisWeek.split(',').filter(Boolean)) celebrateOnce(`challenge:${id}`, 'challenge');
+  }, [wonThisWeek]);
   const [stake, setStake] = useState(1);
 
   // "Challenge them" on a team's page sends people here with ?team=<id>: open the form with that

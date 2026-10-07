@@ -26,6 +26,8 @@ import { sample } from '../sample/slice';
 import { colors } from '../theme';
 import Toaster from '../ui/Toaster';
 import SampleBar from './SampleBar';
+import CalmToggle from './CalmToggle';
+import { ApprovalCheer } from './guards';
 import ThemeToggle from './ThemeToggle';
 import TourDrawer from './TourDrawer';
 
@@ -109,6 +111,8 @@ export default function PlayerLayout() {
               </Tabs>
             )}
             <Box sx={{ flexGrow: 1 }} />
+            <ApprovalCheer />
+            <CalmToggle />
             <ThemeToggle />
             {tabs ? (
               <Tooltip title={me.isAdmin ? `Log out admin ${adminName}` : `Log out ${me.team.teamName}`}>

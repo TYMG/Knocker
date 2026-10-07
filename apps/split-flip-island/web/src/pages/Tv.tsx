@@ -26,6 +26,7 @@ import { colors } from '../theme';
 import CodeBox from '../ui/CodeBox';
 import MovingList from '../ui/MovingList';
 import ScoreDisplay from '../ui/ScoreDisplay';
+import RollingNumber from '../ui/RollingNumber';
 
 /** Seconds each machine's board stays up. */
 const ROTATE_SECONDS = 15;
@@ -91,7 +92,7 @@ export default function Tv() {
         </Box>
         {night.open ? (
           <Box sx={{ display: 'flex', alignItems: 'baseline', gap: u(1.6), flexShrink: 0 }}>
-            <Box sx={{ fontFamily: display, fontSize: u(8.4), lineHeight: 1, color: colors.paleYellow, fontVariantNumeric: 'tabular-nums' }}>{night.minutesLeft}:00</Box>
+            <Box sx={{ fontFamily: display, fontSize: u(8.4), lineHeight: 1, color: colors.paleYellow, fontVariantNumeric: 'tabular-nums' }}><RollingNumber value={night.minutesLeft} />:00</Box>
             <Box sx={{ fontSize: u(3), fontWeight: 700, color: colors.sand }}>left tonight</Box>
           </Box>
         ) : (

@@ -34,6 +34,7 @@ import ActionCard from '../ui/ActionCard';
 import EmptyNote from '../ui/EmptyNote';
 import MachineArt from '../ui/MachineArt';
 import Page from '../ui/Page';
+import RollingNumber from '../ui/RollingNumber';
 import { Row, RowCard, RowText } from '../ui/Rows';
 import ScoreDisplay from '../ui/ScoreDisplay';
 import Section from '../ui/Section';
@@ -260,7 +261,13 @@ export default function TeamHome() {
           </Typography>
           <Typography sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.75 }}>
             <TimerOutlinedIcon fontSize="small" />
-            {minutes > 0 ? `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} left` : 'Time is up. The league admin will close the night.'}
+            {minutes > 0 ? (
+              <span aria-label={`${minutes} ${minutes === 1 ? 'minute' : 'minutes'} left`}>
+                <RollingNumber value={minutes} /> {minutes === 1 ? 'minute' : 'minutes'} left
+              </span>
+            ) : (
+              'Time is up. The league admin will close the night.'
+            )}
           </Typography>
         </Card>
 

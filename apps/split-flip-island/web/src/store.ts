@@ -2,10 +2,19 @@ import { configureStore, createSlice, type PayloadAction } from '@reduxjs/toolki
 import { sampleReducer, saveSample } from './sample/slice';
 import type { Role } from './sample/types';
 
+const CALM_KEY = 'sfi-calm';
+function savedCalm(): boolean {
+  try {
+    return window.localStorage.getItem(CALM_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 // Small pieces of screen state shared by every page.
 const uiSlice = createSlice({
   name: 'ui',
-  initialState: { toast: null as string | null, tourOpen: false, pendingRole: null as Role | null },
+  initialState: { toast: null as string | null, tourOpen: false, pendingRole: null as Role | null, calm: savedCalm() },
   reducers: {
     /** A short confirmation at the bottom of the screen: "Checked in Slam Tilt". */
     showToast: (state, action: PayloadAction<string>) => {
@@ -20,11 +29,15 @@ const uiSlice = createSlice({
     /** Who to become once the app has left the admin pages. See FinishRoleSwitch in App.tsx. */
     setPendingRole: (state, action: PayloadAction<Role | null>) => {
       state.pendingRole = action.payload;
+    },
+    /** Calm mode: effects off. Remembered on this phone or computer. See ui/calm.ts. */
+    setCalm: (state, action: PayloadAction<boolean>) => {
+      state.calm = action.payload;
     }
   }
 });
 
-export const { showToast, hideToast, setTourOpen, setPendingRole } = uiSlice.actions;
+export const { showToast, hideToast, setTourOpen, setPendingRole, setCalm } = uiSlice.actions;
 
 // The app runs on a made-up league for now (see sample/README.md). The real API and its login
 // state are in live/, ready to be added back here.
@@ -32,8 +45,18 @@ export const store = configureStore({
   reducer: { sample: sampleReducer, ui: uiSlice.reducer }
 });
 
+let savedCalmValue = store.getState().ui.calm;
 let saved = store.getState().sample;
 store.subscribe(() => {
+  const calm = store.getState().ui.calm;
+  if (calm !== savedCalmValue) {
+    savedCalmValue = calm;
+    try {
+      window.localStorage.setItem(CALM_KEY, calm ? '1' : '0');
+    } catch {
+      // Storage can be blocked. Calm mode then lasts until the page is closed.
+    }
+  }
   const next = store.getState().sample;
   if (next === saved) return;
   saved = next;

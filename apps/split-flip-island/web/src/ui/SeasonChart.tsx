@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
@@ -6,6 +7,7 @@ import { LineChart } from '@mui/x-charts/LineChart';
 import type { NightPoints, SeasonRow } from '../sample/league';
 import { ordinal } from '../sample/time';
 import { colors } from '../theme';
+import { chartMotion } from './chartMotion';
 
 
 /**
@@ -23,6 +25,8 @@ export default function SeasonChart({
   option: 'option1' | 'option2';
   myTeamId?: string;
 }) {
+  const [hovered, setHovered] = useState<string | null>(null);
+  const [pinned, setPinned] = useState<string | null>(null);
   // The theme uses CSS variables, so ask for the active scheme rather than reading theme.palette.
   const { mode, systemMode } = useColorScheme();
   const dark = (mode === 'system' ? systemMode : mode) === 'dark';
@@ -59,7 +63,20 @@ export default function SeasonChart({
     })
     .sort((a, b) => a.order - b.order);
 
-  const line = (t: (typeof teams)[number]) => ({ id: t.id, label: t.label, color: t.color, showMark: t.showMark, curve: 'linear' as const });
+  // Point at a team's line and it thickens while the others fade, in both charts at once.
+  // Tap a line to keep it lit; tap it again to let go.
+  const line = (t: (typeof teams)[number]) => ({
+    id: t.id, label: t.label, color: t.color, showMark: t.showMark, curve: 'linear' as const,
+    highlightScope: { highlight: 'series' as const, fade: 'global' as const }
+  });
+  const lit = hovered ?? pinned;
+  const highlight = {
+    sx: chartMotion,
+    highlightedItem: lit ? { seriesId: lit } : null,
+    onHighlightChange: (item: { seriesId?: string | number } | null) => setHovered(item?.seriesId === undefined ? null : String(item.seriesId)),
+    onLineClick: (_: unknown, item: { seriesId: string | number }) => setPinned((now) => (now === String(item.seriesId) ? null : String(item.seriesId))),
+    onMarkClick: (_: unknown, item: { seriesId: string | number }) => setPinned((now) => (now === String(item.seriesId) ? null : String(item.seriesId)))
+  };
   const places = rows.map((_, i) => i + 1);
 
   return (
@@ -69,6 +86,7 @@ export default function SeasonChart({
         <LineChart
           height={280}
           hideLegend
+          {...highlight}
           margin={{ left: 8, right: 16, top: 16, bottom: 8 }}
           xAxis={[{ scaleType: 'point', data: weeks }]}
           yAxis={[{ width: 44 }]}
@@ -80,6 +98,7 @@ export default function SeasonChart({
         <LineChart
           height={Math.max(200, Math.min(320, 36 + places.length * 26))}
           hideLegend
+          {...highlight}
           margin={{ left: 8, right: 16, top: 16, bottom: 8 }}
           xAxis={[{ scaleType: 'point', data: weeks }]}
           yAxis={[{
@@ -95,7 +114,7 @@ export default function SeasonChart({
         />
       </Box>
       <Typography variant="body2" color="textSecondary">
-        {myTeamId ? `${mineLine.name} is your team. ` : ''}{lead.name} lines are the current top 4. Tap a week to see every team.
+        {myTeamId ? `${mineLine.name} is your team. ` : ''}{lead.name} lines are the current top 4. Tap a week to see every team, or tap a line to keep that team lit.
       </Typography>
     </Stack>
   );

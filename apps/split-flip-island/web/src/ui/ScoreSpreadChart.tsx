@@ -5,6 +5,7 @@ import { ScatterChart } from '@mui/x-charts/ScatterChart';
 import { shortScore, type ScoreSpread } from '../sample/league';
 import { formatScore } from '../lib/format';
 import { colors } from '../theme';
+import { chartMotion } from './chartMotion';
 
 // One color per week, in a fixed order so week 3 is the same color on every machine. These eight
 // were checked for color-blind readers on each background; the row labels carry the week too,
@@ -33,6 +34,7 @@ export default function ScoreSpreadChart({ spread, machineName }: { spread: Scor
       <ScatterChart
         height={Math.max(220, 70 + rowCount * 44)}
         hideLegend
+        sx={chartMotion}
         margin={{ left: 4, right: 20, top: 12, bottom: 4 }}
         xAxis={[{ min: 0, max: spread.bands.length * spread.step, tickNumber: Math.min(spread.bands.length, 6), valueFormatter: (v: number) => shortScore(v), label: 'Score' }]}
         yAxis={[{
@@ -52,6 +54,8 @@ export default function ScoreSpreadChart({ spread, machineName }: { spread: Scor
           label: row.week === 'all' ? 'All weeks' : `Week ${row.week}`,
           color: row.week === 'all' ? colors.sand : palette[(row.week - 1) % palette.length]!,
           sizeAxisId: 'games',
+          // Point at a bubble and it grows while the others fade.
+          highlightScope: { highlight: 'item' as const, fade: 'global' as const },
           data: row.counts
             .map((games, b) => ({ x: (b + 0.5) * spread.step, y: i, sizeValue: games, id: `${row.week}-${b}` }))
             .filter((point) => point.sizeValue > 0),

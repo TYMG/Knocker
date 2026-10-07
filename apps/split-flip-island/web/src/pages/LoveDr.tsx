@@ -12,6 +12,7 @@ import { RadarChart } from '@mui/x-charts/RadarChart';
 import { useLeague } from '../hooks';
 import { currentWeek, teamForm, teamsIn, teamTonight } from '../sample/league';
 import { colors } from '../theme';
+import { chartMotion } from '../ui/chartMotion';
 import Section from '../ui/Section';
 
 /** The mascot: a heart in round glasses with a stethoscope. Drawn here so there is no image file to lose. */
@@ -75,6 +76,7 @@ export default function LoveDr({ teamId }: { teamId: string }) {
             <RadarChart
               height={260}
               hideLegend
+              sx={chartMotion}
               margin={{ top: 24, bottom: 24, left: 40, right: 40 }}
               series={[{ id: 'form', label: 'Points a night', data: form.map((f) => f.average), color: colors.coral, fillArea: true }]}
               radar={{ max: top, metrics: form.map((f) => f.machine.name) }}

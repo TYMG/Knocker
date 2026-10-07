@@ -10,6 +10,7 @@ import { useLeague, useMe } from '../../hooks';
 import { nightStatus, season, type SeasonOption } from '../../sample/league';
 import SeasonChart from '../../ui/SeasonChart';
 import Section from '../../ui/Section';
+import SeasonHighBonusList from '../../ui/SeasonHighBonusList';
 import StandingsTable from '../../ui/StandingsTable';
 import Switcher from './Switcher';
 
@@ -65,7 +66,12 @@ export default function Season() {
             {text}
           </Typography>
         ))}
+        <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+          Season totals include points won and lost in challenges.
+        </Typography>
       </Section>
+
+      <SeasonHighBonusList myTeamId={myTeamId} />
     </Stack>
   );
 }

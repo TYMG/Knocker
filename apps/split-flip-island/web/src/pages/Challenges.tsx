@@ -108,7 +108,7 @@ export default function Challenges() {
   const [open, setOpen] = useState(false);
   const [toTeamId, setToTeamId] = useState('');
   const [machineId, setMachineId] = useState('');
-  // You wager your own points, so you can put up no more than you have tonight, and never more than 10.
+  // You wager points you already have, so you can put up no more than your season total, and never more than 10.
   const most = maxStake(league, myTeamId);
   const [stake, setStake] = useState(1);
 
@@ -155,7 +155,7 @@ export default function Challenges() {
   const note = (t: STeam) => (t.firstWeek > night.week.week ? ` (starts week ${t.firstWeek})` : league.checkIns[t.teamId] ? '' : ' (not here tonight)');
 
   return (
-    <Page title="Challenges" subtitle="Pick a team and a machine, and put up to 10 of your own points on it. Best score tonight wins, and the loser's points go to the winner. One challenge a night between any two teams.">
+    <Page title="Challenges" subtitle="Pick a team and a machine, and put up to 10 of the points you have on it. Best score tonight wins, and the loser's points go to the winner. One challenge a night between any two teams.">
       <Stack spacing={4}>
         <Box>
           <Button variant="contained" color="secondary" size="large" fullWidth disabled={!night.open || machines.length === 0 || most < 1} onClick={start}>
@@ -163,7 +163,7 @@ export default function Challenges() {
           </Button>
           {night.open && machines.length > 0 && most < 1 && (
             <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
-              You wager your own points, and you have none yet tonight. Post a score first.
+              You wager points you already have, and you have none yet. Post a score first.
             </Typography>
           )}
           {!night.open ? (
@@ -317,7 +317,7 @@ export default function Challenges() {
               label="Points to put on it"
               value={stake}
               onChange={(e) => setStake(Number(e.target.value))}
-              helperText={most < 10 ? `You have ${points(most)} tonight, so that is the most you can put up.` : 'The most is 10.'}
+              helperText={most < 10 ? `You have ${points(most)}, so that is the most you can put up.` : 'The most is 10. They come out of the points you have now.'}
             >
               {Array.from({ length: Math.max(most, 1) }, (_, i) => i + 1).map((n) => (
                 <MenuItem key={n} value={n} sx={{ minHeight: 44 }}>

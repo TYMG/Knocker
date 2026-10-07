@@ -84,9 +84,10 @@ export interface SMessage {
 }
 
 /**
- * A challenge: one team bets some of its own points that it will post the better score on one
- * machine tonight. The other team accepts or passes. When the night closes, the loser's points
- * go to the winner. (The first wireframes called these call-outs and played them for nothing.)
+ * A challenge: one team bets some of the points it already has (its season total) that it will
+ * post the better score on one machine tonight. The other team accepts or passes. When the night
+ * closes, the loser's points go to the winner in the season standings. A night's own points are
+ * never changed by a challenge. (The first wireframes called these call-outs and played them for nothing.)
  */
 export interface SChallenge {
   id: string;

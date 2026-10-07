@@ -3,7 +3,7 @@
 //
 // In a page:   const league = useLeague();   const rows = tonightRows(league);
 
-import { rankChange, rankPoints, rankTotals, runningRanks, scoreNight, type NightResult } from '../../../shared/scoring';
+import { rankChange, rankTotals, runningRanks, scoreNight, type NightResult } from '../../../shared/scoring';
 import { addMinutes, at, minutesBetween, ordinal } from './time';
 import type { SChallenge, SFinal, SMachine, SScore, STeam, SWeek, SampleState } from './types';
 
@@ -83,20 +83,6 @@ export function weekResult(s: SampleState, weekNumber: number, upTo?: string): W
   const scores = s.scores.filter((x) => x.week === weekNumber && x.status === 'active' && teamIds.includes(x.teamId) && (!upTo || x.at <= upTo));
   const result = { ...scoreNight(scores, week ? countedMachines(s, week) : [], teamIds.length), teamIds };
 
-  // Settled challenges move points from the loser to the winner. A challenge only counts once
-  // the night has closed; a live one changes nothing yet. A team cannot lose more than it has.
-  let moved = false;
-  for (const c of s.challenges) {
-    if (c.week !== weekNumber || c.status !== 'settled' || !c.winnerTeamId) continue;
-    const loserId = c.winnerTeamId === c.fromTeamId ? c.toTeamId : c.fromTeamId;
-    const paid = Math.min(c.stake, result.machinePoints.get(loserId) ?? 0);
-    if (paid <= 0) continue;
-    result.machinePoints.set(loserId, (result.machinePoints.get(loserId) ?? 0) - paid);
-    result.machinePoints.set(c.winnerTeamId, (result.machinePoints.get(c.winnerTeamId) ?? 0) + paid);
-    moved = true;
-  }
-  // "Rank the night" ranks the night's points, so it has to be worked out again after they move.
-  if (moved) result.nightPoints = rankPoints(result.machinePoints, teamIds.length);
   cache.set(key, result);
   return result;
 }
@@ -155,11 +141,41 @@ export function machineBoard(s: SampleState, weekNumber: number, machineId: stri
   }));
 }
 
-/** The highest score that counts on a machine all season, or undefined if nobody has played it. */
+/**
+ * The highest score that counts on a machine all season, or undefined if nobody has one.
+ * A score from a night the machine was out does not count, and neither does a voided one.
+ */
 export function seasonHigh(s: SampleState, machineId: string): SScore | undefined {
   let top: SScore | undefined;
-  for (const x of s.scores) if (x.machineId === machineId && x.status === 'active' && (!top || x.score > top.score)) top = x;
+  for (const x of s.scores) {
+    if (x.machineId !== machineId || x.status !== 'active') continue;
+    const week = weekOf(s, x.week);
+    if (!week || !week.machineIds.includes(machineId) || week.out[machineId]) continue;
+    if (!top || x.score > top.score) top = x;
+  }
   return top;
+}
+
+/** Holding the season high score on a machine when the season ends is worth this many extra points. */
+export const SEASON_HIGH_BONUS = 10;
+
+/** The league nights (weeks 1 to 8) are all finished. Finals are separate. */
+export const seasonOver = (s: SampleState) => s.weeks.filter((w) => w.week <= 8).every((w) => w.state === 'final');
+
+export interface SeasonHighBonus {
+  machine: SMachine;
+  team: STeam;
+  score: SScore;
+}
+
+/** Who holds the season high on each machine right now. Each one earns the bonus if it still stands at the end. */
+export function seasonHighBonuses(s: SampleState): SeasonHighBonus[] {
+  const out: SeasonHighBonus[] = [];
+  for (const m of s.machines) {
+    const top = seasonHigh(s, m.machineId);
+    if (top && team(s, top.teamId).status === 'approved') out.push({ machine: m, team: team(s, top.teamId), score: top });
+  }
+  return out;
 }
 
 /** Weeks that have points: finished ones and the open one. */
@@ -190,15 +206,41 @@ export interface Season {
 
 const seasonCache = new WeakMap<SampleState, Season>();
 
-/** Season standings under both scoring options, including tonight so far. */
+/**
+ * Season standings under both scoring options, including tonight so far. On top of the points
+ * earned playing, a team's total includes challenge points won or lost and, once the season is
+ * over, 10 points for each machine it holds the season high on.
+ */
 export function season(s: SampleState): Season {
   const hit = seasonCache.get(s);
   if (hit) return hit;
   const weeks = playedWeeks(s);
   const teamIds = approvedTeams(s).map((t) => t.teamId);
   const results = weeks.map((w) => weekResult(s, w.week));
+  const bonuses = seasonOver(s) ? seasonHighBonuses(s) : [];
   const build = (pick: (r: WeekResult) => Map<string, number>) => {
-    const nightly = results.map(pick);
+    // A team's season total is what it earned playing, plus or minus what it won or lost in
+    // challenges. A challenge is paid from the points a team has at that moment, so `have`
+    // tracks the running total and a team can never pay more than it has.
+    const have = new Map<string, number>();
+    const nightly = results.map((r, i) => {
+      const night = new Map(pick(r));
+      for (const [teamId, points] of night) have.set(teamId, (have.get(teamId) ?? 0) + points);
+      for (const c of s.challenges) {
+        if (c.week !== weeks[i]!.week || c.status !== 'settled' || !c.winnerTeamId) continue;
+        const loserId = c.winnerTeamId === c.fromTeamId ? c.toTeamId : c.fromTeamId;
+        const paid = Math.min(c.stake, Math.max(have.get(loserId) ?? 0, 0));
+        if (paid <= 0) continue;
+        for (const [teamId, delta] of [[loserId, -paid], [c.winnerTeamId, paid]] as const) {
+          night.set(teamId, (night.get(teamId) ?? 0) + delta);
+          have.set(teamId, (have.get(teamId) ?? 0) + delta);
+        }
+      }
+      return night;
+    });
+    // The season-high bonus lands with the last league night, once every night is final.
+    const last = nightly[nightly.length - 1];
+    if (last) for (const b of bonuses) last.set(b.team.teamId, (last.get(b.team.teamId) ?? 0) + SEASON_HIGH_BONUS);
     const ranks = runningRanks(nightly, teamIds);
     const totals = new Map<string, number>();
     for (const night of nightly) for (const [teamId, points] of night) totals.set(teamId, (totals.get(teamId) ?? 0) + points);
@@ -593,10 +635,14 @@ export function teamForm(s: SampleState, teamId: string): MachineForm[] {
   return out;
 }
 
-/** The most a team can put on a challenge right now: 10, or all the points it has tonight if that is fewer. */
+/**
+ * The most a team can put on a challenge right now: 10, or every point it has if that is fewer.
+ * "Has" means its season total as it stands this minute, tonight included. A team wagers points
+ * it already holds, never points it hopes to win later.
+ */
 export function maxStake(s: SampleState, teamId = s.myTeamId): number {
-  const mine = tonightRows(s).find((r) => r.team.teamId === teamId)?.points ?? 0;
-  return Math.min(10, mine);
+  const mine = season(s).option1.find((r) => r.team.teamId === teamId)?.points ?? 0;
+  return Math.min(10, Math.max(mine, 0));
 }
 
 /** True if these two teams already have a challenge this week, whoever sent it and however it went. One a night. */

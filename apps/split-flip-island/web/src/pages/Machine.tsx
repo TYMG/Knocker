@@ -11,7 +11,7 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useAppDispatch, useLeague, useMe } from '../hooks';
-import { findMachine, lineFor, linesView, machineBoard, nightStatus, placeInLine, scoreList, scoreSpread, seasonHigh, team, weekLabel, weekOf } from '../sample/league';
+import { SEASON_HIGH_BONUS, seasonOver, findMachine, lineFor, linesView, machineBoard, nightStatus, placeInLine, scoreList, scoreSpread, seasonHigh, team, weekLabel, weekOf } from '../sample/league';
 import { clock } from '../sample/time';
 import { sample } from '../sample/slice';
 import { showToast } from '../store';
@@ -285,7 +285,12 @@ export default function Machine() {
           myId={myId}
         />
 
-        <Section title="Season high score">
+        <Section title="Season high score" aside={`Worth ${SEASON_HIGH_BONUS} points`}>
+          <Typography sx={{ color: 'text.secondary', mb: 1.5 }}>
+            {seasonOver(league)
+              ? `The season is over. This score earned its team ${SEASON_HIGH_BONUS} extra points.`
+              : `The team holding the highest score on ${machine.name} when the season ends gets ${SEASON_HIGH_BONUS} extra points. Beat this and the bonus is yours to lose.`}
+          </Typography>
           {high ? (
             <Card sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1.25, rowGap: 1, px: 2, py: 1.5 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flex: '1 1 160px', minWidth: 0 }}>

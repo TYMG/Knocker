@@ -255,7 +255,7 @@ const slice = createSlice({
       }
       week.state = 'final';
       for (const line of settledNow) addLog(s, 'league', line);
-      // Worked out after the challenges settle, because the points they move can change who won the night.
+      // Challenge points move in the season standings, not in the night's own points, so the night's winner is who played best.
       const winner = tonightRows(current(s), week.week)[0];
       addLog(s, 'league', winner && winner.points > 0 ? `Week ${week.week} closed. ${winner.team.teamName} won the night with ${winner.points} points.` : `Week ${week.week} closed.`);
     },

@@ -77,7 +77,7 @@ test('a challenge is for 10 points at most and one a night between two teams', a
   await expect(page.getByText('You challenged Bumper Crop on South Park.')).toBeVisible();
 });
 
-test('when the night closes, the loser\'s points go to the winner', async ({ page }) => {
+test('when the night closes, the loser\'s points go to the winner in the season standings', async ({ page }) => {
   await open(page, '/challenges', 'Team');
   await page.getByRole('button', { name: "Accept Flip City's challenge" }).click();
   // A live challenge offers the score button right there.
@@ -94,13 +94,30 @@ test('when the night closes, the loser\'s points go to the winner', async ({ pag
   expect(await standingOf(page, 'left-and-right')).toMatchObject({ points: 13 });
   expect(await standingOf(page, 'flip-city')).toMatchObject({ points: 20 });
 
+  await go(page, '/standings/season');
+  expect(await standingOf(page, 'left-and-right')).toMatchObject({ points: 129 });
+  expect(await standingOf(page, 'flip-city')).toMatchObject({ points: 114 });
+
   await go(page, '/admin/night');
   await page.getByRole('button', { name: 'Close the night now' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Close the night', exact: true }).click();
+  // The night's own points are untouched by the challenge...
   await go(page, '/standings');
   await showAllTeams(page);
-  expect(await standingOf(page, 'left-and-right')).toMatchObject({ points: 23 });
-  expect(await standingOf(page, 'flip-city')).toMatchObject({ points: 10 });
+  expect(await standingOf(page, 'left-and-right')).toMatchObject({ points: 13 });
+  expect(await standingOf(page, 'flip-city')).toMatchObject({ points: 20 });
+  // ...the 10 points move in the season standings.
+  await go(page, '/standings/season');
+  expect(await standingOf(page, 'left-and-right')).toMatchObject({ points: 139 });
+  expect(await standingOf(page, 'flip-city')).toMatchObject({ points: 104 });
   await go(page, '/standings/log');
   await expect(page.getByText('Left & Right won 10 points from Flip City on Godzilla')).toBeVisible();
+});
+
+test('the season high on each machine is shown as a 10 point bonus to chase', async ({ page }) => {
+  await open(page, '/standings/season');
+  await expect(page.getByRole('heading', { name: 'Season high bonus' })).toBeVisible();
+  await expect(page.getByText('+10 if it holds').first()).toBeVisible();
+  await go(page, '/machines/godzilla');
+  await expect(page.getByText(/gets 10 extra points/)).toBeVisible();
 });

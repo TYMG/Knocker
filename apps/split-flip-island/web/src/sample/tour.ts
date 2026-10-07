@@ -96,6 +96,7 @@ export const TOUR: TourPage[] = [
       'Submit a score on this machine in one tap.',
       'See its line and join or leave it.',
       "See tonight's board, every score ever posted on it, and the season high.",
+      'The season high is worth 10 bonus points to whoever holds it when the season ends.',
       'See where scores land in a bubble chart: score ranges across, one row per week, bigger bubbles where more games landed.'
     ]
   },
@@ -107,7 +108,7 @@ export const TOUR: TourPage[] = [
       'Challenge another team on one machine and put up to 10 of your own points on it.',
       'Accept or pass on a challenge sent to you.',
       'Post your score for a live challenge from here.',
-      "When the night closes, the loser's points go to the winner. One challenge a night between any two teams."
+      "You wager points you already have. When the night closes, the loser's points go to the winner in the season standings. One challenge a night between any two teams."
     ],
     tryIt: 'Accept the challenge from Flip City for 10 points. Then, as an admin, void their flagged Godzilla score and close the night: the points come to you.'
   },
@@ -124,7 +125,7 @@ export const TOUR: TourPage[] = [
     path: '/standings/season', example: '/standings/season', title: 'Standings: season', group: 'Following the league', role: 'visitor',
     who: 'Anyone.',
     when: 'Between league nights.',
-    does: ['See the season table and who moved since last week.', 'Switch between the two scoring options the league is testing.', 'See the race week by week in two charts.', 'See where the cut for the championship and the second-chance final falls.'],
+    does: ['See the season table and who moved since last week.', 'Switch between the two scoring options the league is testing.', 'See the race week by week in two charts.', 'See where the cut for the championship and the second-chance final falls.', 'See who holds the season high on each machine: each is worth 10 bonus points at the end of the season.'],
     tryIt: 'Switch to "Rank the night": the leader changes.'
   },
   {

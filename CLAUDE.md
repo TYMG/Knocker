@@ -12,13 +12,17 @@ live standings, and a public audit log.
 - Public link: `knckr.com/split-flip-island` → redirects (302 while prototyping) to the app at
   `split-flip-island.knckr.com`
 - Planning docs (source of truth for rules and requirements): Notion
-  - League Plan: https://app.notion.com/p/3f02d5b5a256814a888af2a826a2a61b
-  - Proposal: https://app.notion.com/p/3f02d5b5a2568113a4b3cd2fd452e42b
-  - Web App (features, hosting, build phases): https://app.notion.com/p/3f12d5b5a2568153b156cb6f2c344213
+  - Split Flipper Island (overview): https://app.notion.com/p/3f02d5b5a256814a888af2a826a2a61b
+  - Proposal (for the people helping run the league): https://app.notion.com/p/3f02d5b5a2568113a4b3cd2fd452e42b
+  - Rules and Scoring: https://app.notion.com/p/3f02d5b5a256812791e4d609b32922f5
+  - Web App (what it does, the stack, status): https://app.notion.com/p/3f12d5b5a2568153b156cb6f2c344213
     - Technical Design: https://app.notion.com/p/3f02d5b5a25681cc85daf7c96a2f452b
-    - UI/UX (every screen, with mockups): https://app.notion.com/p/3f12d5b5a25681acbd1ce88aced43c09
-      - Color Palette: https://app.notion.com/p/3f12d5b5a2568122b736dc5de331a5aa
-  - Scoring: https://app.notion.com/p/3f02d5b5a256812791e4d609b32922f5
+    - Screens (every page and what it is for): https://app.notion.com/p/3f12d5b5a25681acbd1ce88aced43c09
+    - Colors: https://app.notion.com/p/3f12d5b5a2568122b736dc5de331a5aa
+    - Fonts: https://app.notion.com/p/3f22d5b5a2568155b5bed1c81af82295
+  - Venue and Launch: https://app.notion.com/p/3f22d5b5a2568133af0ee40aa09851e5
+  - Ideas: https://app.notion.com/p/3f22d5b5a256811686c5c9b822d234f9
+  - In Notion, links to sub-pages go at the top of a page, never the bottom.
 
 ## Hard rules
 

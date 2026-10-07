@@ -11,6 +11,10 @@ export const colors = {
   lime: '#ccff00',
   // Added: a near-black so cards separate from the black page
   card: '#1c1a16',
+  // Added for the light theme (Matt, 2026-10-07): a soft pastel pink page with warm grey for
+  // quiet text and lines, in place of the pale yellow page, which read as harsh neon.
+  blush: '#f4e4e8',
+  warmGrey: '#5c5357',
   // Amber dot-matrix score display
   dmdGlass: '#140b02',
   dmdAmber: '#ffa51f'
@@ -22,14 +26,14 @@ const body = "'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif";
 export const theme = createTheme({
   cssVariables: { colorSchemeSelector: 'class' },
   colorSchemes: {
-    // Dark is Blacklight as picked, and the default. Light is the same colors on a pale yellow page.
+    // Dark is Blacklight as picked, and the default. Light is a soft pastel pink page with grey, black type and the same coral.
     light: {
       palette: {
         primary: { main: colors.black, contrastText: '#ffffff' },
         secondary: { main: colors.coral, contrastText: colors.black },
-        background: { default: colors.paleYellow, paper: '#ffffff' },
-        text: { primary: colors.black, secondary: 'rgba(0, 0, 0, 0.72)' },
-        divider: 'rgba(0, 0, 0, 0.18)'
+        background: { default: colors.blush, paper: '#ffffff' },
+        text: { primary: colors.black, secondary: colors.warmGrey },
+        divider: 'rgba(92, 83, 87, 0.28)'
       }
     },
     dark: {

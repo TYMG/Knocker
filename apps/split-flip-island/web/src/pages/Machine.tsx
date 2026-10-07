@@ -267,24 +267,6 @@ export default function Machine() {
           )}
         </Section>
 
-        <Section title="Where scores land">
-          {spread ? (
-            <Card sx={{ p: 2 }}>
-              <ScoreSpreadChart spread={spread} machineName={machine.name} />
-            </Card>
-          ) : (
-            <EmptyNote>The chart appears once someone has played {machine.name}.</EmptyNote>
-          )}
-        </Section>
-
-        <EveryScore
-          key={machine.machineId}
-          machineName={machine.name}
-          weeks={weeksWithScores}
-          startWeek={weeksWithScores.includes(week.week) ? week.week : weeksWithScores[0]}
-          myId={myId}
-        />
-
         <Section title="Season high score" aside={`Worth ${SEASON_HIGH_BONUS} points`}>
           <Typography sx={{ color: 'text.secondary', mb: 1.5 }}>
             {seasonOver(league)
@@ -311,6 +293,24 @@ export default function Machine() {
             <EmptyNote>Nobody has played it yet.</EmptyNote>
           )}
         </Section>
+
+        <Section title="Where scores land">
+          {spread ? (
+            <Card sx={{ p: 2 }}>
+              <ScoreSpreadChart spread={spread} machineName={machine.name} />
+            </Card>
+          ) : (
+            <EmptyNote>The chart appears once someone has played {machine.name}.</EmptyNote>
+          )}
+        </Section>
+
+        <EveryScore
+          key={machine.machineId}
+          machineName={machine.name}
+          weeks={weeksWithScores}
+          startWeek={weeksWithScores.includes(week.week) ? week.week : weeksWithScores[0]}
+          myId={myId}
+        />
       </Stack>
     </Page>
   );

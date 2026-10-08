@@ -5,15 +5,24 @@ import { expect, go, open, become, showAllTeams, standingOf, test } from './help
 
 const bar = (page: import('@playwright/test').Page) => page.locator('.MuiBottomNavigation-root');
 
-test('an admin gets the team bottom bar plus Admin', async ({ page }) => {
-  await open(page, '/admin', 'Admin');
-  for (const label of ['Home', 'Lines', 'Submit', 'Standings', 'Admin']) await expect(bar(page).getByRole('link', { name: label, exact: true })).toBeVisible();
+test('admin is the gear at the top right and the ADMIN badge, not a tab in the bottom bar', async ({ page }) => {
+  await open(page, '/standings', 'Admin');
+  for (const label of ['Home', 'Lines', 'Submit', 'Standings']) await expect(bar(page).getByRole('link', { name: label, exact: true })).toBeVisible();
+  await expect(bar(page).getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0);
+  await page.getByRole('banner').getByRole('link', { name: 'Admin', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Admin home' })).toBeVisible();
+  await go(page, '/standings');
+  await page.getByRole('banner').getByRole('link', { name: 'Admin pages', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Admin home' })).toBeVisible();
 });
 
-test('a team does not get the Admin tab', async ({ page }) => {
+test('a team gets Challenges in the bottom bar and no way in to Admin', async ({ page }) => {
   await open(page, '/', 'Team');
   await expect(bar(page).getByRole('link', { name: 'Standings', exact: true })).toBeVisible();
-  await expect(bar(page).getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0);
+  await bar(page).getByRole('link', { name: /Challenges/ }).click();
+  await expect(page).toHaveURL(/\/challenges$/);
+  await expect(page.getByTestId('challenge-race')).toContainText('Quest for Challenge Champion');
 });
 
 test('for an admin with no team, Home is the standings, Submit enters a score for a team and Lines shows every line', async ({ page }) => {
@@ -35,7 +44,7 @@ test('an admin who is on a team keeps the team pages', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Left & Right' })).toBeVisible();
   await bar(page).getByRole('link', { name: 'Submit', exact: true }).click();
   await expect(page).toHaveURL(/\/submit$/);
-  await bar(page).getByRole('link', { name: 'Admin', exact: true }).click();
+  await page.getByRole('banner').getByRole('link', { name: 'Admin', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Admin home' })).toBeVisible();
 });
 
@@ -255,4 +264,24 @@ test('pages still open with calm mode on, with no sliding', async ({ page }) => 
   await page.getByRole('link', { name: 'Standings' }).last().click();
   await expect(page).toHaveURL(/\/standings$/);
   await expect(page.getByRole('main')).toBeVisible();
+});
+
+test('team home puts Challenges right under how the night is going', async ({ page }) => {
+  await open(page, '/', 'Team');
+  const challengesTop = await page.getByRole('main').getByRole('link', { name: /Challenges/ }).boundingBox();
+  const prescriptionTop = await page.getByTestId('prescription').boundingBox();
+  expect(challengesTop!.y).toBeLessThan(prescriptionTop!.y);
+});
+
+test('the season standings show the quest for Challenge Champion', async ({ page }) => {
+  await open(page, '/standings/season');
+  await expect(page.getByTestId('challenge-race')).toContainText('10 extra points');
+});
+
+test('the bar TV counts down by the second', async ({ page }) => {
+  await open(page, '/tv');
+  const timer = page.getByTestId('tv-countdown');
+  await expect(timer).toHaveText(/^\d\d:\d\d$/);
+  const first = await timer.innerText();
+  await expect(timer).not.toHaveText(first, { timeout: 3000 });
 });

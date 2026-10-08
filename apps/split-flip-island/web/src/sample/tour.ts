@@ -105,7 +105,9 @@ export const TOUR: TourPage[] = [
     who: 'A logged-in team.',
     when: 'Any time during the night, like a dollar game.',
     does: [
+      'It has its own tab in the bottom bar, with a count of challenges waiting on you.',
       'Challenge another team on one machine and put up to 10 of your own points on it.',
+      'Quest for Challenge Champion: the team with the most challenge wins when the season ends gets 10 extra points.',
       'Accept or pass on a challenge sent to you.',
       'Post your score for a live challenge from here.',
       "You wager points you already have. When the night closes, the loser's points go to the winner in the season standings. One challenge a night between any two teams."
@@ -171,9 +173,9 @@ export const TOUR: TourPage[] = [
   {
     path: '/admin', example: '/admin', title: 'Admin home', group: 'Running the night', role: 'admin',
     who: 'A league admin.',
-    when: 'All night. It is the Admin tab in the bottom bar, and every other admin page is one tap from here.',
+    when: 'All night. It is the gear at the top right, or the ADMIN badge beside the name, and every other admin page is one tap from here.',
     does: [
-      'An admin is a player with extra powers: the bottom bar is Home, Lines, Submit, Standings and Admin.','See whether the night is open and how long is left.', 'See what needs attention: teams not here, scores to look at, sign-ups waiting.', 'Go to one job at a time. Each button is one job.']
+      'An admin is a player with extra powers: the bottom bar is the same as a team\'s, and the admin pages are the gear at the top right.','See whether the night is open and how long is left.', 'See what needs attention: teams not here, scores to look at, sign-ups waiting.', 'Go to one job at a time. Each button is one job.']
   },
   {
     path: '/admin/check-in', example: '/admin/check-in', title: 'Check in teams', group: 'Running the night', role: 'admin',

@@ -10,6 +10,7 @@ import Typography from '@mui/material/Typography';
 import { useLeague, useMe } from '../../hooks';
 import { nightStatus, season, type SeasonOption } from '../../sample/league';
 import Section from '../../ui/Section';
+import ChallengeChampionRace from '../../ui/ChallengeChampionRace';
 import SeasonHighBonusList from '../../ui/SeasonHighBonusList';
 import StandingsTable from '../../ui/StandingsTable';
 import { DrStandingsNote } from '../DrParts';
@@ -88,6 +89,8 @@ export default function Season() {
           Season totals include points won and lost in challenges.
         </Typography>
       </Section>
+
+      <ChallengeChampionRace myTeamId={myTeamId} />
 
       <SeasonHighBonusList myTeamId={myTeamId} />
     </Stack>

@@ -18,13 +18,14 @@ import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import AddAPhotoIcon from '@mui/icons-material/AddAPhoto';
-import CampaignIcon from '@mui/icons-material/Campaign';
+import SportsMmaIcon from '@mui/icons-material/SportsMma';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
 import GroupsIcon from '@mui/icons-material/Groups';
 import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
 import { DrCheckUp, DrNotes } from './DrParts';
+import { CHALLENGE_CHAMPION_BONUS, challengeRace } from '../sample/league';
 import DrPrescription from './DrPrescription';
 import LoveDr from './LoveDr';
 import { useLeague, useMe } from '../hooks';
@@ -175,13 +176,15 @@ export default function TeamHome() {
     </Section>
   );
 
+  const record = challengeRace(league).find((r) => r.team.teamId === team.teamId);
+  // Challenges sit high on the page, right under how the night is going.
   const challengesRow = (
     <ActionCard
       to="/challenges"
-      icon={<CampaignIcon />}
+      icon={<SportsMmaIcon />}
       title="Challenges"
       alert={waitingOnMe > 0}
-      note={waitingOnMe > 0 ? `${waitingOnMe} waiting on you` : 'Nobody is waiting on you'}
+      note={waitingOnMe > 0 ? `${waitingOnMe} waiting on you` : `${record ? `Your record: ${record.wins} won, ${record.losses} lost. ` : ''}Most wins this season takes ${CHALLENGE_CHAMPION_BONUS} bonus points.`}
     />
   );
 
@@ -222,10 +225,10 @@ export default function TeamHome() {
             </Button>
           </Card>
           <DrCheckUp teamId={team.teamId} week={week.week} />
+          {challengesRow}
           {played}
           <LoveDr teamId={team.teamId} />
           {justHappened}
-          {challengesRow}
         </Stack>
       </Page>
     );
@@ -273,6 +276,8 @@ export default function TeamHome() {
             )}
           </Typography>
         </Card>
+
+        {challengesRow}
 
         <DrPrescription teamId={team.teamId} />
         <DrNotes teamId={team.teamId} />
@@ -325,7 +330,6 @@ export default function TeamHome() {
         {played}
         <LoveDr teamId={team.teamId} />
         {justHappened}
-        {challengesRow}
       </Stack>
     </Page>
   );

@@ -34,6 +34,7 @@ import Tag from '../ui/Tag';
 import TeamAvatar, { TeamLink } from '../ui/TeamAvatar';
 import { useTopOfPage } from './useTopOfPage';
 import { celebrateOnce } from '../ui/celebrate';
+import ChallengeChampionRace from '../ui/ChallengeChampionRace';
 import RollingNumber from '../ui/RollingNumber';
 
 /** One side of a live challenge: photo, name and best score tonight. */
@@ -291,6 +292,8 @@ export default function Challenges() {
             </RowCard>
           </Section>
         )}
+
+        <ChallengeChampionRace myTeamId={myTeamId} />
 
         {nothing && <EmptyNote>No challenges yet. {night.open ? 'Be the first: pick a team and a machine, and see who posts the better score.' : 'They start on league night.'}</EmptyNote>}
       </Stack>

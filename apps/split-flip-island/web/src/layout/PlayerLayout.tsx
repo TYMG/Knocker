@@ -16,7 +16,6 @@ import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 import AddAPhotoIcon from '@mui/icons-material/AddAPhoto';
-import SettingsIcon from '@mui/icons-material/Settings';
 import SportsMmaIcon from '@mui/icons-material/SportsMma';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import GroupsIcon from '@mui/icons-material/Groups';
@@ -46,7 +45,7 @@ interface NavItem {
 /**
  * The bar at the bottom of the screen. A team gets Home, Lines, Submit, Challenges, Standings.
  * An admin is a player with extra powers and gets the same bar. The admin pages are not in the
- * bar: they are the gear at the top right, and the ADMIN badge beside the name.
+ * bar: the ADMIN badge beside the name opens them.
  *
  * An admin who is not on a team has no line or scores of their own, so for them Lines opens the
  * admin view of every line, Submit opens "enter a score for a team", and Home is the standings.
@@ -144,6 +143,7 @@ export default function PlayerLayout() {
                 component={RouterLink}
                 to="/admin"
                 aria-label="Admin pages"
+                aria-current={onAdmin ? 'page' : undefined}
                 sx={{ fontWeight: 700, letterSpacing: '0.1em', fontSize: '0.8rem', border: 2, borderColor: 'currentColor', borderRadius: 1, px: 0.75, lineHeight: 1.5, flexShrink: 0, color: onAdmin ? colors.sand : 'inherit', bgcolor: onAdmin ? colors.black : 'transparent', textDecoration: 'none' }}
               >
                 ADMIN
@@ -160,13 +160,6 @@ export default function PlayerLayout() {
             <ApprovalCheer />
             <CalmToggle />
             <ThemeToggle />
-            {me.isAdmin && (
-              <Tooltip title="Admin">
-                <IconButton component={RouterLink} to="/admin" color="inherit" aria-label="Admin" aria-current={onAdmin ? 'page' : undefined} sx={onAdmin ? { bgcolor: 'rgba(0, 0, 0, 0.16)' } : undefined}>
-                  <SettingsIcon />
-                </IconButton>
-              </Tooltip>
-            )}
             {tabs ? (
               <Tooltip title={me.isAdmin ? `Log out admin ${adminName}` : `Log out ${me.team.teamName}`}>
                 <IconButton

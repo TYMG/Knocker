@@ -173,9 +173,9 @@ export const TOUR: TourPage[] = [
   {
     path: '/admin', example: '/admin', title: 'Admin home', group: 'Running the night', role: 'admin',
     who: 'A league admin.',
-    when: 'All night. It is the gear at the top right, or the ADMIN badge beside the name, and every other admin page is one tap from here.',
+    when: 'All night. Tap the ADMIN badge beside the name in the top bar, and every other admin page is one tap from here.',
     does: [
-      'An admin is a player with extra powers: the bottom bar is the same as a team\'s, and the admin pages are the gear at the top right.','See whether the night is open and how long is left.', 'See what needs attention: teams not here, scores to look at, sign-ups waiting.', 'Go to one job at a time. Each button is one job.']
+      'An admin is a player with extra powers: the bottom bar is the same as a team\'s, and the ADMIN badge in the top bar opens the admin pages.','See whether the night is open and how long is left.', 'See what needs attention: teams not here, scores to look at, sign-ups waiting.', 'Go to one job at a time. Each button is one job.']
   },
   {
     path: '/admin/check-in', example: '/admin/check-in', title: 'Check in teams', group: 'Running the night', role: 'admin',

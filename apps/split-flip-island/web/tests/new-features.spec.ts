@@ -5,13 +5,10 @@ import { expect, go, open, become, showAllTeams, standingOf, test } from './help
 
 const bar = (page: import('@playwright/test').Page) => page.locator('.MuiBottomNavigation-root');
 
-test('admin is the gear at the top right and the ADMIN badge, not a tab in the bottom bar', async ({ page }) => {
+test('admin is the ADMIN badge in the top bar, not a tab in the bottom bar', async ({ page }) => {
   await open(page, '/standings', 'Admin');
   for (const label of ['Home', 'Lines', 'Submit', 'Standings']) await expect(bar(page).getByRole('link', { name: label, exact: true })).toBeVisible();
   await expect(bar(page).getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0);
-  await page.getByRole('banner').getByRole('link', { name: 'Admin', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Admin home' })).toBeVisible();
-  await go(page, '/standings');
   await page.getByRole('banner').getByRole('link', { name: 'Admin pages', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Admin home' })).toBeVisible();
 });
@@ -44,7 +41,7 @@ test('an admin who is on a team keeps the team pages', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Left & Right' })).toBeVisible();
   await bar(page).getByRole('link', { name: 'Submit', exact: true }).click();
   await expect(page).toHaveURL(/\/submit$/);
-  await page.getByRole('banner').getByRole('link', { name: 'Admin', exact: true }).click();
+  await page.getByRole('banner').getByRole('link', { name: 'Admin pages', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Admin home' })).toBeVisible();
 });
 

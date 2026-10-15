@@ -19,7 +19,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useAppDispatch, useAppSelector, useCalm, useLeague, useMe } from '../hooks';
 import { Mascot } from '../pages/LoveDr';
-import { currentWeek, teamTonight } from '../sample/league';
+import { currentWeek, seasonOver, teamTonight } from '../sample/league';
 import { closingOrders, doctorsOrders, lateOrders } from '../sample/loveDr';
 import { setOrdersOpen } from '../store';
 import { PopIn } from '../ui/motion';
@@ -64,7 +64,49 @@ export default function DoctorsOrdersPopup() {
     setAuto(true);
   }, [ready, seenKey]);
 
-  if (!orders) return null;
+  // 7.4: when week 8 closes, Season Wrapped unlocks and the Dr. announces it, once per team,
+  // after the night's own pop-up has had its turn.
+  const [wrappedOpen, setWrappedOpen] = useState(false);
+  const wrappedReady = playing && seasonOver(league) && !calm && popups && !busy && !(asked || auto);
+  const wrappedKey = `sfi-orders:wrapped:${teamId}`;
+  useEffect(() => {
+    if (!wrappedReady) return;
+    try {
+      if (window.localStorage.getItem(wrappedKey)) return;
+      window.localStorage.setItem(wrappedKey, '1');
+    } catch {
+      return;
+    }
+    setWrappedOpen(true);
+  }, [wrappedReady, wrappedKey]);
+  const wrappedDialog = (
+    <Dialog open={wrappedOpen} onClose={() => setWrappedOpen(false)} fullWidth maxWidth="xs" aria-labelledby="wrapped-orders-title">
+      <PopIn>
+        <DialogContent sx={{ pb: 1 }}>
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 2 }}>
+            <Mascot size={64} />
+            <Box>
+              <Typography id="wrapped-orders-title" variant="h3" component="h2">
+                Doctor's orders
+              </Typography>
+              <Typography sx={{ color: 'text.secondary' }}>The season is over, from the Love Dr.</Typography>
+            </Box>
+          </Stack>
+          <Typography>Your Season Wrapped is ready. Every night, every machine, every relationship status. Take a look.</Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button onClick={() => setWrappedOpen(false)} variant="outlined" sx={{ minHeight: 44 }}>
+            Later
+          </Button>
+          <Button onClick={() => { setWrappedOpen(false); navigate('/wrapped'); }} variant="contained" color="secondary" sx={{ minHeight: 44 }}>
+            Open my Wrapped
+          </Button>
+        </DialogActions>
+      </PopIn>
+    </Dialog>
+  );
+
+  if (!orders) return wrappedDialog;
   const close = () => {
     setAuto(false);
     dispatch(setOrdersOpen(false));
@@ -75,6 +117,8 @@ export default function DoctorsOrdersPopup() {
   };
 
   return (
+    <>
+    {wrappedDialog}
     <Dialog open={asked || auto} onClose={close} fullWidth maxWidth="xs" aria-labelledby="doctors-orders-title">
       <PopIn>
       <DialogContent sx={{ pb: 1 }}>
@@ -105,5 +149,6 @@ export default function DoctorsOrdersPopup() {
       </DialogActions>
       </PopIn>
     </Dialog>
+    </>
   );
 }

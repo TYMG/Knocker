@@ -24,7 +24,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
 import GroupsIcon from '@mui/icons-material/Groups';
 import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
-import { DrCheckUp, DrNotes } from './DrParts';
+import { DrCheckUp, DrNotes, DrWrapped } from './DrParts';
 import { CHALLENGE_CHAMPION_BONUS, challengeRace } from '../sample/league';
 import DrPrescription from './DrPrescription';
 import LoveDr from './LoveDr';
@@ -227,6 +227,7 @@ export default function TeamHome() {
           <DrCheckUp teamId={team.teamId} week={week.week} />
           {challengesRow}
           {played}
+          <DrWrapped teamId={team.teamId} />
           <LoveDr teamId={team.teamId} />
           {justHappened}
         </Stack>
@@ -328,6 +329,7 @@ export default function TeamHome() {
         </Section>
 
         {played}
+        <DrWrapped teamId={team.teamId} />
         <LoveDr teamId={team.teamId} />
         {justHappened}
       </Stack>

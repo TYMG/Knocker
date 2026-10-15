@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router';
 import { useAppDispatch, useAppSelector, useMe } from './hooks';
 import { sample } from './sample/slice';
@@ -33,6 +33,9 @@ import Scores from './pages/admin/Scores';
 import TeamDetail from './pages/admin/TeamDetail';
 import Teams from './pages/admin/Teams';
 import WeekDetail from './pages/admin/WeekDetail';
+
+// Season Wrapped brings GSAP with it, so it downloads only when someone opens it.
+const Wrapped = lazy(() => import('./pages/Wrapped'));
 import Weeks from './pages/admin/Weeks';
 import Finals from './pages/standings/Finals';
 import LeagueLog from './pages/standings/LeagueLog';
@@ -97,6 +100,7 @@ export default function App() {
             <Route path="/submit" element={<Submit />} />
             <Route path="/challenges" element={<Challenges />} />
             <Route path="/love-dr" element={<LoveDrAnalysis />} />
+            <Route path="/wrapped" element={<Suspense fallback={null}><Wrapped /></Suspense>} />
           </Route>
           {/* The page's first name. Old links still work. */}
           <Route path="/call-outs" element={<Navigate to="/challenges" replace />} />

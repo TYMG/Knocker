@@ -4,15 +4,19 @@
 //   DrCheckUp        on team home once the night has closed, and on the analysis page
 //   DrCouple         what kind of couple a team is
 //   DrStandingsNote  at the top of the standings: one note for the room, one for your own team
+//   DrWrapped        on team home: opens Season Wrapped ("Wrapped so far" until week 8 closes)
 
 import { Link as RouterLink } from 'react-router';
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useLeague, useMe } from '../hooks';
 import { checkUp, coupleType, drNotes, leagueNotes, privateNote } from '../sample/loveDr';
+import { seasonOver } from '../sample/league';
+import { wrapped } from '../sample/wrapped';
 import Section from '../ui/Section';
 import Tag from '../ui/Tag';
 import { Mascot } from './LoveDr';
@@ -136,6 +140,31 @@ export function DrStandingsNote({ view }: { view: 'tonight' | 'season' }) {
           )}
         </Box>
       </Stack>
+    </Card>
+  );
+}
+
+/**
+ * The way into Season Wrapped (phase 7). Before week 8 closes it is "Wrapped so far", a preview
+ * from the weeks played; once the season is over it becomes the real thing.
+ */
+export function DrWrapped({ teamId }: { teamId: string }) {
+  const league = useLeague();
+  const data = wrapped(league, teamId);
+  if (!data) return null;
+  const final = seasonOver(league);
+  return (
+    <Card sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2, bgcolor: final ? 'secondary.main' : undefined, color: final ? 'secondary.contrastText' : undefined }}>
+      <Mascot size={52} />
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography sx={{ fontWeight: 700 }}>{final ? 'Your Season Wrapped is here' : 'Wrapped so far'}</Typography>
+        <Typography variant="body2" sx={{ color: final ? 'inherit' : 'text.secondary' }}>
+          {final ? 'The Dr. looks back on your whole season.' : `Your season through week ${data.throughWeek}, told by the Dr.`}
+        </Typography>
+      </Box>
+      <Button component={RouterLink} to="/wrapped" variant={final ? 'contained' : 'outlined'} color={final ? 'inherit' : 'primary'} sx={{ flexShrink: 0, minHeight: 44 }}>
+        Play it
+      </Button>
     </Card>
   );
 }

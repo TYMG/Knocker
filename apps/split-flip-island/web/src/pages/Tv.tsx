@@ -27,6 +27,7 @@ import CodeBox from '../ui/CodeBox';
 import MovingList from '../ui/MovingList';
 import ScoreDisplay from '../ui/ScoreDisplay';
 import RollingNumber from '../ui/RollingNumber';
+import PinballBackground from '../ui/PinballBackground';
 
 /** Seconds each machine's board stays up. */
 const ROTATE_SECONDS = 15;
@@ -79,6 +80,8 @@ export default function Tv() {
         p: `${u(2)} ${u(2.4)}`,
         bgcolor: colors.black,
         color: colors.paleYellow,
+        position: 'relative',
+        isolation: 'isolate',
         lineHeight: 1.2,
         [theme.breakpoints.up('md')]: {
           '--u': `min(calc((100dvh - ${SAMPLE_BAR_HEIGHT}px) / 100), calc(100vw / 178))`,
@@ -88,6 +91,8 @@ export default function Tv() {
         }
       })}
     >
+      {/* 5.3: livelier pinballs behind the panels */}
+      <PinballBackground lively fixed={false} />
       {/* Name, week and the clock */}
       <Box component="header" sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { md: 'center' }, justifyContent: 'space-between', gap: u(1.5), flexShrink: 0 }}>
         <Box sx={{ minWidth: 0 }}>

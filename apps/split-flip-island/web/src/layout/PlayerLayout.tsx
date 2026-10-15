@@ -27,6 +27,7 @@ import { useAppDispatch, useCalm, useLeague, useMe } from '../hooks';
 import { challenges } from '../sample/league';
 import { sample } from '../sample/slice';
 import { colors } from '../theme';
+import PinballBackground from '../ui/PinballBackground';
 import Toaster from '../ui/Toaster';
 import SampleBar from './SampleBar';
 import CalmToggle from './CalmToggle';
@@ -121,7 +122,9 @@ export default function PlayerLayout() {
   }, [current, calm]);
 
   return (
-    <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', isolation: 'isolate' }}>
+      {/* Drifting pinballs behind every page except home, which gets its own show. */}
+      {pathname !== '/' && <PinballBackground />}
       <Box sx={{ position: 'sticky', top: 0, zIndex: 'appBar' }}>
         <SampleBar />
         <AppBar position="static" color="primary" elevation={0}>

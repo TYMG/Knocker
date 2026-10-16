@@ -96,7 +96,11 @@ export default function Wrapped() {
   }
 
   const [bg, bigColor, ink] = LOOK[card.key];
-  const bigSize = card.big.length > 12 ? 'clamp(2.2rem, 11vw, 4.2rem)' : 'clamp(3.4rem, 22vw, 7.5rem)';
+  // The big words never break in the middle. The size is set by the longest word, so that word
+  // always fits the card's width on one line; whole words wrap onto a new line only if a name is
+  // long. Bungee letters are about 0.8 of the font size wide. 100cqw is the card's width.
+  const longestWord = Math.max(...card.big.split(/\s+/).map((w) => w.length), 1);
+  const bigSize = `min(7.5rem, calc(100cqw / ${(longestWord * 0.8).toFixed(2)}))`;
 
   return (
     <Box
@@ -122,16 +126,16 @@ export default function Wrapped() {
           const x = e.clientX / window.innerWidth;
           go(x < 0.33 ? -1 : 1);
         }}
-        sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', px: 3, maxWidth: 640, width: '100%', mx: 'auto', cursor: 'pointer', userSelect: 'none' }}
+        sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', px: 3, maxWidth: 640, width: '100%', mx: 'auto', cursor: 'pointer', userSelect: 'none', containerType: 'inline-size' }}
       >
         <Box className="w-kicker" sx={{ fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.02em', mb: 1.5 }}>
           {card.kicker}
         </Box>
-        <Box className="w-big" sx={{ fontFamily: display, fontSize: bigSize, lineHeight: 0.95, color: bigColor, wordBreak: 'break-word', transformOrigin: 'left center' }}>
+        <Box className="w-big" sx={{ fontFamily: display, fontSize: bigSize, lineHeight: 1.05, color: bigColor, overflowWrap: 'normal', wordBreak: 'keep-all', hyphens: 'none', transformOrigin: 'left center' }}>
           {card.big}
         </Box>
         {card.label && (
-          <Box className="w-label" sx={{ mt: 1.5, fontSize: '1.15rem', fontWeight: 700 }}>
+          <Box className="w-label" sx={{ mt: 1.5, fontSize: '1.15rem', fontWeight: 700, lineHeight: 1.35, textWrap: 'balance' }}>
             {card.label}
           </Box>
         )}
@@ -148,7 +152,7 @@ export default function Wrapped() {
           <Box className="w-dr" sx={{ bgcolor: colors.paleYellow, borderRadius: '50%', p: 0.5, border: 2, borderColor: colors.black, flexShrink: 0 }}>
             <Mascot size={56} />
           </Box>
-          <Box className="w-says" sx={{ fontSize: '1.1rem', lineHeight: 1.4, fontStyle: 'italic' }}>
+          <Box className="w-says" sx={{ fontSize: '1.1rem', lineHeight: 1.4, fontStyle: 'italic', textWrap: 'pretty', minWidth: 0 }}>
             “{card.says}”
           </Box>
         </Stack>

@@ -580,6 +580,8 @@ export function adminSummary(s: SampleState) {
     week,
     teams: teamsIn(s, week.week).length,
     here: teamsIn(s, week.week).filter((t) => s.checkIns[t.teamId]).length,
+    /** Teams that tapped "I'm here" and wait for an admin to confirm. */
+    asking: teamsIn(s, week.week).filter((t) => !s.checkIns[t.teamId] && s.checkInRequests?.[t.teamId]).length,
     scores: counts,
     lineTeams: lines.reduce((sum, l) => sum + l.teams.length, 0),
     lineMachines: lines.filter((l) => l.teams.length > 0).length,

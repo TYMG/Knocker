@@ -166,6 +166,8 @@ export interface SampleState {
   scores: SScore[];
   lines: SLine[];
   checkIns: Record<string, string>; // teamId -> time, tonight
+  /** Teams that tapped "I'm here" and are waiting for an admin to confirm: teamId -> time. */
+  checkInRequests?: Record<string, string>;
   message: SMessage | null;
   challenges: SChallenge[];
   log: SLogEntry[];

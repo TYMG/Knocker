@@ -30,7 +30,9 @@ import { DrCheckUp, DrNotes, DrWrapped } from './DrParts';
 import { CHALLENGE_CHAMPION_BONUS, challengeRace } from '../sample/league';
 import DrPrescription from './DrPrescription';
 import LoveDr from './LoveDr';
-import { useLeague, useMe } from '../hooks';
+import { useAppDispatch, useLeague, useMe } from '../hooks';
+import { sample } from '../sample/slice';
+import { showToast } from '../store';
 import { WaitingForApproval } from '../layout/guards';
 import { challenges, lineCount, lineFor, linesView, nightStatus, placeInLine, seasonLine, teamSeason, teamTonight, weekLabel, weekOf } from '../sample/league';
 import ChallengeChampionRace from '../ui/ChallengeChampionRace';
@@ -143,6 +145,52 @@ function SeasonTab({ team }: { team: STeam }) {
         <ChallengeChampionRace myTeamId={team.teamId} limit={5} />
       </Section>
     </Stack>
+  );
+}
+
+/**
+ * Checking in: the team taps "I'm here" when it arrives, and the request waits on the admin's
+ * Check In page until an admin confirms. The admin can still check a team in by hand.
+ */
+function CheckInCard({ teamId }: { teamId: string }) {
+  const league = useLeague();
+  const dispatch = useAppDispatch();
+  const asked = league.checkInRequests?.[teamId];
+  if (asked) {
+    return (
+      <Card sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2, border: 2, borderColor: 'primary.main' }}>
+        <TimerOutlinedIcon color="primary" />
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography sx={{ fontWeight: 700 }}>Waiting for the league admin</Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            You tapped "I'm here" at {clock(asked)}. You can play while you wait; your night counts once they confirm.
+          </Typography>
+        </Box>
+        <Button onClick={() => dispatch(sample.cancelCheckInRequest(teamId))} sx={{ flexShrink: 0, minHeight: 44 }}>
+          Cancel
+        </Button>
+      </Card>
+    );
+  }
+  return (
+    <Card sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2, border: 2, borderColor: 'secondary.main' }}>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography sx={{ fontWeight: 700 }}>Just got here?</Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>Let the league admin know, and they will check you in.</Typography>
+      </Box>
+      <Button
+        variant="contained"
+        color="secondary"
+        size="large"
+        onClick={() => {
+          dispatch(sample.requestCheckIn(teamId));
+          dispatch(showToast("Sent. The league admin will confirm you're here."));
+        }}
+        sx={{ flexShrink: 0, minHeight: 48, whiteSpace: 'nowrap' }}
+      >
+        I'm here
+      </Button>
+    </Card>
   );
 }
 
@@ -349,9 +397,10 @@ export default function TeamHome() {
             sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5, mt: 0.5, fontWeight: 700, color: tonight.checkedInAt ? 'primary.main' : 'secondary.main', '& svg': { fontSize: '1.1rem', mt: '1px', flexShrink: 0 } }}
           >
             {tonight.checkedInAt ? <CheckCircleIcon /> : <ErrorOutlineIcon />}
-            {tonight.checkedInAt ? `Checked in at ${clock(tonight.checkedInAt)}` : 'Not checked in yet. Find the league admin when you arrive.'}
+            {tonight.checkedInAt ? `Checked in at ${clock(tonight.checkedInAt)}` : 'Not checked in yet'}
           </Typography>
         </Header>
+        {!tonight.checkedInAt && <CheckInCard teamId={team.teamId} />}
         <HomeTabs tab={tab} onChange={setTab} tonightLabel="Tonight" />
 
         {tab === 'tonight' && (

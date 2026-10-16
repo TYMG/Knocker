@@ -201,8 +201,24 @@ const slice = createSlice({
 
     // ---- Running the night ----
 
+    /** A team taps "I'm here". It waits on the admin's Check In page until confirmed. */
+    requestCheckIn(s, a: PayloadAction<string | undefined>) {
+      const teamId = a.payload ?? s.myTeamId;
+      if (s.checkIns[teamId]) return;
+      (s.checkInRequests ??= {})[teamId] = s.now;
+      addLog(s, 'league', `${team(s, teamId).teamName} says they are here`);
+    },
+    cancelCheckInRequest(s, a: PayloadAction<string | undefined>) {
+      delete s.checkInRequests?.[a.payload ?? s.myTeamId];
+    },
+    /** The admin checks a team in, from a request or by hand at the door. */
     checkIn(s, a: PayloadAction<string>) {
       s.checkIns[a.payload] = s.now;
+      delete s.checkInRequests?.[a.payload];
+    },
+    /** The admin could not find the team: the request goes away and the team can tap again. */
+    declineCheckIn(s, a: PayloadAction<string>) {
+      delete s.checkInRequests?.[a.payload];
     },
     undoCheckIn(s, a: PayloadAction<string>) {
       delete s.checkIns[a.payload];
@@ -254,6 +270,7 @@ const slice = createSlice({
         line.joinedAt = {};
       }
       week.state = 'final';
+      s.checkInRequests = {};
       for (const line of settledNow) addLog(s, 'league', line);
       // Challenge points move in the season standings, not in the night's own points, so the night's winner is who played best.
       const winner = tonightRows(current(s), week.week)[0];

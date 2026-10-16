@@ -91,6 +91,17 @@ export default function TourDrawer() {
           >
             Start the sample over
           </Button>
+          {/* On a phone the sample strip has no room for this, so it lives here too. */}
+          <Button
+            variant="outlined"
+            onClick={() => {
+              dispatch(sample.startStory());
+              close();
+              navigate('/');
+            }}
+          >
+            Start a new league (guided story)
+          </Button>
           <Button onClick={close}>Close</Button>
         </Stack>
         <Typography variant="body2" color="textSecondary" sx={{ mt: 2 }}>

@@ -8,7 +8,8 @@ import { createSlice, current, type PayloadAction } from '@reduxjs/toolkit';
 import { teamPhoto } from './art';
 import { alreadyChallenged, challengeView, currentWeek, machine, seasonHigh, team, tonightRows, weekOf } from './league';
 import { buildSeed, MY_TEAM } from './seed';
-import { addMinutes as plusMinutes, clockLabel, longDate, ordinal } from './time';
+import { buildFreshLeague, HELPERS, helperScore, helperTeam } from './fresh';
+import { addMinutes as plusMinutes, at, clockLabel, longDate, ordinal } from './time';
 import type { Role, SampleState, SScore } from './types';
 
 /** Bump this when the shape of the sample data changes, so old saved copies are ignored. */
@@ -60,6 +61,23 @@ function lineOf(s: SampleState, machineId: string) {
   return line;
 }
 
+/** A team that joins now plays from this week: the current week if it has not opened yet, otherwise the next. */
+export const startWeek = (s: SampleState) => {
+  const w = currentWeek(s);
+  return w.state === 'upcoming' ? w.week : w.week + 1;
+};
+
+/** Repeatable randomness for the story's helper teams, so the demo plays the same way each time. */
+const storyRand = (s: SampleState) => {
+  let x = (s.seq * 2654435761) >>> 0;
+  return () => {
+    x = (x + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(x ^ (x >>> 15), x | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
 const names = (s: SampleState, x: { teamId: string; machineId: string }) => ({ who: team(s, x.teamId).teamName, what: machine(s, x.machineId).name });
 const fmt = (n: number) => n.toLocaleString('en-US');
 
@@ -93,7 +111,7 @@ const slice = createSlice({
       const teamId = slug(teamName, s.teams.map((t) => t.teamId));
       s.teams.push({
         teamId, teamName, players: ['Player 1', 'Player 2'], phone1: a.payload.phone1, phone2: a.payload.phone2, photo: teamPhoto(teamName),
-        status: 'pending', createdAt: s.now, expiresAt: plusMinutes(s.now, 24 * 60), firstWeek: currentWeek(s).week + 1
+        status: 'pending', createdAt: s.now, expiresAt: plusMinutes(s.now, 24 * 60), firstWeek: startWeek(s)
       });
       s.myTeamId = teamId;
       s.role = 'team';
@@ -359,7 +377,7 @@ const slice = createSlice({
       if (!t || t.status === 'approved') return;
       t.status = 'approved';
       t.expiresAt = undefined;
-      t.firstWeek = currentWeek(s).week + 1;
+      t.firstWeek = startWeek(s);
       addLog(s, 'admin', `Admin approved a new team: ${t.teamName}`);
     },
     removeSignUp(s, a: PayloadAction<{ teamId: string; reason: string }>) {
@@ -380,7 +398,7 @@ const slice = createSlice({
       const teamName = `${one.name} & ${two.name}`;
       s.teams.push({
         teamId: slug(teamName, s.teams.map((t) => t.teamId)), teamName, players: [one.name, two.name], phone1: '(202) 555-0150', phone2: '(202) 555-0151',
-        photo: teamPhoto(teamName), status: 'approved', createdAt: s.now, firstWeek: currentWeek(s).week + 1
+        photo: teamPhoto(teamName), status: 'approved', createdAt: s.now, firstWeek: startWeek(s)
       });
       s.waitlist = s.waitlist.filter((w) => w.id !== one.id && w.id !== two.id);
       addLog(s, 'admin', `Admin paired two solo players into a new team: ${teamName}`);
@@ -414,6 +432,63 @@ const slice = createSlice({
     theyAccepted(s, a: PayloadAction<string>) {
       const c = s.challenges.find((x) => x.id === a.payload);
       if (c && c.status === 'waiting') c.status = 'live';
+    },
+
+    // ---- The guided "new league" story (layout/StoryCard.tsx) ----
+
+    /** Starts the story: an empty league on week 1, before anyone has signed up. */
+    startStory() {
+      return buildFreshLeague();
+    },
+    setStoryStep(s, a: PayloadAction<number>) {
+      if (s.story) s.story.step = a.payload;
+    },
+    /** The helper couples sign up and wait for an admin, like you did. */
+    storyHelpersSignUp(s) {
+      HELPERS.forEach((h, i) => {
+        if (s.teams.some((t) => t.teamId === h[0])) return;
+        s.teams.push(helperTeam(h, s.now, startWeek(s), i));
+        addLog(s, 'league', 'A new team signed up and is waiting for approval');
+      });
+    },
+    /** In the real app the night opens by itself at 7 PM. The story does it on cue. */
+    storyOpenNight(s) {
+      const week = s.weeks.find((w) => w.state === 'upcoming');
+      if (!week || s.weeks.some((w) => w.state === 'open')) return;
+      week.state = 'open';
+      s.now = at(week.date, '19:02');
+      addLog(s, 'league', `Week ${week.week} opened`);
+    },
+    /** The helper couples walk in and tap "I'm here". */
+    storyHelpersArrive(s) {
+      s.now = plusMinutes(s.now, 6);
+      for (const [teamId] of HELPERS) {
+        const t = s.teams.find((x) => x.teamId === teamId && x.status === 'approved');
+        if (!t || s.checkIns[teamId]) continue;
+        (s.checkInRequests ??= {})[teamId] = s.now;
+        addLog(s, 'league', `${t.teamName} says they are here`);
+      }
+    },
+    /** Thirty minutes of play: every checked-in helper posts a game or two. */
+    storyFastForward(s) {
+      const week = s.weeks.find((w) => w.state === 'open');
+      if (!week) return;
+      const rand = storyRand(s);
+      const closes = at(week.date, s.night.closesAt);
+      for (const [teamId, teamName, , skill] of HELPERS) {
+        if (!s.checkIns[teamId]) continue;
+        for (const machineId of week.machineIds) {
+          if (week.out[machineId] || rand() < 0.45) continue;
+          const games = rand() < 0.6 ? 1 : 2;
+          for (let g = 0; g < games; g++) {
+            const when = plusMinutes(s.now, 3 + Math.floor(rand() * 26));
+            s.scores.push(helperScore(() => nextId(s, 's'), week.week, teamId, machineId, skill, when, rand()));
+            addLog(s, 'score', `${teamName} submitted a score on ${machine(s, machineId).name}`);
+          }
+        }
+      }
+      const next = plusMinutes(s.now, 30);
+      s.now = next < closes ? next : closes;
     },
 
     /** Puts the whole story back, keeping who you are viewing as. */

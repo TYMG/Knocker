@@ -96,7 +96,9 @@ export default function Tonight() {
       <Section title={night.open ? "Tonight's points" : `${weekLabel(week.week)} points`}>
         {!night.open && (
           <Typography color="textSecondary" sx={{ mb: 1.5 }}>
-            The night is closed. These are the final points for {weekLabel(week.week).toLowerCase()}.
+            {week.state === 'upcoming'
+              ? `The first league night has not started yet. Points show up here once it opens.`
+              : `The night is closed. These are the final points for ${weekLabel(week.week).toLowerCase()}.`}
           </Typography>
         )}
         <StandingsTable rows={rows} myTeamId={myTeamId} since="in the last 20 minutes" />

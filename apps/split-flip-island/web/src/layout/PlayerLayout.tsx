@@ -35,6 +35,7 @@ import DoctorsOrdersPopup from './DoctorsOrdersPopup';
 import { ApprovalCheer } from './guards';
 import ThemeToggle from './ThemeToggle';
 import TourDrawer from './TourDrawer';
+import StoryCard from './StoryCard';
 
 interface NavItem {
   to: string;
@@ -213,6 +214,7 @@ export default function PlayerLayout() {
       <DoctorsOrdersPopup />
       <Toaster />
       <TourDrawer />
+      <StoryCard />
     </Box>
   );
 }

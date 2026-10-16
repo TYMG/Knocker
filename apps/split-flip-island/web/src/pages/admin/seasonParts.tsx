@@ -16,7 +16,7 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { useAppDispatch, useLeague } from '../../hooks';
 import { approvedTeams, checkLabel, currentWeek } from '../../sample/league';
-import { sample } from '../../sample/slice';
+import { sample, startWeek } from '../../sample/slice';
 import { ago, minutesBetween, until } from '../../sample/time';
 import type { SScore, STeam } from '../../sample/types';
 import { showToast } from '../../store';
@@ -146,12 +146,14 @@ export function ApprovalCard({ team, onRemoved }: { team: STeam; onRemoved?: () 
   const urgent = minutesLeft !== undefined && minutesLeft < 60;
   const teamsAfter = approvedTeams(league).length + 1;
   const over = teamsAfter - league.teamCap;
-  // The same rule the approve action uses: a new team starts the week after the current one.
-  const firstWeek = currentWeek(league).week + 1;
+  // The same rule the approve action uses.
+  const firstWeek = startWeek(league);
+  const thisWeek = currentWeek(league);
+  const when = thisWeek.state === 'upcoming' && thisWeek.week === firstWeek ? 'They play from' : 'They start next week,';
 
   const approve = () => {
     dispatch(sample.approveTeam(team.teamId));
-    const starts = firstWeek <= 8 ? `They start next week, week ${firstWeek}.` : 'They start next week.';
+    const starts = firstWeek <= 8 ? `${when} week ${firstWeek}.` : 'They start next week.';
     dispatch(showToast(`Approved ${team.teamName}. ${starts}${over > 0 ? ` The league is now ${over} over its limit of ${league.teamCap}.` : ''}`));
   };
 

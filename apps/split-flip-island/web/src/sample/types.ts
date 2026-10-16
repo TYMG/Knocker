@@ -177,4 +177,6 @@ export interface SampleState {
   finals: { championship: SFinal; secondChance: SFinal };
   /** Counter for new ids. */
   seq: number;
+  /** Set while the guided "new league" story is running: which step it is on. */
+  story?: { step: number };
 }

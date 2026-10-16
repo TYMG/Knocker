@@ -106,7 +106,12 @@ export default function Wrapped() {
     <Box
       role="dialog"
       aria-label={data.final ? 'Season Wrapped' : 'Wrapped so far'}
-      sx={{ position: 'fixed', inset: 0, zIndex: 1500, bgcolor: bg, color: ink, display: 'flex', flexDirection: 'column', transition: calm ? 'none' : 'background-color 300ms ease' }}
+      // Tap zones over the whole screen: left third goes back, the rest goes forward. Buttons do their own thing.
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest('button, a')) return;
+        go(e.clientX / window.innerWidth < 0.33 ? -1 : 1);
+      }}
+      sx={{ position: 'fixed', inset: 0, zIndex: 1500, bgcolor: bg, color: ink, display: 'flex', flexDirection: 'column', cursor: 'pointer', userSelect: 'none', transition: calm ? 'none' : 'background-color 300ms ease' }}
     >
       {/* Progress: one bar per card */}
       <Stack direction="row" spacing={0.75} sx={{ px: 2, pt: 'calc(env(safe-area-inset-top) + 12px)' }}>
@@ -118,14 +123,10 @@ export default function Wrapped() {
         <CloseIcon />
       </IconButton>
 
-      {/* The card. Tap zones: left third goes back, the rest goes forward. */}
+      {/* The card. Taps anywhere on the screen count (see the root), so a laptop click works too. */}
       <Box
         ref={stage}
         key={card.key}
-        onClick={(e) => {
-          const x = e.clientX / window.innerWidth;
-          go(x < 0.33 ? -1 : 1);
-        }}
         sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', px: 3, maxWidth: 640, width: '100%', mx: 'auto', cursor: 'pointer', userSelect: 'none', containerType: 'inline-size' }}
       >
         <Box className="w-kicker" sx={{ fontWeight: 700, fontSize: '1.05rem', letterSpacing: '0.02em', mb: 1.5 }}>

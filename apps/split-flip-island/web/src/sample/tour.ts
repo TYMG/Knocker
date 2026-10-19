@@ -61,6 +61,7 @@ export const TOUR: TourPage[] = [
     when: 'All night. This is the page the phone sits on.',
     does: [
       'See where you stand tonight and how long is left.',
+      'Just got here? Tap I\'m here on the Tonight tab. The card says Waiting for the league admin until an admin confirms you (Cancel if you tapped by mistake).',
       'See your place in line, what you still have to play and what you have played.',
       'Jump to Submit a score.',
       'Read what just happened to you: someone beat your score, passed you, or challenged you.',
@@ -205,7 +206,13 @@ export const TOUR: TourPage[] = [
     path: '/admin/check-in', example: '/admin/check-in', title: 'Check in teams', group: 'Running the night', role: 'admin',
     who: 'A league admin.',
     when: 'As teams arrive, 6:45 to 7:15 PM.',
-    does: ['Tap Check in next to a team when they walk in.', 'Undo a check-in made by mistake.', 'See at a glance who has not shown up.']
+    does: [
+      'Says they\'re here: teams that tapped I\'m here on their phone wait at the top. Confirm once you see them, or Not here if they are not.',
+      'Tap Check in next to a team that walks in without tapping.',
+      'Undo a check-in made by mistake.',
+      'See at a glance who has not shown up. Admin home also says how many are waiting to be confirmed.'
+    ],
+    tryIt: 'View as a team, tap I\'m here on the Tonight tab, then switch to Admin and confirm them here.'
   },
   {
     path: '/admin/scores', example: '/admin/scores', title: 'Check scores', group: 'Running the night', role: 'admin',

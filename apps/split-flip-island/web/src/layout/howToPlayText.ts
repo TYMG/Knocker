@@ -35,7 +35,7 @@ export const PLAY: HelpSection[] = [
   {
     title: 'League night basics',
     lines: [
-      { text: 'Check in when you arrive. League night runs 7 to 9 PM.' },
+      { lead: 'Check in when you arrive:', text: "tap I'm here on your Home page, and the admin confirms you once they see you. League night runs 7 to 9 PM." },
       { text: 'Your best score on each machine each night is the one that counts.' },
       { lead: 'How you score:', text: "on each machine, each night, your best score is ranked against every team's. 1st earns as many points as there are teams, down to 1 for last. The Scoring tab has the full breakdown." },
       { lead: 'Wrong score?', text: "Teams can't change scores, so find the admin running the night." }

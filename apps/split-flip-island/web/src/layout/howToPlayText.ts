@@ -129,6 +129,7 @@ export const LINES: HelpSection[] = [
       { lead: 'You have 5 minutes to start your game.', text: 'The app shows a countdown when your turn comes up. Once your first ball is in play, tap "We started". It\'s the honor system, and the admins can see who is on each machine.' },
       { lead: 'No tap within 5 minutes?', text: "You forfeit your turn: you're off the line, and the next team goes. Want to play? Sign up again at the back." },
       { lead: 'Forfeits add up.', text: 'They are counted for the night and the season. 3 in a season brings a penalty.' },
+      { lead: 'One foul ball a night.', text: "The admin can forgive one forfeit per team per night. A forgiven forfeit doesn't count toward the 3, but you still sign up again at the back." },
       { text: "This keeps anyone from holding a machine to stall a night out." },
       { text: 'Play one game. Take the photo, have your partner double-check, and submit. Submitting your score takes you out of that line.' }
     ]

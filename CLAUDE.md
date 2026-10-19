@@ -132,7 +132,7 @@ Team record fields include `status` (`pending` | `approved`) and, while pending,
 
 Line record fields: ordered team IDs, who asked to be messaged, and for the team at the front:
 `upTeamId`, `upAt` (when its 5 minutes began), `started` (tapped "We started"), `turnId`.
-Forfeit fields: team, machine, week, time, `by` (`clock` | `admin`).
+Forfeit fields: team, machine, week, time, `by` (`clock` | `admin`), `forgiven`.
 Sub fields: team, week, which partner is out (0 or 1), sub's name, time. Team `status` adds
 `withdrawn` (with time, week and reason).
 Final fields: seeded team IDs, `locked`, `winnerId`, and per game: machine, picks (in seed
@@ -223,6 +223,10 @@ and every admin request re-reads the account, so removal or a password reset is 
   removed from the line, and the next team's clock starts. An admin can also forfeit a team.
 - Forfeits are logged and counted **per night and per season**. **3 in a season brings a
   penalty** (not decided yet; the app flags the team to admins).
+- **Forfeit forgiveness:** an admin can forgive **one forfeit per team per night** (a "foul
+  ball") from the forfeit pop-up. A forgiven forfeit does not count toward the season's 3; the
+  team still stays off the line. The team gets a pop-up saying it was forgiven and that
+  tonight's forgiveness is used. Once used, the pop-up offers only "Got it".
 - Admins get a quiet, mutable note when a team starts a turn, and a pop-up for every forfeit.
 
 ### Challenges and bonuses

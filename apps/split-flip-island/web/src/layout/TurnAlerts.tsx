@@ -11,7 +11,7 @@ import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import CloseIcon from '@mui/icons-material/Close';
 import { useAppDispatch, useLeague, useMe } from '../hooks';
-import { FORFEIT_LIMIT, forfeitCounts, lineFor } from '../sample/league';
+import { FORFEIT_LIMIT, forfeitCounts, forgivenTonight, lineFor } from '../sample/league';
 import { sample, TURN_MS } from '../sample/slice';
 import { showToast } from '../store';
 import { clock } from '../sample/time';
@@ -25,6 +25,7 @@ export default function TurnAlerts() {
       <TurnClock />
       {me.isTeam && <TeamTurn teamId={me.team.teamId} />}
       {me.isTeam && <TeamForfeit teamId={me.team.teamId} />}
+      {me.isTeam && <TeamForgiven teamId={me.team.teamId} />}
       {me.isAdmin && <AdminBlips />}
       {me.isAdmin && <AdminCheckInAlert />}
       {me.isAdmin && <AdminForfeitAlert />}
@@ -244,9 +245,13 @@ function AdminForfeitAlert() {
   if (!e) return null;
   const t = league.teams.find((x) => x.teamId === e.teamId);
   const m = league.machines.find((x) => x.machineId === e.machineId);
+  const dispatch = useAppDispatch();
   const f = [...(league.forfeits ?? [])].reverse().find((x) => x.teamId === e.teamId && x.machineId === e.machineId);
   const counts = forfeitCounts(league, e.teamId);
   const over = counts.season >= FORFEIT_LIMIT;
+  // One forgiveness per team per night: a foul ball.
+  const canForgive = !!f && !f.forgiven && !forgivenTonight(league, e.teamId);
+  const done = () => setSeen((x) => [...x, e.id]);
 
   return (
     <Dialog open onClose={() => undefined} aria-labelledby="sfi-forfeit-admin" slotProps={{ paper: { sx: { m: 2, p: 3, bgcolor: colors.card, color: colors.paleYellow, border: `3px solid ${colors.coral}`, borderRadius: 3, maxWidth: 420, width: '100%' } } }}>
@@ -258,8 +263,47 @@ function AdminForfeitAlert() {
       <Typography sx={{ mt: 1.5, fontWeight: 700, color: over ? colors.coral : undefined }}>
         Forfeits: {counts.tonight} tonight, {counts.season} this season{over ? `. That's ${FORFEIT_LIMIT} or more: penalty to decide.` : ''}
       </Typography>
-      <Button fullWidth size="large" variant="contained" onClick={() => setSeen((x) => [...x, e.id])} sx={{ mt: 2.5, minHeight: 48, bgcolor: colors.coral, color: colors.black, fontWeight: 700, '&:hover': { bgcolor: colors.coral } }}>
+      {f?.forgiven ? (
+        <Typography sx={{ mt: 1, color: colors.lime, fontWeight: 700 }}>Forgiven: this one doesn't count toward the {FORFEIT_LIMIT}.</Typography>
+      ) : !canForgive ? (
+        <Typography variant="body2" sx={{ mt: 1, opacity: 0.85 }}>They've already used tonight's forgiveness.</Typography>
+      ) : (
+        <Typography variant="body2" sx={{ mt: 1, opacity: 0.85 }}>Each team gets one forgiveness a night, like a foul ball: a forgiven forfeit doesn't count toward the {FORFEIT_LIMIT}. They stay off the line either way.</Typography>
+      )}
+      {canForgive && (
+        <Button fullWidth size="large" variant="contained" onClick={() => { dispatch(sample.forgiveForfeit(f!.id)); dispatch(showToast(`Forgiven. ${t?.teamName ?? 'The team'} used their one forgiveness tonight.`)); done(); }} sx={{ mt: 2.5, minHeight: 48, bgcolor: colors.lime, color: colors.black, fontWeight: 700, '&:hover': { bgcolor: colors.lime } }}>
+          Forgive
+        </Button>
+      )}
+      <Button fullWidth size="large" variant={canForgive ? 'text' : 'contained'} onClick={done} sx={{ mt: canForgive ? 1 : 2.5, minHeight: 48, fontWeight: 700, ...(canForgive ? { color: colors.paleYellow } : { bgcolor: colors.coral, color: colors.black, '&:hover': { bgcolor: colors.coral } }) }}>
         Got it
+      </Button>
+    </Dialog>
+  );
+}
+
+/** The team's side of a forgiveness: a pop-up saying it doesn't count, and that tonight's is used. */
+function TeamForgiven({ teamId }: { teamId: string }) {
+  const league = useLeague();
+  const dispatch = useAppDispatch();
+  // Wait until the team has seen the forfeit itself.
+  const f = (league.forfeits ?? []).find((x) => x.teamId === teamId && x.forgiven && x.seen && !x.forgivenSeen);
+  if (!f) return null;
+  const machine = league.machines.find((m) => m.machineId === f.machineId);
+  const counts = forfeitCounts(league, teamId);
+  return (
+    <Dialog open onClose={() => undefined} aria-labelledby="sfi-forgiven-title" slotProps={{ paper: { sx: { m: 2, p: 3, textAlign: 'center', bgcolor: colors.card, color: colors.paleYellow, border: `3px solid ${colors.lime}`, borderRadius: 3, maxWidth: 420 } } }}>
+      <Typography sx={{ fontSize: '2.5rem', lineHeight: 1 }} aria-hidden>⚾</Typography>
+      <Typography id="sfi-forgiven-title" variant="h2" component="h2" sx={{ color: colors.lime, mt: 1 }}>Foul ball. You're forgiven</Typography>
+      <Typography sx={{ mt: 1.5, lineHeight: 1.5 }}>
+        The league admin forgave your forfeit on {machine?.name ?? 'the machine'}. It doesn't count toward the {FORFEIT_LIMIT} for the season.
+      </Typography>
+      <Typography sx={{ mt: 1, fontWeight: 700 }}>That was your one forgiveness tonight.</Typography>
+      <Typography variant="body2" sx={{ mt: 1, opacity: 0.85 }}>
+        Forfeits this season: {counts.season} of {FORFEIT_LIMIT}. You're still off the line; sign up again to play {machine?.name ?? 'it'}.
+      </Typography>
+      <Button fullWidth size="large" variant="contained" onClick={() => dispatch(sample.forgivenSeen(f.id))} sx={{ mt: 2.5, minHeight: 48, bgcolor: colors.lime, color: colors.black, fontWeight: 700, '&:hover': { bgcolor: colors.lime } }}>
+        Thanks
       </Button>
     </Dialog>
   );

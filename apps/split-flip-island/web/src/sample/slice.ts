@@ -212,6 +212,20 @@ const slice = createSlice({
       addLog(s, by === 'clock' ? 'league' : 'admin', `${who} forfeited their turn on ${what}`, by === 'clock' ? 'Did not start within 5 minutes' : 'Admin call: not at the machine');
       leaveLines(s, teamId, machineId);
     },
+    /** Admin: forgive a forfeit, once per team per night. It stops counting; the team stays off the line. */
+    forgiveForfeit(s, a: PayloadAction<string>) {
+      const f = s.forfeits?.find((x) => x.id === a.payload);
+      if (!f || f.forgiven) return;
+      if ((s.forfeits ?? []).some((x) => x.teamId === f.teamId && x.forgiven && x.week === f.week)) return;
+      f.forgiven = true;
+      const who = s.teams.find((t) => t.teamId === f.teamId)?.teamName ?? 'A team';
+      const what = s.machines.find((m) => m.machineId === f.machineId)?.name ?? 'a machine';
+      addLog(s, 'admin', `Admin forgave ${who}'s forfeit on ${what} (one forgiveness per night)`);
+    },
+    forgivenSeen(s, a: PayloadAction<string>) {
+      const f = s.forfeits?.find((x) => x.id === a.payload);
+      if (f) f.forgivenSeen = true;
+    },
     forfeitSeen(s, a: PayloadAction<string>) {
       const f = s.forfeits?.find((x) => x.id === a.payload);
       if (f) f.seen = true;

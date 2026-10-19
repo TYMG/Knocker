@@ -709,11 +709,16 @@ export function alreadyChallenged(s: SampleState, a: string, b: string, week = c
 }
 
 /** How many turns a team has forfeited: tonight (the current week) and all season. */
-export function forfeitCounts(s: SampleState, teamId: string): { tonight: number; season: number } {
-  const all = (s.forfeits ?? []).filter((f) => f.teamId === teamId);
+export function forfeitCounts(s: SampleState, teamId: string): { tonight: number; season: number; forgiven: number } {
+  const mine = (s.forfeits ?? []).filter((f) => f.teamId === teamId);
+  const all = mine.filter((f) => !f.forgiven);
   const week = currentWeek(s).week;
-  return { tonight: all.filter((f) => f.week === week).length, season: all.length };
+  return { tonight: all.filter((f) => f.week === week).length, season: all.length, forgiven: mine.length - all.length };
 }
+
+/** One forfeit forgiveness per team per night: has this team used tonight's? */
+export const forgivenTonight = (s: SampleState, teamId: string) =>
+  (s.forfeits ?? []).some((f) => f.teamId === teamId && f.forgiven && f.week === currentWeek(s).week);
 
 /** The forfeit count that brings a penalty (what the penalty is has not been decided). */
 export const FORFEIT_LIMIT = 3;

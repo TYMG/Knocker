@@ -97,7 +97,8 @@ export const TOUR: TourPage[] = [
       "When you're next, a note says to head over: once the team playing finishes, you have 5 minutes to start.",
       'When it is your turn, a pop-up counts down from 5:00. Tap We started once your first ball is in play (the honor system). Hide for now tucks it into a slim bar with the clock.',
       'No tap in 5 minutes and the turn is forfeited: the team is off the line, the next team is up, and it goes in the league log.',
-      'A Turn forfeited alert shows the count for tonight and the season. 3 in a season brings a penalty (not decided yet).'
+      'A Turn forfeited alert shows the count for tonight and the season. 3 in a season brings a penalty (not decided yet).',
+      'The admin can forgive one forfeit per team per night (a foul ball): it stops counting, the team stays off the line, and a "You\'re forgiven" pop-up tells them tonight\'s forgiveness is used.'
     ],
     tryIt: 'View as Admin + team, open Machine lines and Remove the two teams ahead of you on Godzilla. Your turn pops up. Tap Sample: skip 1 minute five times to see the forfeit, or tap We started.'
   },

@@ -97,6 +97,10 @@ export interface SForfeit {
   by: 'clock' | 'admin';
   /** The team has seen the "turn forfeited" alert. */
   seen?: boolean;
+  /** An admin forgave it (one per team per night): it does not count toward the season's 3. */
+  forgiven?: boolean;
+  /** The team has seen the "you were forgiven" alert. */
+  forgivenSeen?: boolean;
 }
 
 /** Something on a line an admin may want a quick heads-up about. */

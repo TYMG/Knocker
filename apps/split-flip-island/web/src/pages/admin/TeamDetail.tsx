@@ -219,7 +219,7 @@ function Forfeits({ league, teamId }: { league: SampleState; teamId: string }) {
   const over = f.season >= FORFEIT_LIMIT;
   return (
     <Typography variant="body2" sx={{ mt: 1.25, color: over ? 'secondary.main' : 'text.secondary', fontWeight: over ? 700 : 400 }}>
-      Forfeited turns: {f.tonight} tonight, {f.season} this season{over ? `. That's ${FORFEIT_LIMIT} or more: the penalty is not decided yet.` : `. ${FORFEIT_LIMIT} in a season brings a penalty.`}
+      Forfeited turns: {f.tonight} tonight, {f.season} this season{f.forgiven ? ` (plus ${f.forgiven} forgiven)` : ''}{over ? `. That's ${FORFEIT_LIMIT} or more: the penalty is not decided yet.` : `. ${FORFEIT_LIMIT} in a season brings a penalty.`}
     </Typography>
   );
 }

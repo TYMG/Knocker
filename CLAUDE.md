@@ -133,6 +133,8 @@ Team record fields include `status` (`pending` | `approved`) and, while pending,
 Line record fields: ordered team IDs, who asked to be messaged, and for the team at the front:
 `upTeamId`, `upAt` (when its 5 minutes began), `started` (tapped "We started"), `turnId`.
 Forfeit fields: team, machine, week, time, `by` (`clock` | `admin`).
+Sub fields: team, week, which partner is out (0 or 1), sub's name, time. Team `status` adds
+`withdrawn` (with time, week and reason).
 Final fields: seeded team IDs, `locked`, `winnerId`, and per game: machine, picks (in seed
 order: `machine` or a play spot 1–4), play order, scores, places.
 
@@ -194,9 +196,23 @@ and every admin request re-reads the account, so removal or a password reset is 
   plunge it, and step away.
 - After the game: photo of the score, partner double-checks, then submit.
 
-### Check-in
-- A team taps **I'm here**; an admin **confirms** (or declines) it. Admins can also check a
-  team in directly. Requests are cleared when the night closes.
+### Check-in and subs
+- Check-in opens **30 minutes before** the night. A team taps **I'm here**; an admin
+  **confirms** (or declines) it. Admins can also check a team in directly. Requests are cleared
+  when the night closes.
+- **No lines and no score submissions until a team has checked in** (tapped I'm here or been
+  confirmed).
+- Reminders: a countdown in the last 5 minutes before the night opens, with a sub reminder at
+  1 minute, and a standing note once the night is open.
+- **Everyone plays every week** (no dropped nights). **Each player can be subbed out once a
+  season** (two subs per team). At check-in the team marks which partner is out and names the
+  sub; at most one partner is out. **A sub must be someone not in the league.** The sub is used
+  when the admin confirms the check-in.
+
+### Withdrawn teams
+- An admin can **withdraw** a team mid-season, with a reason. Its scores stop counting and
+  **every night is worked out again as if the team was never in the league**; live challenges
+  with it are called off. It can be brought back.
 
 ### Lines and turns
 - A team is in **one line at a time**. Signing up for another machine leaves the old line.
@@ -264,7 +280,9 @@ Summarize every plan and wait for a yes before the matching apply.
 - Season scoring option (1 or 2)
 - Lyman's machine lineup
 - The penalty for 3 forfeited turns in a season
-- What a team gets for a night it misses (the app gives 0)
+- What a team gets for a night it misses (the app gives 0; there are no dropped nights)
+- Texting: the plan is free phone notifications for turns, and texts only for the check-in
+  reminder (one phone per team, opt-in at sign-up), to stay under $10–20 a season
 - Whether finals scores need a photo (the admin page has none yet)
 - A tie at the line for the finals (4th/5th, 8th/9th): the rules say a one-game split-flip
   playoff, but the app does not run it yet

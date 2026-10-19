@@ -61,7 +61,8 @@ export const TOUR: TourPage[] = [
     when: 'All night. This is the page the phone sits on.',
     does: [
       'See where you stand tonight and how long is left.',
-      'Just got here? Tap I\'m here on the Tonight tab. The card says Waiting for the league admin until an admin confirms you (Cancel if you tapped by mistake).',
+      'Just got here? Tap I\'m here on the Tonight tab (from 6:30). Partner out tonight? Tap Sub next to them and type the sub\'s name: one sub per player per season, never someone in the league. The card says Waiting for the league admin until an admin confirms you.',
+      'Until you check in, Lines and Submit are closed. A banner counts down the last 5 minutes before 7 PM, with a sub reminder at 1 minute.',
       'See your place in line, what you still have to play and what you have played.',
       'Jump to Submit a score.',
       'Read what just happened to you: someone beat your score, passed you, or challenged you.',
@@ -207,7 +208,7 @@ export const TOUR: TourPage[] = [
     who: 'A league admin.',
     when: 'As teams arrive, 6:45 to 7:15 PM.',
     does: [
-      'Says they\'re here: teams that tapped I\'m here on their phone wait at the top. Confirm once you see them, or Not here if they are not.',
+      'Says they\'re here: teams that tapped I\'m here on their phone wait at the top, with any sub they named. Confirm once you see them (that uses the sub), or Not here if they are not.',
       'Tap Check in next to a team that walks in without tapping.',
       'Undo a check-in made by mistake.',
       'See at a glance who has not shown up. Admin home also says how many are waiting to be confirmed.'
@@ -290,7 +291,7 @@ export const TOUR: TourPage[] = [
     path: '/admin/teams/:teamId', example: '/admin/teams/flip-city', title: 'One team (admin)', group: 'Running the season', role: 'admin',
     who: 'A league admin.',
     when: 'A team asks about their scores, or forgot their PIN.',
-    does: ['See both phone numbers and reset the PIN.', "Go through the team's scores week by week.", 'Mark a whole week as checked in one tap.', 'See forfeited turns: tonight and this season. The Teams list flags a team at 3.']
+    does: ['See both phone numbers and reset the PIN.', "Go through the team's scores week by week.", 'Mark a whole week as checked in one tap.', 'See forfeited turns: tonight and this season. The Teams list flags a team at 3.', 'See which partner has used their sub.', 'Withdraw this team: every night is worked out again as if they were never in the league. Bring them back undoes it.']
   },
   {
     path: '/admin/weeks', example: '/admin/weeks', title: 'Weeks', group: 'Running the season', role: 'admin',

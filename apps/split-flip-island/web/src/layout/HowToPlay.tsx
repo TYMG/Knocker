@@ -3,7 +3,7 @@
 // header art and a few faint pinballs scroll at different speeds from the text (parallax), unless
 // calm mode or the phone's reduce-motion setting is on. The wording lives in howToPlayText.ts.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useLocation } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import Box from '@mui/material/Box';
 import Dialog from '@mui/material/Dialog';
 import Fab from '@mui/material/Fab';
@@ -37,6 +37,18 @@ export default function HowToPlay() {
   const calm = useCalm();
   const [open, setOpen] = useState<number | null>(null);
   const [pulse, setPulse] = useState(() => !seen());
+
+  // A link can open it too: ?help=play, ?help=lines or ?help=scoring (All pages uses this).
+  const navigate = useNavigate();
+  const { search } = useLocation();
+  useEffect(() => {
+    const want = new URLSearchParams(search).get('help');
+    if (!want) return;
+    setOpen(want === 'lines' ? 1 : want === 'scoring' ? 2 : 0);
+    setPulse(false);
+    markSeen();
+    navigate(pathname, { replace: true });
+  }, [search, pathname, navigate]);
 
   // Other pages can open it on a given tab (the Lines page links to the Lines tab).
   useEffect(() => {

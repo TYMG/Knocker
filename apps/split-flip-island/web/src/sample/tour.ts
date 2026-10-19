@@ -69,11 +69,35 @@ export const TOUR: TourPage[] = [
     tryIt: 'Submit a South Park score, then come back: it moves from "still to play" to "played" and your place changes.'
   },
   {
+    path: '?help', example: '/standings?help=play', title: 'How to play (the ? button)', group: 'On league night', role: 'visitor',
+    who: 'Anyone. The round ? button sits at the bottom right of every page except the admin pages.',
+    when: 'Before a first game, or to settle a question at the machine.',
+    does: [
+      'How to play: one hand each, anyone presses start, the plunger side plunges, nudge with your playing hand, switch sides between balls, 3 balls plus 1 extra ball.',
+      'Lines: signing up, waiting, the 5-minute rule, forfeits, playing again.',
+      'Scoring: machine points with an example, both season options, challenges, the season-end bonuses and finals.',
+      'Only the X closes it. A tap outside does nothing.'
+    ],
+    tryIt: 'Scroll slowly: the flippers and pinballs move at a different speed from the text. Turn on calm mode (the sparkle) and they stop.'
+  },
+  {
     path: '/lines', example: '/lines', title: 'Lines', group: 'On league night', role: 'team',
     who: 'A logged-in team.',
     when: 'Before walking to a machine.',
-    does: ['See who is playing and who is waiting on every machine.', 'Sign up for one line, switch lines, or leave.', 'One line at a time. Play one game, then sign up again.'],
+    does: ['See who is playing and who is waiting on every machine.', 'Sign up for one line, switch lines, or leave.', 'One line at a time. Play one game, then sign up again.', 'When it is your turn: a 5-minute countdown and a We started button on your place card.', 'How lines work: four short steps, and a link to the Lines tab of the ? help.'],
     tryIt: 'Leave the Godzilla line. The page changes to "You are not in a line" and every machine offers a sign-up button.'
+  },
+  {
+    path: '/lines#turn', example: '/lines', title: 'Your turn and forfeits', group: 'On league night', role: 'team',
+    who: 'A team in a line. Not a page: alerts that show on whatever page the team has open.',
+    when: 'As the team moves up a line, and when its turn comes.',
+    does: [
+      "When you're next, a note says to head over: once the team playing finishes, you have 5 minutes to start.",
+      'When it is your turn, a pop-up counts down from 5:00. Tap We started once your first ball is in play (the honor system). Hide for now tucks it into a slim bar with the clock.',
+      'No tap in 5 minutes and the turn is forfeited: the team is off the line, the next team is up, and it goes in the league log.',
+      'A Turn forfeited alert shows the count for tonight and the season. 3 in a season brings a penalty (not decided yet).'
+    ],
+    tryIt: 'View as Admin + team, open Machine lines and Remove the two teams ahead of you on Godzilla. Your turn pops up. Tap Sample: skip 1 minute five times to see the forfeit, or tap We started.'
   },
   {
     path: '/lines/join/:machineId', example: '/lines/join/pulp-fiction', title: 'Sign up for a line', group: 'On league night', role: 'team',
@@ -216,8 +240,9 @@ export const TOUR: TourPage[] = [
   {
     path: '/admin/lines', example: '/admin/lines', title: 'Machine lines', group: 'Running the night', role: 'admin',
     who: 'A league admin.',
-    when: 'A team is not at the machine when its turn comes.',
-    does: ['Send a team to the back of a line.', 'Take a team off a line.', 'For an admin who is not on a team, this is what the Lines tab opens.']
+    when: 'All night, to see who is on each machine, and when a team is not at the machine for its turn.',
+    does: ['See who is up on each machine: started, or the time left to start.', 'Forfeit now, when a team is plainly not at the machine. The app also forfeits on its own after 5 minutes.', 'Send a team to the back of a line, or take it off.', 'Turn the quick notes on or off: a small note when a team starts or forfeits a turn, gone in a few seconds.', 'For an admin who is not on a team, this is what the Lines tab opens.'],
+    tryIt: 'Remove the team at the front of a line, then tap Sample: skip 1 minute on the next team until the clock runs out.'
   },
   {
     path: '/admin/lineup', example: '/admin/lineup', title: "This week's machines", group: 'Running the night', role: 'admin',
@@ -245,7 +270,7 @@ export const TOUR: TourPage[] = [
     path: '/admin/teams/:teamId', example: '/admin/teams/flip-city', title: 'One team (admin)', group: 'Running the season', role: 'admin',
     who: 'A league admin.',
     when: 'A team asks about their scores, or forgot their PIN.',
-    does: ['See both phone numbers and reset the PIN.', "Go through the team's scores week by week.", 'Mark a whole week as checked in one tap.']
+    does: ['See both phone numbers and reset the PIN.', "Go through the team's scores week by week.", 'Mark a whole week as checked in one tap.', 'See forfeited turns: tonight and this season. The Teams list flags a team at 3.']
   },
   {
     path: '/admin/weeks', example: '/admin/weeks', title: 'Weeks', group: 'Running the season', role: 'admin',

@@ -14,7 +14,7 @@ import Typography from '@mui/material/Typography';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import SearchIcon from '@mui/icons-material/Search';
 import { useAppDispatch, useLeague } from '../../hooks';
-import { approvedTeams, currentWeek, nightStatus, pendingTeams, scoreCounts, FORFEIT_LIMIT, forfeitCounts } from '../../sample/league';
+import { approvedTeams, currentWeek, nightStatus, pendingTeams, scoreCounts, FORFEIT_LIMIT, forfeitCounts, withdrawnTeams } from '../../sample/league';
 import { sample } from '../../sample/slice';
 import { ago } from '../../sample/time';
 import type { SampleState, STeam } from '../../sample/types';
@@ -133,6 +133,19 @@ export default function Teams() {
             </RowCard>
           )}
         </Section>
+
+        {withdrawnTeams(league).length > 0 && (
+          <Section title="Withdrawn" aside={withdrawnTeams(league).length}>
+            <RowCard>
+              {withdrawnTeams(league).map((team) => (
+                <Row key={team.teamId} to={`/admin/teams/${team.teamId}`} sx={{ minHeight: 60, ...focusRing }}>
+                  <TeamAvatar team={team} size={40} />
+                  <RowText primary={team.teamName} secondary={`Withdrawn in week ${team.withdrawn?.week ?? '?'}. Their scores no longer count.`} />
+                </Row>
+              ))}
+            </RowCard>
+          </Section>
+        )}
 
         <Section title="Waitlist" aside={waitlist.length > 0 ? waitlist.length : undefined}>
           {waitlist.length === 0 ? (

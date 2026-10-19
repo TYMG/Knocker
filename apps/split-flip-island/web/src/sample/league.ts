@@ -5,7 +5,7 @@
 
 import { rankChange, rankTotals, runningRanks, scoreNight, type NightResult } from '../../../shared/scoring';
 import { addMinutes, at, minutesBetween, ordinal } from './time';
-import type { SChallenge, SFinal, SMachine, SScore, STeam, SWeek, SampleState } from './types';
+import type { SChallenge, SFinal, SMachine, SSub, SScore, STeam, SWeek, SampleState } from './types';
 
 export type SeasonOption = 'option1' | 'option2';
 
@@ -758,3 +758,38 @@ export function finalsStep(final: SFinal):
 
 /** Machines already played (or picked) in this final. */
 export const finalsUsed = (final: SFinal) => final.games.map((g) => g.machineId).filter(Boolean);
+
+// ---- Check-in, subs, withdrawn teams ----
+
+/** Checked in, or asked to be ("I'm here"). Either one lets a team join lines and submit. */
+export const canPlayTonight = (s: SampleState, teamId: string) => !!s.checkIns[teamId] || !!s.checkInRequests?.[teamId];
+
+/** Which partners have used their one sub this season. */
+export function subsUsed(s: SampleState, teamId: string): Partial<Record<0 | 1, SSub>> {
+  const used: Partial<Record<0 | 1, SSub>> = {};
+  for (const x of s.subs ?? []) if (x.teamId === teamId) used[x.outPlayer] = x;
+  return used;
+}
+
+/** A sub has to be someone not in the league. Returns the problem, or undefined if the name is fine. */
+export function subProblem(s: SampleState, name: string): string | undefined {
+  const n = name.trim().toLowerCase();
+  if (!n) return 'Type the sub\'s name.';
+  const inLeague = s.teams.filter((t) => t.status !== 'withdrawn').some((t) => t.players.some((p) => p.trim().toLowerCase() === n));
+  if (inLeague) return 'That name is already a player in the league. A sub has to be someone not in the league.';
+  return undefined;
+}
+
+export const withdrawnTeams = (s: SampleState) => s.teams.filter((t) => t.status === 'withdrawn');
+
+/** Teams can check in from this many minutes before the night opens. */
+export const CHECK_IN_EARLY = 30;
+
+/** Whether teams can check in right now, and how long until the night opens. */
+export function checkInWindow(s: SampleState): { open: boolean; minutesToOpen: number } {
+  const n = nightStatus(s);
+  if (n.open) return { open: true, minutesToOpen: 0 };
+  if (n.week.state !== 'upcoming') return { open: false, minutesToOpen: -1 };
+  const m = minutesBetween(s.now, n.opensAt);
+  return { open: m >= 0 && m <= CHECK_IN_EARLY, minutesToOpen: m };
+}

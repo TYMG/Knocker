@@ -12,7 +12,9 @@ export interface STeam {
   phone2: string;
   photo: string; // image address (a drawn placeholder)
   /** New teams wait for an admin. Only approved teams play and appear in standings. */
-  status: 'pending' | 'approved';
+  status: 'pending' | 'approved' | 'withdrawn';
+  /** Set when an admin withdrew the team mid-season. Its scores stop counting everywhere. */
+  withdrawn?: { at: string; week: number; reason: string };
   createdAt: string;
   expiresAt?: string; // pending teams only
   /** The first week this team counts in. Points scale with the number of teams in a week. */
@@ -98,6 +100,17 @@ export interface SForfeit {
 }
 
 /** Something on a line an admin may want a quick heads-up about. */
+/** A sub, in for one partner for one night. Each player can be subbed out once a season. */
+export interface SSub {
+  id: string;
+  teamId: string;
+  week: number;
+  /** Which partner is out: 0 or 1, as in STeam.players. */
+  outPlayer: 0 | 1;
+  subName: string;
+  at: string;
+}
+
 export interface SLineEvent {
   id: string;
   kind: 'started' | 'forfeit';
@@ -215,6 +228,10 @@ export interface SampleState {
   scores: SScore[];
   lines: SLine[];
   forfeits?: SForfeit[];
+  /** Subs confirmed at check-in, all season. */
+  subs?: SSub[];
+  /** Subs a team asked for when it tapped "I'm here", waiting with the check-in request. */
+  pendingSubs?: Record<string, { outPlayer: 0 | 1; subName: string }[]>;
   lineEvents?: SLineEvent[];
   checkIns: Record<string, string>; // teamId -> time, tonight
   /** Teams that tapped "I'm here" and are waiting for an admin to confirm: teamId -> time. */

@@ -78,9 +78,13 @@ export default function StoryCard() {
     },
     {
       title: 'Seven o\'clock: the night opens',
-      body: 'League night opens on its own at 7 PM. In this story you open it.',
+      body: 'Teams can check in from 6:30. In the last 5 minutes, a team that hasn\'t checked in sees a countdown; at 1 minute it also offers a sub. League night opens on its own at 7 PM. In this story you open it.',
       done: (s) => !!openWeek(s),
-      go: [{ label: 'Open week 1', act: () => dispatch(sample.storyOpenNight()) }]
+      go: [
+        { label: 'See 6:55 as my team', role: 'team', to: '/', act: () => dispatch(sample.sampleSetClock('18:55')) },
+        { label: 'Skip to 6:59', act: () => dispatch(sample.sampleSetClock('18:59')) },
+        { label: 'Open week 1', act: () => dispatch(sample.storyOpenNight()) }
+      ]
     },
     {
       title: 'Check in',

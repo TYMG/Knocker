@@ -8,10 +8,13 @@
 //   - league night open: everything;
 //   - league night closed: how the week ended, with the line and submit parts hidden.
 
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link as RouterLink, useSearchParams } from 'react-router';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
 import Card from '@mui/material/Card';
@@ -34,7 +37,7 @@ import { useAppDispatch, useLeague, useMe } from '../hooks';
 import { sample } from '../sample/slice';
 import { showToast } from '../store';
 import { WaitingForApproval } from '../layout/guards';
-import { challenges, lineCount, lineFor, linesView, nightStatus, placeInLine, seasonLine, teamSeason, teamTonight, weekLabel, weekOf } from '../sample/league';
+import { checkInWindow, subProblem, subsUsed, challenges, lineCount, lineFor, linesView, nightStatus, placeInLine, seasonLine, teamSeason, teamTonight, weekLabel, weekOf } from '../sample/league';
 import ChallengeChampionRace from '../ui/ChallengeChampionRace';
 import { ago, clock, clockLabel, longDate, ordinal } from '../sample/time';
 import type { STeam } from '../sample/types';
@@ -156,14 +159,23 @@ function CheckInCard({ teamId }: { teamId: string }) {
   const league = useLeague();
   const dispatch = useAppDispatch();
   const asked = league.checkInRequests?.[teamId];
+  const t = league.teams.find((x) => x.teamId === teamId)!;
+  const used = subsUsed(league, teamId);
+  // Which partner is out tonight (at most one), and the sub's name.
+  const [out, setOut] = useState<0 | 1 | null>(null);
+  const [subName, setSubName] = useState('');
+  const [tried, setTried] = useState(false);
+  const problem = out === null ? undefined : subProblem(league, subName);
+
   if (asked) {
+    const pending = league.pendingSubs?.[teamId]?.[0];
     return (
       <Card sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2, border: 2, borderColor: 'primary.main' }}>
         <TimerOutlinedIcon color="primary" />
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography sx={{ fontWeight: 700 }}>Waiting for the league admin</Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            You tapped "I'm here" at {clock(asked)}. You can play while you wait; your night counts once they confirm.
+            You tapped "I'm here" at {clock(asked)}{pending ? `, with ${pending.subName} in for ${t.players[pending.outPlayer]}` : ''}. You can join lines and play while you wait; your night counts once they confirm.
           </Typography>
         </Box>
         <Button onClick={() => dispatch(sample.cancelCheckInRequest(teamId))} sx={{ flexShrink: 0, minHeight: 44 }}>
@@ -172,22 +184,58 @@ function CheckInCard({ teamId }: { teamId: string }) {
       </Card>
     );
   }
+
+  const send = () => {
+    setTried(true);
+    if (out !== null && problem) return;
+    dispatch(sample.requestCheckIn({ teamId, subs: out === null ? [] : [{ outPlayer: out, subName }] }));
+    dispatch(showToast(out === null ? "Sent. The league admin will confirm you're here." : `Sent, with ${subName.trim()} subbing for ${t.players[out]}. The league admin will confirm.`));
+  };
+
   return (
-    <Card sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2, border: 2, borderColor: 'secondary.main' }}>
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography sx={{ fontWeight: 700 }}>Just got here?</Typography>
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>Let the league admin know, and they will check you in.</Typography>
-      </Box>
-      <Button
-        variant="contained"
-        color="secondary"
-        size="large"
-        onClick={() => {
-          dispatch(sample.requestCheckIn(teamId));
-          dispatch(showToast("Sent. The league admin will confirm you're here."));
-        }}
-        sx={{ flexShrink: 0, minHeight: 48, whiteSpace: 'nowrap' }}
-      >
+    <Card sx={{ p: 2, border: 2, borderColor: 'secondary.main' }}>
+      <Typography sx={{ fontWeight: 700 }}>Just got here? Check in</Typography>
+      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
+        You need to check in before you can join a line or submit a score. Is each of you here tonight?
+      </Typography>
+      <Stack spacing={1.25}>
+        {([0, 1] as const).map((i) => {
+          const name = t.players[i] || `Player ${i + 1}`;
+          const subbed = out === i;
+          const usedSub = used[i];
+          return (
+            <Box key={i}>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <Typography sx={{ fontWeight: 700, flex: 1, minWidth: 0 }} noWrap>{name}</Typography>
+                <ToggleButtonGroup
+                  exclusive
+                  size="small"
+                  value={subbed ? 'sub' : 'here'}
+                  onChange={(_, v) => { if (!v) return; setOut(v === 'sub' ? i : out === i ? null : out); setTried(false); }}
+                  aria-label={`Is ${name} here?`}
+                >
+                  <ToggleButton value="here" sx={{ px: 1.5 }}>Here</ToggleButton>
+                  <ToggleButton value="sub" disabled={!!usedSub || (out !== null && out !== i)} sx={{ px: 1.5 }}>Sub</ToggleButton>
+                </ToggleButtonGroup>
+              </Stack>
+              {usedSub && <Typography variant="body2" sx={{ color: 'text.secondary' }}>{name} used their sub in week {usedSub.week} ({usedSub.subName}).</Typography>}
+              {subbed && (
+                <TextField
+                  fullWidth
+                  size="small"
+                  label={`Sub's name, in for ${name}`}
+                  value={subName}
+                  onChange={(e) => setSubName(e.target.value)}
+                  error={tried && !!problem}
+                  helperText={tried && problem ? problem : `Someone not in the league. This is ${name}'s one sub this season.`}
+                  sx={{ mt: 1 }}
+                />
+              )}
+            </Box>
+          );
+        })}
+      </Stack>
+      <Button variant="contained" color="secondary" size="large" fullWidth onClick={send} sx={{ mt: 1.75, minHeight: 48 }}>
         I'm here
       </Button>
     </Card>
@@ -200,7 +248,8 @@ export default function TeamHome() {
   const night = nightStatus(league);
   const week = night.week;
   const weekLine = `${weekLabel(week.week)}, ${longDate(week.date)}`;
-  const [tab, setTab] = useHomeTab(night.open);
+  // Tonight is the first tab while the night is open, and while check-in is open before it.
+  const [tab, setTab] = useHomeTab(night.open || checkInWindow(league).open);
 
   // 1. A new team that no admin has approved yet.
   if (team.status === 'pending') {
@@ -334,6 +383,8 @@ export default function TeamHome() {
           <HomeTabs tab={tab} onChange={setTab} tonightLabel={weekLabel(week.week)} />
           {tab === 'tonight' && (
           <>
+          {/* Check-in opens a little before the night does. */}
+          {checkInWindow(league).open && !league.checkIns[team.teamId] && <CheckInCard teamId={team.teamId} />}
           <Card sx={{ p: 2 }}>
             <Typography sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
               {weekLabel(week.week)} is closed. Scores open at {clockLabel(league.night.opensAt)} on league night.

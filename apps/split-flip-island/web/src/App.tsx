@@ -22,6 +22,7 @@ import Tv from './pages/Tv';
 import AdminHome from './pages/admin/AdminHome';
 import AdminLines from './pages/admin/AdminLines';
 import RunFinals from './pages/admin/RunFinals';
+import CheckInGate from './layout/CheckInGate';
 import AdminLogIn from './pages/admin/AdminLogin';
 import CheckIn from './pages/admin/CheckIn';
 import EnterScore from './pages/admin/EnterScore';
@@ -96,9 +97,11 @@ export default function App() {
 
           {/* A logged-in team */}
           <Route element={<TeamOnly />}>
-            <Route path="/lines" element={<Lines />} />
-            <Route path="/lines/join/:machineId" element={<LineJoin />} />
-            <Route path="/submit" element={<Submit />} />
+            <Route element={<CheckInGate />}>
+              <Route path="/lines" element={<Lines />} />
+              <Route path="/lines/join/:machineId" element={<LineJoin />} />
+              <Route path="/submit" element={<Submit />} />
+            </Route>
             <Route path="/challenges" element={<Challenges />} />
             <Route path="/love-dr" element={<LoveDrAnalysis />} />
             <Route path="/wrapped" element={<Suspense fallback={null}><Wrapped /></Suspense>} />

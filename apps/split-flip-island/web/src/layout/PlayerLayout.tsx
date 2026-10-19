@@ -38,6 +38,7 @@ import TourDrawer from './TourDrawer';
 import StoryCard from './StoryCard';
 import HowToPlay from './HowToPlay';
 import TurnAlerts from './TurnAlerts';
+import CheckInReminder from './CheckInReminder';
 
 interface NavItem {
   to: string;
@@ -195,6 +196,7 @@ export default function PlayerLayout() {
           </Toolbar>
         </AppBar>
         <MessageBanner />
+        <CheckInReminder />
       </Box>
 
       <Box component="main" sx={{ flexGrow: 1, px: 2, pt: 3, pb: !wide && tabs ? 12 : 6 }}>

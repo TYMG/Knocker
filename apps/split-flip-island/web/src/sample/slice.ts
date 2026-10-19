@@ -6,7 +6,7 @@
 
 import { createSlice, current, type PayloadAction } from '@reduxjs/toolkit';
 import { teamPhoto } from './art';
-import { alreadyChallenged, challengeView, currentWeek, finalsPool, finalsStep, finalsUsed, machine, season, seasonHigh, team, tonightRows, weekOf, type Bracket, type SeasonOption } from './league';
+import { alreadyChallenged, canPlayTonight, challengeView, currentWeek, finalsPool, subProblem, subsUsed, finalsStep, finalsUsed, machine, season, seasonHigh, team, tonightRows, weekOf, type Bracket, type SeasonOption } from './league';
 import { buildSeed, MY_TEAM } from './seed';
 import { buildFreshLeague, HELPERS, helperScore, helperTeam } from './fresh';
 import { addMinutes as plusMinutes, at, clockLabel, longDate, ordinal } from './time';
@@ -171,6 +171,8 @@ const slice = createSlice({
     /** One line at a time: joining one leaves any other. */
     joinLine(s, a: PayloadAction<{ machineId: string; notify: boolean; teamId?: string }>) {
       const teamId = a.payload.teamId ?? s.myTeamId;
+      // Check in first: no lines for a team that has not said it is here.
+      if (!canPlayTonight(current(s), teamId)) return;
       leaveLines(s, teamId);
       const line = lineOf(s, a.payload.machineId);
       line.teamIds.push(teamId);
@@ -306,6 +308,7 @@ const slice = createSlice({
     submitScore(s, a: PayloadAction<{ machineId: string; score: number; photoSource: 'camera' | 'library'; photo?: string }>) {
       const week = currentWeek(s);
       const teamId = s.myTeamId;
+      if (!canPlayTonight(current(s), teamId)) return;
       const { machineId, score, photoSource, photo } = a.payload;
       const { who, what } = names(s, { teamId, machineId });
       const before = tonightRows(current(s)).find((r) => r.team.teamId === teamId)?.rank;
@@ -375,23 +378,67 @@ const slice = createSlice({
     // ---- Running the night ----
 
     /** A team taps "I'm here". It waits on the admin's Check In page until confirmed. */
-    requestCheckIn(s, a: PayloadAction<string | undefined>) {
-      const teamId = a.payload ?? s.myTeamId;
+    /** A team taps "I'm here", saying which partner (if any) has a sub tonight. */
+    requestCheckIn(s, a: PayloadAction<string | { teamId?: string; subs?: { outPlayer: 0 | 1; subName: string }[] } | undefined>) {
+      const p = typeof a.payload === 'object' ? a.payload : { teamId: a.payload };
+      const teamId = p.teamId ?? s.myTeamId;
       if (s.checkIns[teamId]) return;
+      const snap = current(s);
+      const used = subsUsed(snap, teamId);
+      // One sub per player per season, at most one partner out, and never someone in the league.
+      const subs = (p.subs ?? []).filter((x) => !used[x.outPlayer] && !subProblem(snap, x.subName)).slice(0, 1);
       (s.checkInRequests ??= {})[teamId] = s.now;
-      addLog(s, 'league', `${team(s, teamId).teamName} says they are here`);
+      if (subs.length) (s.pendingSubs ??= {})[teamId] = subs.map((x) => ({ outPlayer: x.outPlayer, subName: x.subName.trim() }));
+      else delete s.pendingSubs?.[teamId];
+      addLog(s, 'league', `${team(s, teamId).teamName} says they are here${subs.length ? ' with a sub' : ''}`);
     },
     cancelCheckInRequest(s, a: PayloadAction<string | undefined>) {
-      delete s.checkInRequests?.[a.payload ?? s.myTeamId];
+      const teamId = a.payload ?? s.myTeamId;
+      delete s.checkInRequests?.[teamId];
+      delete s.pendingSubs?.[teamId];
     },
-    /** The admin checks a team in, from a request or by hand at the door. */
+    /** The admin checks a team in, from a request or by hand at the door. A requested sub is used now. */
     checkIn(s, a: PayloadAction<string>) {
-      s.checkIns[a.payload] = s.now;
-      delete s.checkInRequests?.[a.payload];
+      const teamId = a.payload;
+      s.checkIns[teamId] = s.now;
+      delete s.checkInRequests?.[teamId];
+      const week = currentWeek(s).week;
+      for (const x of s.pendingSubs?.[teamId] ?? []) {
+        s.subs = [...(s.subs ?? []), { id: nextId(s, 'u'), teamId, week, outPlayer: x.outPlayer, subName: x.subName, at: s.now }];
+        const out = team(current(s), teamId).players[x.outPlayer];
+        addLog(s, 'league', `${team(current(s), teamId).teamName} play with a sub tonight: ${x.subName} in for ${out}`);
+      }
+      delete s.pendingSubs?.[teamId];
     },
     /** The admin could not find the team: the request goes away and the team can tap again. */
     declineCheckIn(s, a: PayloadAction<string>) {
       delete s.checkInRequests?.[a.payload];
+      delete s.pendingSubs?.[a.payload];
+    },
+    /** Admin: a team leaves mid-season. Its scores stop counting, so every night is worked out again without it. */
+    withdrawTeam(s, a: PayloadAction<{ teamId: string; reason: string }>) {
+      const t = s.teams.find((x) => x.teamId === a.payload.teamId);
+      if (!t || t.status !== 'approved') return;
+      t.status = 'withdrawn';
+      t.withdrawn = { at: s.now, week: currentWeek(s).week, reason: a.payload.reason.trim() };
+      leaveLines(s, t.teamId);
+      delete s.checkIns[t.teamId];
+      delete s.checkInRequests?.[t.teamId];
+      for (const c of s.challenges) if ((c.fromTeamId === t.teamId || c.toTeamId === t.teamId) && (c.status === 'waiting' || c.status === 'live')) c.status = 'passed';
+      addLog(s, 'admin', `Admin withdrew ${t.teamName}. Every night is worked out again without them`, a.payload.reason);
+    },
+    /** Admin: undo a withdrawal made by mistake. */
+    reinstateTeam(s, a: PayloadAction<string>) {
+      const t = s.teams.find((x) => x.teamId === a.payload);
+      if (!t || t.status !== 'withdrawn') return;
+      t.status = 'approved';
+      t.withdrawn = undefined;
+      addLog(s, 'admin', `Admin brought ${t.teamName} back into the league`);
+    },
+    /** Sample only: set the clock, so the check-in countdown can be shown. */
+    sampleSetClock(s, a: PayloadAction<string>) {
+      const week = currentWeek(s);
+      s.now = at(week.date, a.payload);
     },
     undoCheckIn(s, a: PayloadAction<string>) {
       delete s.checkIns[a.payload];

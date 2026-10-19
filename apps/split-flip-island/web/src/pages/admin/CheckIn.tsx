@@ -16,6 +16,7 @@ import { Row, RowCard, RowText } from '../../ui/Rows';
 import Section from '../../ui/Section';
 import TeamAvatar from '../../ui/TeamAvatar';
 import { ADMIN_HOME, NightClosed } from './nightShared';
+import { checkInWindow } from '../../sample/league';
 
 /** First names help the admin match a face to a team at the door. */
 const players = (team: STeam) => team.players.filter(Boolean).join(' and ');
@@ -32,7 +33,8 @@ export default function CheckIn() {
   const waiting = teams.filter((t) => !league.checkIns[t.teamId] && requests[t.teamId]).sort((a, b) => (requests[a.teamId]! < requests[b.teamId]! ? -1 : 1));
   const missing = teams.filter((t) => !league.checkIns[t.teamId] && !requests[t.teamId]).sort((a, b) => a.teamName.localeCompare(b.teamName));
 
-  if (!night.open) {
+  const win = checkInWindow(league);
+  if (!night.open && !win.open) {
     return (
       <Page title="Check in teams" back={ADMIN_HOME}>
         <NightClosed week={night.week.week}>Teams are checked in only while a league night is open.</NightClosed>
@@ -40,7 +42,8 @@ export default function CheckIn() {
     );
   }
 
-  const summary = teams.length === 0 ? 'No teams are in the league this week.' : missing.length === 0 ? `All ${teams.length} teams are here` : `${here.length} of ${teams.length} teams are here`;
+  const tonightSubs = (league.subs ?? []).filter((x) => x.week === night.week.week);
+  const summary = !night.open ? `The night opens in ${win.minutesToOpen} minutes. Teams can check in now.` : teams.length === 0 ? 'No teams are in the league this week.' : missing.length === 0 ? `All ${teams.length} teams are here` : `${here.length} of ${teams.length} teams are here`;
 
   return (
     <Page title="Check in teams" subtitle={summary} back={ADMIN_HOME}>
@@ -51,7 +54,14 @@ export default function CheckIn() {
               {waiting.map((t) => (
                 <Row key={t.teamId} sx={{ py: 1.5 }}>
                   <TeamAvatar team={t} size={44} />
-                  <RowText primary={t.teamName} secondary={`${players(t)}. Tapped "I'm here" at ${clock(requests[t.teamId]!)}`} />
+                  <RowText
+                    primary={t.teamName}
+                    secondary={(() => {
+                      const sub = league.pendingSubs?.[t.teamId]?.[0];
+                      const base = `${players(t)}. Tapped "I'm here" at ${clock(requests[t.teamId]!)}`;
+                      return sub ? `${base}. Sub: ${sub.subName} in for ${t.players[sub.outPlayer]} (their one sub this season)` : base;
+                    })()}
+                  />
                   <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
                     <Button
                       aria-label={`${t.teamName} is not here`}
@@ -118,7 +128,13 @@ export default function CheckIn() {
               {here.map((t) => (
                 <Row key={t.teamId}>
                   <TeamAvatar team={t} />
-                  <RowText primary={t.teamName} secondary={`Checked in at ${clock(league.checkIns[t.teamId]!)}`} />
+                  <RowText
+                    primary={t.teamName}
+                    secondary={(() => {
+                      const sub = tonightSubs.find((x) => x.teamId === t.teamId);
+                      return `Checked in at ${clock(league.checkIns[t.teamId]!)}${sub ? `. Sub: ${sub.subName} in for ${t.players[sub.outPlayer]}` : ''}`;
+                    })()}
+                  />
                   <Button
                     aria-label={`Undo check-in for ${t.teamName}`}
                     onClick={() => {

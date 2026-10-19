@@ -18,7 +18,7 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
 import { useAppDispatch, useLeague } from '../../hooks';
-import { currentWeek, FORFEIT_LIMIT, forfeitCounts, findTeam, machine, scoreCounts, scoreList, seasonLine, teamTonight, weekLabel, weekOf } from '../../sample/league';
+import { currentWeek, FORFEIT_LIMIT, forfeitCounts, subsUsed, findTeam, machine, scoreCounts, scoreList, seasonLine, teamTonight, weekLabel, weekOf } from '../../sample/league';
 import { sample } from '../../sample/slice';
 import { clock, longDate, ordinal } from '../../sample/time';
 import type { SampleState, STeam, SWeek } from '../../sample/types';
@@ -26,6 +26,7 @@ import { showToast } from '../../store';
 import EmptyNote from '../../ui/EmptyNote';
 import Page from '../../ui/Page';
 import TeamAvatar from '../../ui/TeamAvatar';
+import ReasonDialog from '../../ui/ReasonDialog';
 import { ApprovalCard, count, listOf, PhoneLinks, ScoreRow } from './seasonParts';
 
 const BACK = { to: '/admin/teams', label: 'Teams' };
@@ -132,6 +133,8 @@ export default function TeamDetail() {
             </Box>
           )}
           <Forfeits league={league} teamId={team.teamId} />
+          <Subs league={league} teamId={team.teamId} />
+          <Withdraw teamId={team.teamId} />
           {pinWasReset && (
             <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
               Sample: how the team gets its new PIN is not decided yet.
@@ -218,5 +221,50 @@ function Forfeits({ league, teamId }: { league: SampleState; teamId: string }) {
     <Typography variant="body2" sx={{ mt: 1.25, color: over ? 'secondary.main' : 'text.secondary', fontWeight: over ? 700 : 400 }}>
       Forfeited turns: {f.tonight} tonight, {f.season} this season{over ? `. That's ${FORFEIT_LIMIT} or more: the penalty is not decided yet.` : `. ${FORFEIT_LIMIT} in a season brings a penalty.`}
     </Typography>
+  );
+}
+
+/** Each partner can be subbed out once a season. */
+function Subs({ league, teamId }: { league: SampleState; teamId: string }) {
+  const t = league.teams.find((x) => x.teamId === teamId)!;
+  const used = subsUsed(league, teamId);
+  const line = ([0, 1] as const)
+    .map((i) => (used[i] ? `${t.players[i]}: subbed out in week ${used[i]!.week} (${used[i]!.subName})` : `${t.players[i]}: sub not used`))
+    .join(' · ');
+  return <Typography variant="body2" color="textSecondary" sx={{ mt: 0.5 }}>Subs: {line}</Typography>;
+}
+
+/** Take a team out mid-season, or bring it back. Every night is worked out again either way. */
+function Withdraw({ teamId }: { teamId: string }) {
+  const league = useLeague();
+  const dispatch = useAppDispatch();
+  const t = league.teams.find((x) => x.teamId === teamId)!;
+  const [open, setOpen] = useState(false);
+  if (t.status === 'pending') return null;
+  if (t.status === 'withdrawn') {
+    return (
+      <Box sx={{ mt: 1.5, p: 1.5, borderRadius: 2, border: 1, borderColor: 'secondary.main' }}>
+        <Typography sx={{ fontWeight: 700 }}>Withdrawn in week {t.withdrawn?.week}</Typography>
+        <Typography variant="body2" color="textSecondary">{t.withdrawn?.reason ? `${t.withdrawn.reason.replace(/[.!?]$/, '')}.` : 'No reason given.'} Their scores no longer count, so every night is worked out as if they were never in the league.</Typography>
+        <Button onClick={() => { dispatch(sample.reinstateTeam(teamId)); dispatch(showToast(`${t.teamName} is back in the league`)); }} sx={{ mt: 0.5 }}>
+          Bring them back
+        </Button>
+      </Box>
+    );
+  }
+  return (
+    <>
+      <Button color="secondary" variant="outlined" onClick={() => setOpen(true)} sx={{ mt: 1.5, minHeight: 44 }}>
+        Withdraw this team
+      </Button>
+      <ReasonDialog
+        open={open}
+        title={`Withdraw ${t.teamName}?`}
+        body="They leave the league. Every night is worked out again as if they were never here: their scores stop counting and points shift for everyone. Live challenges with them are called off. You can bring them back."
+        confirmLabel="Withdraw"
+        onConfirm={(reason) => { dispatch(sample.withdrawTeam({ teamId, reason })); dispatch(showToast(`${t.teamName} withdrawn. Standings worked out again.`)); setOpen(false); }}
+        onClose={() => setOpen(false)}
+      />
+    </>
   );
 }

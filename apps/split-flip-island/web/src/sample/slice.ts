@@ -46,6 +46,30 @@ const slug = (name: string, taken: string[]) => {
   return idValue;
 };
 
+/** A team at the front of a line has this long to start its game. */
+export const TURN_MS = 5 * 60 * 1000;
+
+/**
+ * Starts the clock for whoever is now at the front of each line. Lines from the seed have no
+ * record yet: their front team is taken to be playing already, so nobody is forfeited on load.
+ */
+function refreshTurns(s: SampleState) {
+  for (const line of s.lines) {
+    const head = line.teamIds[0];
+    // '' means "nobody up", which is different from a seed line that has no record at all.
+    if (!head) { line.upTeamId = ''; line.upAt = undefined; line.started = undefined; continue; }
+    if (line.upTeamId === head) continue;
+    if (line.upTeamId === undefined) {
+      line.upTeamId = head; line.started = true; continue;
+    }
+    line.upTeamId = head; line.upAt = Date.now(); line.started = false; line.turnId = nextId(s, 't');
+  }
+}
+
+function lineEvent(s: SampleState, kind: 'started' | 'forfeit', teamId: string, machineId: string) {
+  s.lineEvents = [{ id: nextId(s, 'e'), kind, teamId, machineId, real: Date.now() }, ...(s.lineEvents ?? [])].slice(0, 20);
+}
+
 function leaveLines(s: SampleState, teamId: string, onlyMachineId?: string) {
   for (const line of s.lines) {
     if (onlyMachineId && line.machineId !== onlyMachineId) continue;
@@ -53,11 +77,12 @@ function leaveLines(s: SampleState, teamId: string, onlyMachineId?: string) {
     line.notify = line.notify.filter((id) => id !== teamId);
     delete line.joinedAt[teamId];
   }
+  refreshTurns(s);
 }
 
 function lineOf(s: SampleState, machineId: string) {
   let line = s.lines.find((l) => l.machineId === machineId);
-  if (!line) s.lines.push((line = { machineId, teamIds: [], joinedAt: {}, notify: [] }));
+  if (!line) s.lines.push((line = { machineId, teamIds: [], joinedAt: {}, notify: [], upTeamId: '' }));
   return line;
 }
 
@@ -131,6 +156,7 @@ const slice = createSlice({
       line.teamIds.push(teamId);
       line.joinedAt[teamId] = s.now;
       if (a.payload.notify) line.notify.push(teamId);
+      refreshTurns(s);
     },
     leaveLine(s, a: PayloadAction<string | undefined>) {
       leaveLines(s, a.payload ?? s.myTeamId);
@@ -140,6 +166,38 @@ const slice = createSlice({
       const line = lineOf(s, a.payload.machineId);
       if (!line.teamIds.includes(a.payload.teamId)) return;
       line.teamIds = [...line.teamIds.filter((id) => id !== a.payload.teamId), a.payload.teamId];
+      refreshTurns(s);
+    },
+    /** The team at the front tapped "We started": the honor system. */
+    startTurn(s, a: PayloadAction<string | undefined>) {
+      const teamId = a.payload ?? s.myTeamId;
+      const line = s.lines.find((l) => l.teamIds[0] === teamId);
+      if (!line || line.started) return;
+      line.started = true;
+      lineEvent(s, 'started', teamId, line.machineId);
+    },
+    /** Out of time (the clock), or an admin's call. The team comes off the line; the next team is up. */
+    forfeitTurn(s, a: PayloadAction<{ machineId: string; teamId: string; by: 'clock' | 'admin' }>) {
+      const { machineId, teamId, by } = a.payload;
+      const line = lineOf(s, machineId);
+      if (line.teamIds[0] !== teamId) return;
+      if (by === 'clock' && (line.started || !line.upAt || Date.now() - line.upAt < TURN_MS)) return;
+      const week = currentWeek(s).week;
+      s.forfeits = [...(s.forfeits ?? []), { id: nextId(s, 'x'), teamId, machineId, week, at: s.now, by }];
+      lineEvent(s, 'forfeit', teamId, machineId);
+      const who = s.teams.find((t) => t.teamId === teamId)?.teamName ?? 'A team';
+      const what = s.machines.find((m) => m.machineId === machineId)?.name ?? 'a machine';
+      addLog(s, by === 'clock' ? 'league' : 'admin', `${who} forfeited their turn on ${what}`, by === 'clock' ? 'Did not start within 5 minutes' : 'Admin call: not at the machine');
+      leaveLines(s, teamId, machineId);
+    },
+    forfeitSeen(s, a: PayloadAction<string>) {
+      const f = s.forfeits?.find((x) => x.id === a.payload);
+      if (f) f.seen = true;
+    },
+    /** Sample only: wind the turn clock forward so the demo does not have to wait. */
+    sampleSkipTurnClock(s, a: PayloadAction<{ machineId: string; ms: number }>) {
+      const line = lineOf(s, a.payload.machineId);
+      if (line.upAt) line.upAt -= a.payload.ms;
     },
     lineRemove(s, a: PayloadAction<{ machineId: string; teamId: string }>) {
       leaveLines(s, a.payload.teamId, a.payload.machineId);
@@ -287,6 +345,7 @@ const slice = createSlice({
         line.notify = [];
         line.joinedAt = {};
       }
+      refreshTurns(s);
       week.state = 'final';
       s.checkInRequests = {};
       for (const line of settledNow) addLog(s, 'league', line);
@@ -338,6 +397,7 @@ const slice = createSlice({
         line.teamIds = [];
         line.notify = [];
         line.joinedAt = {};
+        refreshTurns(s);
         addLog(s, 'admin', `Admin took ${name} out for the night`, reason);
       } else if (week.out[machineId]) {
         delete week.out[machineId];

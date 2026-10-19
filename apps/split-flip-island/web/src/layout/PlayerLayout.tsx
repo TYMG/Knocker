@@ -37,6 +37,7 @@ import ThemeToggle from './ThemeToggle';
 import TourDrawer from './TourDrawer';
 import StoryCard from './StoryCard';
 import HowToPlay from './HowToPlay';
+import TurnAlerts from './TurnAlerts';
 
 interface NavItem {
   to: string;
@@ -217,6 +218,7 @@ export default function PlayerLayout() {
       <TourDrawer />
       <StoryCard />
       <HowToPlay />
+      <TurnAlerts />
     </Box>
   );
 }

@@ -18,7 +18,7 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
 import { useAppDispatch, useLeague } from '../../hooks';
-import { currentWeek, findTeam, machine, scoreCounts, scoreList, seasonLine, teamTonight, weekLabel, weekOf } from '../../sample/league';
+import { currentWeek, FORFEIT_LIMIT, forfeitCounts, findTeam, machine, scoreCounts, scoreList, seasonLine, teamTonight, weekLabel, weekOf } from '../../sample/league';
 import { sample } from '../../sample/slice';
 import { clock, longDate, ordinal } from '../../sample/time';
 import type { SampleState, STeam, SWeek } from '../../sample/types';
@@ -131,6 +131,7 @@ export default function TeamDetail() {
               <PhoneLinks team={team} />
             </Box>
           )}
+          <Forfeits league={league} teamId={team.teamId} />
           {pinWasReset && (
             <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
               Sample: how the team gets its new PIN is not decided yet.
@@ -206,5 +207,16 @@ export default function TeamDetail() {
         </DialogActions>
       </Dialog>
     </Page>
+  );
+}
+
+/** Turns this team forfeited, tonight and this season. Three in a season brings a penalty (not decided yet). */
+function Forfeits({ league, teamId }: { league: SampleState; teamId: string }) {
+  const f = forfeitCounts(league, teamId);
+  const over = f.season >= FORFEIT_LIMIT;
+  return (
+    <Typography variant="body2" sx={{ mt: 1.25, color: over ? 'secondary.main' : 'text.secondary', fontWeight: over ? 700 : 400 }}>
+      Forfeited turns: {f.tonight} tonight, {f.season} this season{over ? `. That's ${FORFEIT_LIMIT} or more: the penalty is not decided yet.` : `. ${FORFEIT_LIMIT} in a season brings a penalty.`}
+    </Typography>
   );
 }

@@ -23,6 +23,7 @@ import Tag from '../ui/Tag';
 import { capital, Fact, Facts, smallLabel, teamsBeforeYou } from './lineWords';
 import { useTopOfPage } from './useTopOfPage';
 import { Slide } from '../ui/motion';
+import { mmss, turnLeft, useNow } from '../ui/turnClock';
 import { HELP_TABS, openHelp } from '../layout/HowToPlay';
 import { LINES_SHORT } from '../layout/howToPlayText';
 
@@ -44,10 +45,14 @@ function HowLinesWork() {
 /** The highlighted card at the top when the team is in a line. */
 function MyLineCard({ mine }: { mine: MyLine }) {
   const name = mine.machine.name;
+  const dispatch = useAppDispatch();
+  const waitingToStart = mine.position === 1 && !mine.started && !!mine.upAt;
+  const now = useNow(waitingToStart);
   const title =
     mine.position === 1 ? `It is your turn on ${name}` : mine.position === 2 ? `You are next on ${name}` : `You are ${ordinal(mine.position)} in line for ${name}`;
   let detail: string;
-  if (mine.position === 1) detail = 'Start your game within 5 minutes or you forfeit your turn. Play one game, then submit your score. Submitting takes you out of this line.';
+  if (mine.position === 1 && waitingToStart) detail = `${mmss(turnLeft(mine.upAt, now))} left to start your game, or you forfeit your turn. Tap "We started" once your first ball is in play.`;
+  else if (mine.position === 1) detail = 'You started. Play one game, then submit your score. Submitting takes you out of this line.';
   else if (mine.position === 2) detail = `${mine.ahead[0]?.teamName ?? 'One team'} is playing. Head over now: once they finish, you have 5 minutes to start.`;
   // Teams choose on the sign-up form whether to get a message, so say which one applies.
   else detail = `${teamsBeforeYou(mine.ahead.length)} ${mine.notify ? 'We tell you when you are next.' : 'You asked not to get a message, so keep an eye on this page.'}`;
@@ -59,6 +64,11 @@ function MyLineCard({ mine }: { mine: MyLine }) {
         {title}
       </Typography>
       <Typography sx={{ color: 'text.secondary' }}>{detail}</Typography>
+      {waitingToStart && (
+        <Button variant="contained" onClick={() => dispatch(sample.startTurn())} sx={{ mt: 1.25, minHeight: 44 }}>
+          We started
+        </Button>
+      )}
       {mine.position === 1 && (
         <Button component={RouterLink} to={`/submit?machine=${mine.machine.machineId}`} variant="contained" color="secondary" size="large" fullWidth sx={{ mt: 1.5 }}>
           Submit a score on {name}

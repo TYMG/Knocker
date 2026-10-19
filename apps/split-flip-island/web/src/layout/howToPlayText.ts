@@ -125,7 +125,9 @@ export const LINES: HelpSection[] = [
   {
     title: "When it's your turn",
     lines: [
-      { lead: 'You have 5 minutes to start your game.', text: "The clock starts when the machine is free. Don't start within 5 minutes and you forfeit your turn: you're off the line, and the next team goes. Want to play? Sign up again at the back." },
+      { lead: 'You have 5 minutes to start your game.', text: 'The app shows a countdown when your turn comes up. Once your first ball is in play, tap "We started". It\'s the honor system, and the admins can see who is on each machine.' },
+      { lead: 'No tap within 5 minutes?', text: "You forfeit your turn: you're off the line, and the next team goes. Want to play? Sign up again at the back." },
+      { lead: 'Forfeits add up.', text: 'They are counted for the night and the season. 3 in a season brings a penalty.' },
       { text: "This keeps anyone from holding a machine to stall a night out." },
       { text: 'Play one game. Take the photo, have your partner double-check, and submit. Submitting your score takes you out of that line.' }
     ]
@@ -143,6 +145,6 @@ export const LINES: HelpSection[] = [
 export const LINES_SHORT: string[] = [
   'Pick a machine and sign up. You can be in one line at a time.',
   "Wait for your turn. This page shows your place, and we can message you when you're next.",
-  "When it's your turn, start within 5 minutes or you forfeit your spot. Play one game, then submit your score.",
+  'When it\'s your turn, start within 5 minutes and tap "We started", or you forfeit your spot. Play one game, then submit your score.',
   'Want another go? Sign up again at the back of the line.'
 ];

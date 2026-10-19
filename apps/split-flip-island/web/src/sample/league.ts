@@ -485,6 +485,10 @@ export interface MyLine {
   joinedAt: string;
   ahead: STeam[];
   notify: boolean;
+  /** For the front team: when the 5 minutes to start began (real ms), and whether they started. */
+  upAt?: number;
+  started: boolean;
+  turnId?: string;
 }
 
 /** The line a team is in, if any. A team can be in one line at a time. */
@@ -497,7 +501,10 @@ export function lineFor(s: SampleState, teamId = s.myTeamId): MyLine | undefined
       position: index + 1,
       joinedAt: line.joinedAt[teamId] ?? s.now,
       ahead: line.teamIds.slice(0, index).map((id) => team(s, id)),
-      notify: line.notify.includes(teamId)
+      notify: line.notify.includes(teamId),
+      upAt: index === 0 ? line.upAt : undefined,
+      started: index === 0 ? line.started !== false : false,
+      turnId: index === 0 ? line.turnId : undefined
     };
   }
   return undefined;
@@ -700,3 +707,13 @@ export function maxStake(s: SampleState, teamId = s.myTeamId): number {
 export function alreadyChallenged(s: SampleState, a: string, b: string, week = currentWeek(s).week): boolean {
   return s.challenges.some((c) => c.week === week && ((c.fromTeamId === a && c.toTeamId === b) || (c.fromTeamId === b && c.toTeamId === a)));
 }
+
+/** How many turns a team has forfeited: tonight (the current week) and all season. */
+export function forfeitCounts(s: SampleState, teamId: string): { tonight: number; season: number } {
+  const all = (s.forfeits ?? []).filter((f) => f.teamId === teamId);
+  const week = currentWeek(s).week;
+  return { tonight: all.filter((f) => f.week === week).length, season: all.length };
+}
+
+/** The forfeit count that brings a penalty (what the penalty is has not been decided). */
+export const FORFEIT_LIMIT = 3;

@@ -112,6 +112,10 @@ the app.
 | Night results | `LEAGUE#<leagueId>` | `RESULT#<date>` |
 | Audit entry | `AUDIT#<leagueId>` | `<timestamp>#<id>` |
 | Admin account | `ADMIN#<leagueId>` | `ADMIN#<lowercased name>` |
+| Check-in request | `NIGHT#<leagueId>#<date>` | `CHECKIN#<teamId>` |
+| Machine line | `NIGHT#<leagueId>#<date>` | `LINE#<machineId>` |
+| Forfeited turn | `LEAGUE#<leagueId>` | `FORFEIT#<teamId>#<timestamp>` |
+| Final (championship / second chance) | `LEAGUE#<leagueId>` | `FINAL#<bracket>` |
 
 Indexes (login uses the team name claim item, which also guarantees unique names):
 - **GSI1 (by team):** all of a team's scores across the season, sorted by night
@@ -125,6 +129,16 @@ Phone numbers and the PIN hash live **only** in the `#PRIVATE` item and are neve
 any public endpoint. Admin endpoints return phone numbers so organizers can reach a team.
 
 Team record fields include `status` (`pending` | `approved`) and, while pending, `expiresAt`.
+
+Line record fields: ordered team IDs, who asked to be messaged, and for the team at the front:
+`upTeamId`, `upAt` (when its 5 minutes began), `started` (tapped "We started"), `turnId`.
+Forfeit fields: team, machine, week, time, `by` (`clock` | `admin`).
+Final fields: seeded team IDs, `locked`, `winnerId`, and per game: machine, picks (in seed
+order: `machine` or a play spot 1–4), play order, scores, places.
+
+The sample app (`apps/split-flip-island/web/src/sample/`) already implements every rule below
+in the browser: `slice.ts` (actions), `league.ts` (derived views), `types.ts` (the shapes). Use
+them as the reference when building the API.
 
 ## Access control (private demo)
 
@@ -171,6 +185,49 @@ and every admin request re-reads the account, so removal or a password reset is 
     to 1; tied teams share the higher points)
 - Grind and team stats (attempts, average, consistency, grind gain) **never affect standings**.
 
+### At the machine (shown in the app's ? help)
+- Two players, one machine: one takes the left flipper, the other the right. **One hand each**;
+  the other hand never touches the machine. Nudge only with your playing hand.
+- Anyone can press start. Only the player on the plunger side plunges.
+- Players may **switch sides between balls**, never in the middle of a ball.
+- A game is 3 balls plus **at most 1 extra ball**. Any further extra ball: set up the shot,
+  plunge it, and step away.
+- After the game: photo of the score, partner double-checks, then submit.
+
+### Check-in
+- A team taps **I'm here**; an admin **confirms** (or declines) it. Admins can also check a
+  team in directly. Requests are cleared when the night closes.
+
+### Lines and turns
+- A team is in **one line at a time**. Signing up for another machine leaves the old line.
+- Submitting a score on a machine takes the team out of that line.
+- When a team reaches the front, it has **5 minutes to start** and taps **We started**
+  (honor system). No tap in 5 minutes: the turn is **forfeited** automatically, the team is
+  removed from the line, and the next team's clock starts. An admin can also forfeit a team.
+- Forfeits are logged and counted **per night and per season**. **3 in a season brings a
+  penalty** (not decided yet; the app flags the team to admins).
+- Admins get a quiet, mutable note when a team starts or forfeits a turn.
+
+### Challenges and bonuses
+- A challenge wagers season points a team already has, **10 at most**; the better score on that
+  machine when the night closes wins the loser's points. One challenge per pair per night.
+- **Season high:** +10 to the team holding the season's highest score on each machine.
+- **Challenge Champion:** +10 to the team with the most challenge wins. Level on wins → most
+  points won; still level → each gets the 10.
+
+### Finals (week 9), run by one admin
+- **Championship:** top 4 of the season standings. **Second-chance final:** 5th to 8th.
+- 3 games. Each team plays its **own game** on the machine (3 balls, 1 extra ball at most);
+  the **admin enters every score**.
+- **Game 1:** the 1st seed picks the machine; play goes in seed order.
+- **Games 2 and 3:** in seed order, each team picks **either the machine or a spot in the play
+  order**. One machine pick per game; the last team gets what is left (if nobody has picked the
+  machine, the last team must).
+- **No machine is played twice in a final.** The pool is every machine played this season,
+  minus any out of order on finals night.
+- Each game: 1st = 4 points, 2nd = 3, 3rd = 2, 4th = 1 (equal scores share the better place).
+  Most points after 3 games wins; a tie at the top is settled by a **one-ball playoff**.
+
 ## Photos
 
 - Phone resizes the image before upload (~200–300 KB) and makes a thumbnail; strip EXIF/GPS.
@@ -206,3 +263,8 @@ Summarize every plan and wait for a yes before the matching apply.
 - How teams get their PIN (choose at sign-up, shown on screen, or texted)
 - Season scoring option (1 or 2)
 - Lyman's machine lineup
+- The penalty for 3 forfeited turns in a season
+- What a team gets for a night it misses (the app gives 0)
+- Whether finals scores need a photo (the admin page has none yet)
+- A tie at the line for the finals (4th/5th, 8th/9th): the rules say a one-game split-flip
+  playoff, but the app does not run it yet

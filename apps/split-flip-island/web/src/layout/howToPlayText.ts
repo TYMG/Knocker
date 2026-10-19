@@ -95,3 +95,54 @@ export const SCORING_AFTER: HelpSection[] = [
     ]
   }
 ];
+
+// ---- Lines ----
+
+export const LINES: HelpSection[] = [
+  {
+    title: 'Why lines',
+    lines: [
+      { text: "Lines keep the machines fair. Nobody hogs a game, and you don't have to stand around guarding a spot. Sign up in the app, then go do something else until it's your turn." }
+    ]
+  },
+  {
+    title: 'Signing up',
+    lines: [
+      { text: 'Lines open when the night opens. Go to Lines and pick a machine.' },
+      { text: "Choose whether you want a message on your phone when you're next. Either way, the Lines page always shows your place." },
+      { lead: 'One line at a time.', text: 'Signing up for a different machine takes you out of the line you were in, and you start at the back of the new one.' },
+      { text: 'A machine that is down for the night has no line.' }
+    ]
+  },
+  {
+    title: 'Waiting your turn',
+    lines: [
+      { text: "The Lines page shows who is playing and how many teams are ahead of you." },
+      { lead: "You're next:", text: 'head over to the machine so you are ready when the team playing finishes.' },
+      { text: 'Changed your mind? Leave the line anytime.' }
+    ]
+  },
+  {
+    title: "When it's your turn",
+    lines: [
+      { text: 'Walk up and play one game.' },
+      { text: 'Take the photo, have your partner double-check, and submit. Submitting your score takes you out of that line.' },
+      { lead: 'Not there when your turn comes?', text: 'The admin can move you to the back of the line, or take you off it.' }
+    ]
+  },
+  {
+    title: 'Playing again',
+    lines: [
+      { text: 'Want another go on the same machine? Sign up again. You join at the back, behind anyone already waiting.' },
+      { text: 'If nobody is waiting, sign up and play right away.' }
+    ]
+  }
+];
+
+/** The short version shown on the Lines page itself. */
+export const LINES_SHORT: string[] = [
+  'Pick a machine and sign up. You can be in one line at a time.',
+  "Wait for your turn. This page shows your place, and we can message you when you're next.",
+  'Play one game, then submit your score. That takes you out of the line.',
+  'Want another go? Sign up again at the back of the line.'
+];

@@ -23,6 +23,23 @@ import Tag from '../ui/Tag';
 import { capital, Fact, Facts, smallLabel, teamsBeforeYou } from './lineWords';
 import { useTopOfPage } from './useTopOfPage';
 import { Slide } from '../ui/motion';
+import { HELP_TABS, openHelp } from '../layout/HowToPlay';
+import { LINES_SHORT } from '../layout/howToPlayText';
+
+/** The short how-to under the status card. The full version is the Lines tab of the ? modal. */
+function HowLinesWork() {
+  return (
+    <Card sx={{ p: 2 }}>
+      <Typography variant="h4" component="h2" sx={{ mb: 1 }}>How lines work</Typography>
+      <Box component="ol" sx={{ m: 0, pl: 2.75, display: 'grid', gap: 0.75, color: 'text.secondary', '& li::marker': { color: 'primary.main', fontWeight: 700 } }}>
+        {LINES_SHORT.map((t) => <li key={t}>{t}</li>)}
+      </Box>
+      <Link component="button" type="button" onClick={() => openHelp(HELP_TABS.lines)} sx={{ mt: 1.25, fontWeight: 700 }}>
+        More about lines
+      </Link>
+    </Card>
+  );
+}
 
 /** The highlighted card at the top when the team is in a line. */
 function MyLineCard({ mine }: { mine: MyLine }) {
@@ -168,7 +185,7 @@ export default function Lines() {
   return (
     <Page
       title="Lines"
-      subtitle={mine ? 'You are signed up. Play one game when it is your turn, then sign up again if others are waiting.' : 'Sign up for a machine before you play it.'}
+      subtitle={mine ? 'You are signed up. When it is your turn, play one game and submit it. Want another go? Sign up again at the back of the line.' : 'Sign up for a machine before you play it. One line at a time, one game per turn.'}
     >
       <Stack spacing={1.5}>
         {mine ? (
@@ -181,6 +198,7 @@ export default function Lines() {
             <Typography sx={{ color: 'text.secondary' }}>Pick a machine below to sign up. One line at a time.</Typography>
           </Card>
         )}
+        <HowLinesWork />
         {lines.length === 0 && <EmptyNote>No machines are picked for tonight yet.</EmptyNote>}
         {lines.map((line) => (
           <Slide key={line.machine.machineId}>

@@ -17,7 +17,13 @@ import CloseIcon from '@mui/icons-material/Close';
 import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
 import { useCalm, useMe } from '../hooks';
 import { colors } from '../theme';
-import { EXAMPLE, PLAY, SCORING, SCORING_AFTER, SEASON, type HelpSection } from './howToPlayText';
+import { EXAMPLE, LINES, PLAY, SCORING, SCORING_AFTER, SEASON, type HelpSection } from './howToPlayText';
+
+/** Open the modal on a tab from anywhere: 0 How to play, 1 Lines, 2 Scoring. */
+export const HELP_TABS = { play: 0, lines: 1, scoring: 2 } as const;
+export function openHelp(tab: number = 0) {
+  window.dispatchEvent(new CustomEvent('sfi-help', { detail: tab }));
+}
 
 const SEEN = 'sfi-help-seen';
 const seen = () => { try { return localStorage.getItem(SEEN) === '1'; } catch { return true; } };
@@ -29,8 +35,15 @@ export default function HowToPlay() {
   const wide = useMediaQuery(theme.breakpoints.up('md'));
   const me = useMe();
   const calm = useCalm();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<number | null>(null);
   const [pulse, setPulse] = useState(() => !seen());
+
+  // Other pages can open it on a given tab (the Lines page links to the Lines tab).
+  useEffect(() => {
+    const on = (e: Event) => { setOpen((e as CustomEvent<number>).detail ?? 0); setPulse(false); markSeen(); };
+    window.addEventListener('sfi-help', on);
+    return () => window.removeEventListener('sfi-help', on);
+  }, []);
 
   // Not on the admin pages, and Wrapped covers the whole screen anyway.
   if (pathname.startsWith('/admin') || pathname === '/wrapped') return null;
@@ -41,8 +54,8 @@ export default function HowToPlay() {
   return (
     <>
       <Fab
-        aria-label="How to play and scoring"
-        onClick={() => { setOpen(true); setPulse(false); markSeen(); }}
+        aria-label="How to play, lines and scoring"
+        onClick={() => { setOpen(0); setPulse(false); markSeen(); }}
         size="medium"
         sx={{
           position: 'fixed', right: 16, bottom, zIndex: 1250,
@@ -59,13 +72,13 @@ export default function HowToPlay() {
       >
         <QuestionMarkIcon />
       </Fab>
-      {open && <HelpModal onClose={() => setOpen(false)} calm={calm} />}
+      {open !== null && <HelpModal start={open} onClose={() => setOpen(null)} calm={calm} />}
     </>
   );
 }
 
-function HelpModal({ onClose, calm }: { onClose: () => void; calm: boolean }) {
-  const [tab, setTab] = useState(0);
+function HelpModal({ start, onClose, calm }: { start: number; onClose: () => void; calm: boolean }) {
+  const [tab, setTab] = useState(start);
   const scroller = useRef<HTMLDivElement>(null);
 
   // Parallax: the scroll position goes into a CSS variable, and each layer moves by its own share.
@@ -100,8 +113,9 @@ function HelpModal({ onClose, calm }: { onClose: () => void; calm: boolean }) {
       {/* Top: the tabs and the only way out */}
       <Box sx={{ display: 'flex', alignItems: 'center', borderBottom: 1, borderColor: 'rgba(255,255,153,0.15)', pl: 1, pr: 0.5, flexShrink: 0 }}>
         <Tabs value={tab} onChange={(_, v: number) => setTab(v)} aria-label="Help sections" textColor="inherit" sx={{ flex: 1, minHeight: 52, '& .MuiTabs-indicator': { bgcolor: colors.lime, height: 3 } }}>
-          <Tab label="How to play" sx={{ fontWeight: 700, minHeight: 52 }} />
-          <Tab label="Scoring" sx={{ fontWeight: 700, minHeight: 52 }} />
+          <Tab label="How to play" sx={{ fontWeight: 700, minHeight: 52, minWidth: 0, px: { xs: 1.25, sm: 2 } }} />
+          <Tab label="Lines" sx={{ fontWeight: 700, minHeight: 52, minWidth: 0, px: { xs: 1.25, sm: 2 } }} />
+          <Tab label="Scoring" sx={{ fontWeight: 700, minHeight: 52, minWidth: 0, px: { xs: 1.25, sm: 2 } }} />
         </Tabs>
         <IconButton aria-label="Close" onClick={onClose} sx={{ color: colors.paleYellow }}>
           <CloseIcon />
@@ -121,9 +135,9 @@ function HelpModal({ onClose, calm }: { onClose: () => void; calm: boolean }) {
         }}
       >
         <Balls calm={calm} />
-        <Header calm={calm} title={tab === 0 ? 'How to play Split Flipper' : 'How scoring works'} />
+        <Header calm={calm} title={['How to play Split Flipper', 'How lines work', 'How scoring works'][tab]!} />
         <Box sx={{ position: 'relative', zIndex: 1, px: { xs: 2.5, sm: 4 }, pb: 5 }}>
-          {tab === 0 ? <Sections list={PLAY} /> : <ScoringTab />}
+          {tab === 0 ? <Sections list={PLAY} /> : tab === 1 ? <Sections list={LINES} /> : <ScoringTab />}
         </Box>
       </Box>
     </Dialog>

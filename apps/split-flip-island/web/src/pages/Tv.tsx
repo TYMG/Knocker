@@ -13,7 +13,7 @@
 //      looks the same at 1600 x 900 and 1920 x 1080. Below 900 px wide the three columns stack
 //      and the page scrolls like any other.
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link as RouterLink } from 'react-router';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
@@ -26,6 +26,8 @@ import { colors } from '../theme';
 import CodeBox from '../ui/CodeBox';
 import MovingList from '../ui/MovingList';
 import ScoreDisplay from '../ui/ScoreDisplay';
+import RollingNumber from '../ui/RollingNumber';
+import PinballBackground from '../ui/PinballBackground';
 
 /** Seconds each machine's board stays up. */
 const ROTATE_SECONDS = 15;
@@ -55,6 +57,14 @@ export default function Tv() {
     const id = window.setInterval(() => setTick((t) => t + 1), 1000);
     return () => window.clearInterval(id);
   }, []);
+  // The countdown. The league's own clock says how long is left; the seconds tick down from
+  // there on this screen, starting over whenever the league's clock moves.
+  const mark = useRef({ now: league.now, tick });
+  if (mark.current.now !== league.now) mark.current = { now: league.now, tick };
+  const left = Math.max(0, Math.round((new Date(night.closesAt).getTime() - new Date(league.now).getTime()) / 1000) - (tick - mark.current.tick));
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const countdown = left >= 3600 ? `${Math.floor(left / 3600)}:${pad(Math.floor((left % 3600) / 60))}:${pad(left % 60)}` : `${pad(Math.floor(left / 60))}:${pad(left % 60)}`;
+  const hurry = left <= 300;
   const boardIndex = counted.length ? Math.floor(tick / ROTATE_SECONDS) % counted.length : 0;
   const secondsLeft = ROTATE_SECONDS - (tick % ROTATE_SECONDS);
 
@@ -70,6 +80,8 @@ export default function Tv() {
         p: `${u(2)} ${u(2.4)}`,
         bgcolor: colors.black,
         color: colors.paleYellow,
+        position: 'relative',
+        isolation: 'isolate',
         lineHeight: 1.2,
         [theme.breakpoints.up('md')]: {
           '--u': `min(calc((100dvh - ${SAMPLE_BAR_HEIGHT}px) / 100), calc(100vw / 178))`,
@@ -79,6 +91,8 @@ export default function Tv() {
         }
       })}
     >
+      {/* 5.3: livelier pinballs behind the panels */}
+      <PinballBackground lively fixed={false} />
       {/* Name, week and the clock */}
       <Box component="header" sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { md: 'center' }, justifyContent: 'space-between', gap: u(1.5), flexShrink: 0 }}>
         <Box sx={{ minWidth: 0 }}>
@@ -91,8 +105,11 @@ export default function Tv() {
         </Box>
         {night.open ? (
           <Box sx={{ display: 'flex', alignItems: 'baseline', gap: u(1.6), flexShrink: 0 }}>
-            <Box sx={{ fontFamily: display, fontSize: u(8.4), lineHeight: 1, color: colors.paleYellow, fontVariantNumeric: 'tabular-nums' }}>{night.minutesLeft}:00</Box>
-            <Box sx={{ fontSize: u(3), fontWeight: 700, color: colors.sand }}>left tonight</Box>
+            {/* Coral for the last five minutes. */}
+            <Box role="timer" aria-label={`${Math.ceil(left / 60)} minutes left tonight`} data-testid="tv-countdown" sx={{ fontFamily: display, fontSize: u(8.4), lineHeight: 1, color: hurry ? colors.coral : colors.paleYellow, fontVariantNumeric: 'tabular-nums' }}>
+              {left > 0 ? countdown : "Time's up"}
+            </Box>
+            {left > 0 && <Box sx={{ fontSize: u(3), fontWeight: 700, color: colors.sand }}>left tonight</Box>}
           </Box>
         ) : (
           <Box sx={{ fontFamily: display, fontSize: { xs: u(4.4), md: u(6) }, lineHeight: 1, flexShrink: 0 }}>{label} is final</Box>

@@ -20,6 +20,7 @@ import ScorePhoto from '../ui/ScorePhoto';
 import Section from '../ui/Section';
 import Tag from '../ui/Tag';
 import TeamAvatar from '../ui/TeamAvatar';
+import { DrCouple } from './DrParts';
 import { smallLabel } from './lineWords';
 import { useTopOfPage } from './useTopOfPage';
 
@@ -136,6 +137,7 @@ export default function TeamPage() {
             />
             <Tile label="Machine wins" value={String(stats.machineWins)} />
           </Box>
+          <DrCouple teamId={team.teamId} />
         </Stack>
 
         <Section title="Badges">

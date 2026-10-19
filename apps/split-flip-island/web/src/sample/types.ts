@@ -75,6 +75,36 @@ export interface SLine {
   joinedAt: Record<string, string>;
   /** Teams that asked to be told when they are next. */
   notify: string[];
+  /** The team whose turn it is (teamIds[0]) when the turn began. */
+  upTeamId?: string;
+  /** When that team's turn began, in real time (ms). They have 5 minutes to start. */
+  upAt?: number;
+  /** The team tapped "We started". */
+  started?: boolean;
+  /** Names this turn, so "Hide for now" stays hidden for it and no other. */
+  turnId?: string;
+}
+
+/** A team that did not start its turn in time, or was forfeited by an admin. */
+export interface SForfeit {
+  id: string;
+  teamId: string;
+  machineId: string;
+  week: number;
+  at: string;
+  by: 'clock' | 'admin';
+  /** The team has seen the "turn forfeited" alert. */
+  seen?: boolean;
+}
+
+/** Something on a line an admin may want a quick heads-up about. */
+export interface SLineEvent {
+  id: string;
+  kind: 'started' | 'forfeit';
+  teamId: string;
+  machineId: string;
+  /** Real time (ms), so an admin's screen only shows ones that happened while it was open. */
+  real: number;
 }
 
 export interface SMessage {
@@ -165,7 +195,11 @@ export interface SampleState {
   skippedDates: string[];
   scores: SScore[];
   lines: SLine[];
+  forfeits?: SForfeit[];
+  lineEvents?: SLineEvent[];
   checkIns: Record<string, string>; // teamId -> time, tonight
+  /** Teams that tapped "I'm here" and are waiting for an admin to confirm: teamId -> time. */
+  checkInRequests?: Record<string, string>;
   message: SMessage | null;
   challenges: SChallenge[];
   log: SLogEntry[];
@@ -175,4 +209,6 @@ export interface SampleState {
   finals: { championship: SFinal; secondChance: SFinal };
   /** Counter for new ids. */
   seq: number;
+  /** Set while the guided "new league" story is running: which step it is on. */
+  story?: { step: number };
 }

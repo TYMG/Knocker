@@ -18,11 +18,14 @@ import Page from '../../ui/Page';
 import Tag from '../../ui/Tag';
 import TeamAvatar from '../../ui/TeamAvatar';
 import { ADMIN_HOME, NightClosed } from './nightShared';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Switch from '@mui/material/Switch';
+import { mmss, setBlipsMuted, turnLeft, useBlipsMuted, useNow } from '../../ui/turnClock';
 
 const TITLE = 'Machine lines';
 
 /** PLAYING, NEXT, 3RD, 4TH... (the Tag makes it capitals) */
-const place = (index: number) => (index === 0 ? 'Playing' : index === 1 ? 'Next' : ordinal(index + 1));
+const place = (index: number) => (index === 0 ? 'Up now' : index === 1 ? 'Next' : ordinal(index + 1));
 
 export default function AdminLines() {
   const league = useLeague();
@@ -38,7 +41,8 @@ export default function AdminLines() {
   }
 
   return (
-    <Page title={TITLE} subtitle="Send a team to the back if they are not at the machine, or take them off the line." back={ADMIN_HOME}>
+    <Page title={TITLE} subtitle="Who is on each machine. A team has 5 minutes to start once it is their turn; the app forfeits them after that." back={ADMIN_HOME}>
+      <BlipSwitch />
       {lines.length === 0 ? (
         <EmptyNote>No machines are picked for tonight.</EmptyNote>
       ) : (
@@ -52,6 +56,52 @@ export default function AdminLines() {
         </Stack>
       )}
     </Page>
+  );
+}
+
+/** The quick "started on" notes, on or off for this device. */
+function BlipSwitch() {
+  const muted = useBlipsMuted();
+  return (
+    <FormControlLabel
+      control={<Switch checked={!muted} onChange={(e) => setBlipsMuted(!e.target.checked)} />}
+      label="Quick note when a team starts or forfeits a turn"
+      sx={{ mb: 1.5 }}
+    />
+  );
+}
+
+/** The front team's turn: started, or the time left to start (with Forfeit, and a sample-only skip). */
+function TurnStatus({ machineId, teamName, teamId }: { machineId: string; teamName: string; teamId: string }) {
+  const league = useLeague();
+  const dispatch = useAppDispatch();
+  const raw = league.lines.find((l) => l.machineId === machineId);
+  const waiting = !!raw && raw.started === false && !!raw.upAt;
+  const now = useNow(waiting);
+  if (!waiting) return <Typography variant="body2" color="textSecondary">Started their game</Typography>;
+  const left = turnLeft(raw.upAt, now);
+  return (
+    <Box>
+      <Typography variant="body2" sx={{ fontWeight: 700, color: left < 60_000 ? 'secondary.main' : 'text.secondary' }}>
+        {mmss(left)} to start
+      </Typography>
+      <Stack direction="row" spacing={1} sx={{ mt: 0.75, flexWrap: 'wrap', rowGap: 1 }}>
+        <Button
+          size="small"
+          variant="outlined"
+          color="secondary"
+          onClick={() => {
+            dispatch(sample.forfeitTurn({ machineId, teamId, by: 'admin' }));
+            dispatch(showToast(`${teamName} forfeited their turn`));
+          }}
+        >
+          Forfeit now
+        </Button>
+        <Button size="small" onClick={() => dispatch(sample.sampleSkipTurnClock({ machineId, ms: 60_000 }))}>
+          Sample: skip 1 minute
+        </Button>
+      </Stack>
+    </Box>
   );
 }
 
@@ -91,6 +141,7 @@ function LineCard({ line }: { line: LineView }) {
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
             <Tag tone={i === 0 ? 'live' : i === 1 ? 'good' : 'plain'}>{place(i)}</Tag>
             <Typography sx={{ fontWeight: 700, mt: 0.25 }}>{t.teamName}</Typography>
+            {i === 0 && <TurnStatus machineId={machineId} teamName={t.teamName} teamId={t.teamId} />}
           </Box>
           <Stack direction="row" spacing={1} sx={{ width: { xs: '100%', sm: 'auto' }, flexShrink: 0 }}>
             {/* Sending the last team to the back would change nothing, so the button is left out. */}

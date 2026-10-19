@@ -90,8 +90,8 @@ export default function LeagueLog() {
                 {day === today ? `${leagueNightToday ? 'Tonight' : 'Today'}, ${longDate(day)}` : longDate(day)}
               </Typography>
               <RowCard>
-                {entries.map((e) => (
-                  <Row key={e.id} sx={{ alignItems: 'flex-start' }}>
+                {entries.map((e, i) => (
+                  <Row key={e.id} arrive="slide" order={i} sx={{ alignItems: 'flex-start' }}>
                     <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                       <Typography sx={{ overflowWrap: 'anywhere' }}>{e.action}</Typography>
                       {e.reason && (

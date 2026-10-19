@@ -8,7 +8,8 @@ import { createSlice, current, type PayloadAction } from '@reduxjs/toolkit';
 import { teamPhoto } from './art';
 import { alreadyChallenged, challengeView, currentWeek, machine, seasonHigh, team, tonightRows, weekOf } from './league';
 import { buildSeed, MY_TEAM } from './seed';
-import { addMinutes as plusMinutes, clockLabel, longDate, ordinal } from './time';
+import { buildFreshLeague, HELPERS, helperScore, helperTeam } from './fresh';
+import { addMinutes as plusMinutes, at, clockLabel, longDate, ordinal } from './time';
 import type { Role, SampleState, SScore } from './types';
 
 /** Bump this when the shape of the sample data changes, so old saved copies are ignored. */
@@ -45,6 +46,30 @@ const slug = (name: string, taken: string[]) => {
   return idValue;
 };
 
+/** A team at the front of a line has this long to start its game. */
+export const TURN_MS = 5 * 60 * 1000;
+
+/**
+ * Starts the clock for whoever is now at the front of each line. Lines from the seed have no
+ * record yet: their front team is taken to be playing already, so nobody is forfeited on load.
+ */
+function refreshTurns(s: SampleState) {
+  for (const line of s.lines) {
+    const head = line.teamIds[0];
+    // '' means "nobody up", which is different from a seed line that has no record at all.
+    if (!head) { line.upTeamId = ''; line.upAt = undefined; line.started = undefined; continue; }
+    if (line.upTeamId === head) continue;
+    if (line.upTeamId === undefined) {
+      line.upTeamId = head; line.started = true; continue;
+    }
+    line.upTeamId = head; line.upAt = Date.now(); line.started = false; line.turnId = nextId(s, 't');
+  }
+}
+
+function lineEvent(s: SampleState, kind: 'started' | 'forfeit', teamId: string, machineId: string) {
+  s.lineEvents = [{ id: nextId(s, 'e'), kind, teamId, machineId, real: Date.now() }, ...(s.lineEvents ?? [])].slice(0, 20);
+}
+
 function leaveLines(s: SampleState, teamId: string, onlyMachineId?: string) {
   for (const line of s.lines) {
     if (onlyMachineId && line.machineId !== onlyMachineId) continue;
@@ -52,13 +77,31 @@ function leaveLines(s: SampleState, teamId: string, onlyMachineId?: string) {
     line.notify = line.notify.filter((id) => id !== teamId);
     delete line.joinedAt[teamId];
   }
+  refreshTurns(s);
 }
 
 function lineOf(s: SampleState, machineId: string) {
   let line = s.lines.find((l) => l.machineId === machineId);
-  if (!line) s.lines.push((line = { machineId, teamIds: [], joinedAt: {}, notify: [] }));
+  if (!line) s.lines.push((line = { machineId, teamIds: [], joinedAt: {}, notify: [], upTeamId: '' }));
   return line;
 }
+
+/** A team that joins now plays from this week: the current week if it has not opened yet, otherwise the next. */
+export const startWeek = (s: SampleState) => {
+  const w = currentWeek(s);
+  return w.state === 'upcoming' ? w.week : w.week + 1;
+};
+
+/** Repeatable randomness for the story's helper teams, so the demo plays the same way each time. */
+const storyRand = (s: SampleState) => {
+  let x = (s.seq * 2654435761) >>> 0;
+  return () => {
+    x = (x + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(x ^ (x >>> 15), x | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
 
 const names = (s: SampleState, x: { teamId: string; machineId: string }) => ({ who: team(s, x.teamId).teamName, what: machine(s, x.machineId).name });
 const fmt = (n: number) => n.toLocaleString('en-US');
@@ -93,7 +136,7 @@ const slice = createSlice({
       const teamId = slug(teamName, s.teams.map((t) => t.teamId));
       s.teams.push({
         teamId, teamName, players: ['Player 1', 'Player 2'], phone1: a.payload.phone1, phone2: a.payload.phone2, photo: teamPhoto(teamName),
-        status: 'pending', createdAt: s.now, expiresAt: plusMinutes(s.now, 24 * 60), firstWeek: currentWeek(s).week + 1
+        status: 'pending', createdAt: s.now, expiresAt: plusMinutes(s.now, 24 * 60), firstWeek: startWeek(s)
       });
       s.myTeamId = teamId;
       s.role = 'team';
@@ -113,6 +156,7 @@ const slice = createSlice({
       line.teamIds.push(teamId);
       line.joinedAt[teamId] = s.now;
       if (a.payload.notify) line.notify.push(teamId);
+      refreshTurns(s);
     },
     leaveLine(s, a: PayloadAction<string | undefined>) {
       leaveLines(s, a.payload ?? s.myTeamId);
@@ -122,6 +166,38 @@ const slice = createSlice({
       const line = lineOf(s, a.payload.machineId);
       if (!line.teamIds.includes(a.payload.teamId)) return;
       line.teamIds = [...line.teamIds.filter((id) => id !== a.payload.teamId), a.payload.teamId];
+      refreshTurns(s);
+    },
+    /** The team at the front tapped "We started": the honor system. */
+    startTurn(s, a: PayloadAction<string | undefined>) {
+      const teamId = a.payload ?? s.myTeamId;
+      const line = s.lines.find((l) => l.teamIds[0] === teamId);
+      if (!line || line.started) return;
+      line.started = true;
+      lineEvent(s, 'started', teamId, line.machineId);
+    },
+    /** Out of time (the clock), or an admin's call. The team comes off the line; the next team is up. */
+    forfeitTurn(s, a: PayloadAction<{ machineId: string; teamId: string; by: 'clock' | 'admin' }>) {
+      const { machineId, teamId, by } = a.payload;
+      const line = lineOf(s, machineId);
+      if (line.teamIds[0] !== teamId) return;
+      if (by === 'clock' && (line.started || !line.upAt || Date.now() - line.upAt < TURN_MS)) return;
+      const week = currentWeek(s).week;
+      s.forfeits = [...(s.forfeits ?? []), { id: nextId(s, 'x'), teamId, machineId, week, at: s.now, by }];
+      lineEvent(s, 'forfeit', teamId, machineId);
+      const who = s.teams.find((t) => t.teamId === teamId)?.teamName ?? 'A team';
+      const what = s.machines.find((m) => m.machineId === machineId)?.name ?? 'a machine';
+      addLog(s, by === 'clock' ? 'league' : 'admin', `${who} forfeited their turn on ${what}`, by === 'clock' ? 'Did not start within 5 minutes' : 'Admin call: not at the machine');
+      leaveLines(s, teamId, machineId);
+    },
+    forfeitSeen(s, a: PayloadAction<string>) {
+      const f = s.forfeits?.find((x) => x.id === a.payload);
+      if (f) f.seen = true;
+    },
+    /** Sample only: wind the turn clock forward so the demo does not have to wait. */
+    sampleSkipTurnClock(s, a: PayloadAction<{ machineId: string; ms: number }>) {
+      const line = lineOf(s, a.payload.machineId);
+      if (line.upAt) line.upAt -= a.payload.ms;
     },
     lineRemove(s, a: PayloadAction<{ machineId: string; teamId: string }>) {
       leaveLines(s, a.payload.teamId, a.payload.machineId);
@@ -201,8 +277,24 @@ const slice = createSlice({
 
     // ---- Running the night ----
 
+    /** A team taps "I'm here". It waits on the admin's Check In page until confirmed. */
+    requestCheckIn(s, a: PayloadAction<string | undefined>) {
+      const teamId = a.payload ?? s.myTeamId;
+      if (s.checkIns[teamId]) return;
+      (s.checkInRequests ??= {})[teamId] = s.now;
+      addLog(s, 'league', `${team(s, teamId).teamName} says they are here`);
+    },
+    cancelCheckInRequest(s, a: PayloadAction<string | undefined>) {
+      delete s.checkInRequests?.[a.payload ?? s.myTeamId];
+    },
+    /** The admin checks a team in, from a request or by hand at the door. */
     checkIn(s, a: PayloadAction<string>) {
       s.checkIns[a.payload] = s.now;
+      delete s.checkInRequests?.[a.payload];
+    },
+    /** The admin could not find the team: the request goes away and the team can tap again. */
+    declineCheckIn(s, a: PayloadAction<string>) {
+      delete s.checkInRequests?.[a.payload];
     },
     undoCheckIn(s, a: PayloadAction<string>) {
       delete s.checkIns[a.payload];
@@ -253,7 +345,9 @@ const slice = createSlice({
         line.notify = [];
         line.joinedAt = {};
       }
+      refreshTurns(s);
       week.state = 'final';
+      s.checkInRequests = {};
       for (const line of settledNow) addLog(s, 'league', line);
       // Challenge points move in the season standings, not in the night's own points, so the night's winner is who played best.
       const winner = tonightRows(current(s), week.week)[0];
@@ -303,6 +397,7 @@ const slice = createSlice({
         line.teamIds = [];
         line.notify = [];
         line.joinedAt = {};
+        refreshTurns(s);
         addLog(s, 'admin', `Admin took ${name} out for the night`, reason);
       } else if (week.out[machineId]) {
         delete week.out[machineId];
@@ -342,7 +437,7 @@ const slice = createSlice({
       if (!t || t.status === 'approved') return;
       t.status = 'approved';
       t.expiresAt = undefined;
-      t.firstWeek = currentWeek(s).week + 1;
+      t.firstWeek = startWeek(s);
       addLog(s, 'admin', `Admin approved a new team: ${t.teamName}`);
     },
     removeSignUp(s, a: PayloadAction<{ teamId: string; reason: string }>) {
@@ -363,7 +458,7 @@ const slice = createSlice({
       const teamName = `${one.name} & ${two.name}`;
       s.teams.push({
         teamId: slug(teamName, s.teams.map((t) => t.teamId)), teamName, players: [one.name, two.name], phone1: '(202) 555-0150', phone2: '(202) 555-0151',
-        photo: teamPhoto(teamName), status: 'approved', createdAt: s.now, firstWeek: currentWeek(s).week + 1
+        photo: teamPhoto(teamName), status: 'approved', createdAt: s.now, firstWeek: startWeek(s)
       });
       s.waitlist = s.waitlist.filter((w) => w.id !== one.id && w.id !== two.id);
       addLog(s, 'admin', `Admin paired two solo players into a new team: ${teamName}`);
@@ -397,6 +492,63 @@ const slice = createSlice({
     theyAccepted(s, a: PayloadAction<string>) {
       const c = s.challenges.find((x) => x.id === a.payload);
       if (c && c.status === 'waiting') c.status = 'live';
+    },
+
+    // ---- The guided "new league" story (layout/StoryCard.tsx) ----
+
+    /** Starts the story: an empty league on week 1, before anyone has signed up. */
+    startStory() {
+      return buildFreshLeague();
+    },
+    setStoryStep(s, a: PayloadAction<number>) {
+      if (s.story) s.story.step = a.payload;
+    },
+    /** The helper couples sign up and wait for an admin, like you did. */
+    storyHelpersSignUp(s) {
+      HELPERS.forEach((h, i) => {
+        if (s.teams.some((t) => t.teamId === h[0])) return;
+        s.teams.push(helperTeam(h, s.now, startWeek(s), i));
+        addLog(s, 'league', 'A new team signed up and is waiting for approval');
+      });
+    },
+    /** In the real app the night opens by itself at 7 PM. The story does it on cue. */
+    storyOpenNight(s) {
+      const week = s.weeks.find((w) => w.state === 'upcoming');
+      if (!week || s.weeks.some((w) => w.state === 'open')) return;
+      week.state = 'open';
+      s.now = at(week.date, '19:02');
+      addLog(s, 'league', `Week ${week.week} opened`);
+    },
+    /** The helper couples walk in and tap "I'm here". */
+    storyHelpersArrive(s) {
+      s.now = plusMinutes(s.now, 6);
+      for (const [teamId] of HELPERS) {
+        const t = s.teams.find((x) => x.teamId === teamId && x.status === 'approved');
+        if (!t || s.checkIns[teamId]) continue;
+        (s.checkInRequests ??= {})[teamId] = s.now;
+        addLog(s, 'league', `${t.teamName} says they are here`);
+      }
+    },
+    /** Thirty minutes of play: every checked-in helper posts a game or two. */
+    storyFastForward(s) {
+      const week = s.weeks.find((w) => w.state === 'open');
+      if (!week) return;
+      const rand = storyRand(s);
+      const closes = at(week.date, s.night.closesAt);
+      for (const [teamId, teamName, , skill] of HELPERS) {
+        if (!s.checkIns[teamId]) continue;
+        for (const machineId of week.machineIds) {
+          if (week.out[machineId] || rand() < 0.45) continue;
+          const games = rand() < 0.6 ? 1 : 2;
+          for (let g = 0; g < games; g++) {
+            const when = plusMinutes(s.now, 3 + Math.floor(rand() * 26));
+            s.scores.push(helperScore(() => nextId(s, 's'), week.week, teamId, machineId, skill, when, rand()));
+            addLog(s, 'score', `${teamName} submitted a score on ${machine(s, machineId).name}`);
+          }
+        }
+      }
+      const next = plusMinutes(s.now, 30);
+      s.now = next < closes ? next : closes;
     },
 
     /** Puts the whole story back, keeping who you are viewing as. */

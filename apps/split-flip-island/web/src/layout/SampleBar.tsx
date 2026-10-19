@@ -86,6 +86,18 @@ export default function SampleBar() {
       <Button size="small" variant="outlined" component={RouterLink} to="/tour" sx={{ ...button, display: { xs: 'none', sm: 'inline-flex' } }}>
         All pages
       </Button>
+      {/* The guided story starts an empty league; during the story this goes back to the full demo. */}
+      <Button
+        size="small"
+        variant="outlined"
+        onClick={() => {
+          dispatch(league.story ? sample.resetSample() : sample.startStory());
+          navigate('/');
+        }}
+        sx={{ ...button, display: { xs: 'none', sm: 'inline-flex' } }}
+      >
+        {league.story ? 'Full demo' : 'New league'}
+      </Button>
     </Box>
   );
 }

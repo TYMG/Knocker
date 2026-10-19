@@ -34,7 +34,9 @@ export default function StandingsLayout() {
   const timeLeft = night.minutesLeft === 0 ? 'Time is up.' : `${night.minutesLeft} ${night.minutesLeft === 1 ? 'minute' : 'minutes'} left.`;
   const status = night.open
     ? `${label}, ${longDate(night.week.date)}. ${teams}. ${timeLeft}`
-    : `${label} is final. ${longDate(night.week.date)}. ${teams}.`;
+    : night.week.state === 'upcoming'
+      ? `${label} starts ${longDate(night.week.date)}. ${teams} so far.`
+      : `${label} is final. ${longDate(night.week.date)}. ${teams}.`;
 
   return (
     <Page width="wide" title="Standings" subtitle={status}>

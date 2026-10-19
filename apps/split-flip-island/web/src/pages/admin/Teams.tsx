@@ -14,7 +14,7 @@ import Typography from '@mui/material/Typography';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import SearchIcon from '@mui/icons-material/Search';
 import { useAppDispatch, useLeague } from '../../hooks';
-import { approvedTeams, currentWeek, nightStatus, pendingTeams, scoreCounts } from '../../sample/league';
+import { approvedTeams, currentWeek, nightStatus, pendingTeams, scoreCounts, FORFEIT_LIMIT, forfeitCounts } from '../../sample/league';
 import { sample } from '../../sample/slice';
 import { ago } from '../../sample/time';
 import type { SampleState, STeam } from '../../sample/types';
@@ -32,6 +32,9 @@ function teamNotes(league: SampleState, team: STeam): { text: string; alert?: bo
   const notes: { text: string; alert?: boolean }[] = [];
   const toLookAt = scoreCounts(league, week.week, team.teamId).flagged;
   if (toLookAt > 0) notes.push({ text: `${toLookAt} to look at`, alert: true });
+  const forfeits = forfeitCounts(league, team.teamId);
+  if (forfeits.season >= FORFEIT_LIMIT) notes.push({ text: `${forfeits.season} forfeits: penalty to decide`, alert: true });
+  else if (forfeits.season > 0) notes.push({ text: `${forfeits.season} ${forfeits.season === 1 ? 'forfeit' : 'forfeits'} this season` });
   if (team.firstWeek > week.week) notes.push({ text: team.firstWeek <= 8 ? `Starts in week ${team.firstWeek}` : 'Starts after this season' });
   // A team that has not started yet is not expected tonight, so it is never "not here".
   else if (nightStatus(league).open && !league.checkIns[team.teamId]) notes.push({ text: 'Not here tonight' });

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link as RouterLink, Navigate, Outlet, useLocation } from 'react-router';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
@@ -6,12 +7,25 @@ import Typography from '@mui/material/Typography';
 import { useAppDispatch, useLeague, useMe } from '../hooks';
 import { sample } from '../sample/slice';
 import { until } from '../sample/time';
+import { showToast } from '../store';
+import { celebrate } from '../ui/celebrate';
 import Page from '../ui/Page';
+
+// Remembers, for this browser tab, that a team has seen the waiting notice, so ApprovalCheer can
+// celebrate the moment it is let in.
+const WAITING_KEY = 'sfi-was-waiting';
 
 /** What a team sees everywhere until an admin approves it. */
 export function WaitingForApproval() {
   const league = useLeague();
   const { team } = useMe();
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem(WAITING_KEY, team.teamId);
+    } catch {
+      // Storage can be blocked. The team just misses the hearts.
+    }
+  }, [team.teamId]);
   return (
     <Alert severity="info">
       <Typography sx={{ fontWeight: 700 }}>Waiting for approval</Typography>
@@ -19,6 +33,26 @@ export function WaitingForApproval() {
       {team.expiresAt ? ` If nobody approves it, this sign-up is deleted ${until(team.expiresAt, league.now)}.` : ''}
     </Alert>
   );
+}
+
+/** Hearts, once, when a team that was waiting for approval comes back approved. Draws nothing. */
+export function ApprovalCheer() {
+  const me = useMe();
+  const dispatch = useAppDispatch();
+  const approved = me.isTeam && me.team.status === 'approved';
+  const teamId = me.team.teamId;
+  useEffect(() => {
+    if (!approved) return;
+    try {
+      if (window.sessionStorage.getItem(WAITING_KEY) !== teamId) return;
+      window.sessionStorage.removeItem(WAITING_KEY);
+    } catch {
+      return;
+    }
+    dispatch(showToast("You're in! Your team is approved."));
+    celebrate('approved');
+  }, [approved, teamId, dispatch]);
+  return null;
 }
 
 /**

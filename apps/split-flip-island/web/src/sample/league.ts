@@ -211,6 +211,52 @@ const seasonCache = new WeakMap<SampleState, Season>();
  * earned playing, a team's total includes challenge points won or lost and, once the season is
  * over, 10 points for each machine it holds the season high on.
  */
+/** Winning the most challenges in the season is worth this many extra points. */
+export const CHALLENGE_CHAMPION_BONUS = 10;
+
+export interface ChallengeRecord {
+  team: STeam;
+  wins: number;
+  losses: number;
+  /** The points put up on the challenges this team won. It breaks a tie on wins. */
+  pointsWon: number;
+}
+
+/**
+ * The race for Challenge Champion: every team that has finished a challenge, most wins first.
+ * Points won breaks a tie on wins. A tied challenge counts for nobody.
+ */
+export function challengeRace(s: SampleState): ChallengeRecord[] {
+  const records = new Map<string, ChallengeRecord>();
+  const of = (teamId: string) => {
+    let r = records.get(teamId);
+    if (!r) records.set(teamId, (r = { team: team(s, teamId), wins: 0, losses: 0, pointsWon: 0 }));
+    return r;
+  };
+  for (const c of s.challenges) {
+    if (c.status !== 'settled' || !c.winnerTeamId) continue;
+    const loserId = c.winnerTeamId === c.fromTeamId ? c.toTeamId : c.fromTeamId;
+    const winner = of(c.winnerTeamId);
+    winner.wins += 1;
+    winner.pointsWon += c.stake;
+    of(loserId).losses += 1;
+  }
+  return [...records.values()]
+    .filter((r) => r.team.status === 'approved')
+    .sort((a, b) => b.wins - a.wins || b.pointsWon - a.pointsWon || a.losses - b.losses || a.team.teamName.localeCompare(b.team.teamName));
+}
+
+/**
+ * Who takes the Challenge Champion bonus as things stand: the most wins, then the most points
+ * won. It is more than one team only when they are level on both, and then each gets the bonus.
+ */
+export function challengeChampions(s: SampleState): ChallengeRecord[] {
+  const race = challengeRace(s);
+  const top = race[0];
+  if (!top || top.wins === 0) return [];
+  return race.filter((r) => r.wins === top.wins && r.pointsWon === top.pointsWon);
+}
+
 export function season(s: SampleState): Season {
   const hit = seasonCache.get(s);
   if (hit) return hit;
@@ -218,6 +264,7 @@ export function season(s: SampleState): Season {
   const teamIds = approvedTeams(s).map((t) => t.teamId);
   const results = weeks.map((w) => weekResult(s, w.week));
   const bonuses = seasonOver(s) ? seasonHighBonuses(s) : [];
+  const champions = seasonOver(s) ? challengeChampions(s) : [];
   const build = (pick: (r: WeekResult) => Map<string, number>) => {
     // A team's season total is what it earned playing, plus or minus what it won or lost in
     // challenges. A challenge is paid from the points a team has at that moment, so `have`
@@ -241,6 +288,8 @@ export function season(s: SampleState): Season {
     // The season-high bonus lands with the last league night, once every night is final.
     const last = nightly[nightly.length - 1];
     if (last) for (const b of bonuses) last.set(b.team.teamId, (last.get(b.team.teamId) ?? 0) + SEASON_HIGH_BONUS);
+    // So does the Challenge Champion bonus.
+    if (last) for (const c of champions) last.set(c.team.teamId, (last.get(c.team.teamId) ?? 0) + CHALLENGE_CHAMPION_BONUS);
     const ranks = runningRanks(nightly, teamIds);
     const totals = new Map<string, number>();
     for (const night of nightly) for (const [teamId, points] of night) totals.set(teamId, (totals.get(teamId) ?? 0) + points);
@@ -436,6 +485,10 @@ export interface MyLine {
   joinedAt: string;
   ahead: STeam[];
   notify: boolean;
+  /** For the front team: when the 5 minutes to start began (real ms), and whether they started. */
+  upAt?: number;
+  started: boolean;
+  turnId?: string;
 }
 
 /** The line a team is in, if any. A team can be in one line at a time. */
@@ -448,7 +501,10 @@ export function lineFor(s: SampleState, teamId = s.myTeamId): MyLine | undefined
       position: index + 1,
       joinedAt: line.joinedAt[teamId] ?? s.now,
       ahead: line.teamIds.slice(0, index).map((id) => team(s, id)),
-      notify: line.notify.includes(teamId)
+      notify: line.notify.includes(teamId),
+      upAt: index === 0 ? line.upAt : undefined,
+      started: index === 0 ? line.started !== false : false,
+      turnId: index === 0 ? line.turnId : undefined
     };
   }
   return undefined;
@@ -531,6 +587,8 @@ export function adminSummary(s: SampleState) {
     week,
     teams: teamsIn(s, week.week).length,
     here: teamsIn(s, week.week).filter((t) => s.checkIns[t.teamId]).length,
+    /** Teams that tapped "I'm here" and wait for an admin to confirm. */
+    asking: teamsIn(s, week.week).filter((t) => !s.checkIns[t.teamId] && s.checkInRequests?.[t.teamId]).length,
     scores: counts,
     lineTeams: lines.reduce((sum, l) => sum + l.teams.length, 0),
     lineMachines: lines.filter((l) => l.teams.length > 0).length,
@@ -649,3 +707,13 @@ export function maxStake(s: SampleState, teamId = s.myTeamId): number {
 export function alreadyChallenged(s: SampleState, a: string, b: string, week = currentWeek(s).week): boolean {
   return s.challenges.some((c) => c.week === week && ((c.fromTeamId === a && c.toTeamId === b) || (c.fromTeamId === b && c.toTeamId === a)));
 }
+
+/** How many turns a team has forfeited: tonight (the current week) and all season. */
+export function forfeitCounts(s: SampleState, teamId: string): { tonight: number; season: number } {
+  const all = (s.forfeits ?? []).filter((f) => f.teamId === teamId);
+  const week = currentWeek(s).week;
+  return { tonight: all.filter((f) => f.week === week).length, season: all.length };
+}
+
+/** The forfeit count that brings a penalty (what the penalty is has not been decided). */
+export const FORFEIT_LIMIT = 3;

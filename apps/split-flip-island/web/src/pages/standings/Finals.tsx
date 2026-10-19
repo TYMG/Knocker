@@ -7,7 +7,7 @@
 // In the sample league finals are still weeks away, so a switch at the top previews the
 // "on the night" page with made-up results. The real app will pick the mode from the date.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -32,6 +32,7 @@ import Tag from '../../ui/Tag';
 import TeamAvatar, { TeamLink } from '../../ui/TeamAvatar';
 import { whatTeamNeeds } from './finalsNeeds';
 import Switcher from './Switcher';
+import { celebrateOnce } from '../../ui/celebrate';
 
 type Mode = 'before' | 'night';
 type Bracket = 'championship' | 'secondChance';
@@ -167,6 +168,13 @@ function OnTheNight({ bracket, onBracket, preview }: { bracket: Bracket; onBrack
   const inFinal = me.isTeam && final.teamIds.includes(me.team.teamId);
   const needs = inFinal ? whatTeamNeeds(league, final, me.team.teamId) : null;
   const allPlayed = final.games.length > 0 && final.games.every((g) => g.places);
+
+  // The League Champion is decided: the whole screen celebrates, once.
+  const top = rows.length ? Math.max(...rows.map((r) => r.total)) : 0;
+  const champion = bracket === 'championship' && allPlayed && !preview && rows.filter((r) => r.total === top).length === 1;
+  useEffect(() => {
+    if (champion) celebrateOnce('champion', 'champion');
+  }, [champion]);
 
   return (
     // Kept to a readable width on a desktop: a four-row table stretched across 1100 px is hard to follow.

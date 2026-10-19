@@ -27,7 +27,10 @@ export default function CheckIn() {
   // Only teams that count this week. A team approved tonight starts next week.
   const teams = teamsIn(league, night.week.week);
   const here = teams.filter((t) => league.checkIns[t.teamId]).sort((a, b) => (league.checkIns[a.teamId]! < league.checkIns[b.teamId]! ? 1 : -1)); // newest first
-  const missing = teams.filter((t) => !league.checkIns[t.teamId]).sort((a, b) => a.teamName.localeCompare(b.teamName));
+  const requests = league.checkInRequests ?? {};
+  // Teams that tapped "I'm here" in the app, oldest first: they have been waiting longest.
+  const waiting = teams.filter((t) => !league.checkIns[t.teamId] && requests[t.teamId]).sort((a, b) => (requests[a.teamId]! < requests[b.teamId]! ? -1 : 1));
+  const missing = teams.filter((t) => !league.checkIns[t.teamId] && !requests[t.teamId]).sort((a, b) => a.teamName.localeCompare(b.teamName));
 
   if (!night.open) {
     return (
@@ -42,9 +45,46 @@ export default function CheckIn() {
   return (
     <Page title="Check in teams" subtitle={summary} back={ADMIN_HOME}>
       <Stack spacing={3}>
+        {waiting.length > 0 && (
+          <Section small title="Says they're here" aside={waiting.length}>
+            <RowCard>
+              {waiting.map((t) => (
+                <Row key={t.teamId} sx={{ py: 1.5 }}>
+                  <TeamAvatar team={t} size={44} />
+                  <RowText primary={t.teamName} secondary={`${players(t)}. Tapped "I'm here" at ${clock(requests[t.teamId]!)}`} />
+                  <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
+                    <Button
+                      aria-label={`${t.teamName} is not here`}
+                      onClick={() => {
+                        dispatch(sample.declineCheckIn(t.teamId));
+                        dispatch(showToast(`${t.teamName} can tap "I'm here" again when they arrive`));
+                      }}
+                      sx={{ minHeight: 44 }}
+                    >
+                      Not here
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="secondary"
+                      aria-label={`Confirm ${t.teamName} is here`}
+                      onClick={() => {
+                        dispatch(sample.checkIn(t.teamId));
+                        dispatch(showToast(`Checked in ${t.teamName}`));
+                      }}
+                      sx={{ minHeight: 44, whiteSpace: 'nowrap' }}
+                    >
+                      Confirm
+                    </Button>
+                  </Stack>
+                </Row>
+              ))}
+            </RowCard>
+          </Section>
+        )}
+
         <Section small title="Not here yet" aside={missing.length || undefined}>
           {missing.length === 0 ? (
-            <EmptyNote>{teams.length === 0 ? 'Nobody to check in.' : 'Everyone is here.'}</EmptyNote>
+            <EmptyNote>{teams.length === 0 ? 'Nobody to check in.' : waiting.length ? 'Everyone else is here or waiting above.' : 'Everyone is here.'}</EmptyNote>
           ) : (
             <RowCard>
               {missing.map((t) => (

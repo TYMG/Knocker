@@ -7,7 +7,7 @@
 //   - the three steps and the standings rows arrive one at a time as they scroll into view.
 // People who ask their device for less motion get none of it: everything is simply there.
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link as RouterLink } from 'react-router';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -16,7 +16,7 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import type { SxProps, Theme } from '@mui/material/styles';
-import { useLeague, useMe } from '../hooks';
+import { useCalm, useLeague, useMe } from '../hooks';
 import { playedWeeks, season, weekLabel } from '../sample/league';
 import { clockLabel, longDate } from '../sample/time';
 import { colors } from '../theme';
@@ -25,6 +25,26 @@ import { Row, RowCard } from '../ui/Rows';
 import Section from '../ui/Section';
 import StandingsTable from '../ui/StandingsTable';
 import { HeroFar, HeroMachines } from './FrontDoorHero';
+
+// GSAP and the scroll show download only when the front door is shown with effects on.
+const FrontDoorFlow = lazy(() => import('./FrontDoorFlow'));
+
+/** The title, one span per letter so GSAP can drop them in. Read out once, as the whole name. */
+function DroppingTitle({ text }: { text: string }) {
+  return (
+    <span>
+      <Box component="span" sx={visuallyHidden}>{text}</Box>
+      {text.split(' ').map((word, w) => (
+        <span key={w} aria-hidden style={{ display: 'inline-block', whiteSpace: 'nowrap' }}>
+          {[...word].map((ch, i) => (
+            <span key={i} className="fd-letter" style={{ display: 'inline-block' }}>{ch}</span>
+          ))}
+          {w < text.split(' ').length - 1 ? '\u00a0' : ''}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 const HOUSE_RULES = [
   'Every score needs a photo of the display.',
@@ -181,7 +201,7 @@ function Hero() {
       <Box className="hero-words" sx={{ position: 'relative', width: '100%', maxWidth: 1100 + 32, mx: 'auto', px: 2, pt: { xs: 8, md: 10 }, pb: { xs: 28, sm: 34, md: 38 } }}>
         <Box sx={{ maxWidth: 600 }}>
           <Typography variant="h1" sx={{ color: colors.lime, textShadow: `0 2px 0 ${colors.black}` }}>
-            Split Flipper Island
+            <DroppingTitle text="Split Flipper Island" />
           </Typography>
           <Typography sx={{ mt: 2, fontSize: { xs: '1.15rem', sm: '1.3rem' }, lineHeight: 1.45, textShadow: `0 1px 8px ${colors.black}` }}>
             Think Love Island, but made for pinball. Two players share one machine: one flipper each, one hand each.
@@ -209,6 +229,9 @@ function Hero() {
 export default function FrontDoor() {
   const league = useLeague();
   const me = useMe();
+  const calm = useCalm();
+  const pageRef = useRef<HTMLDivElement>(null);
+  const showFlow = !calm && !wantsLessMotion();
 
   const nights = league.weeks.filter((w) => w.week <= 8);
   const played = playedWeeks(league);
@@ -228,7 +251,12 @@ export default function FrontDoor() {
   );
 
   return (
-    <>
+    <Box ref={pageRef} sx={{ position: 'relative' }}>
+      {showFlow && (
+        <Suspense fallback={null}>
+          <FrontDoorFlow page={pageRef} />
+        </Suspense>
+      )}
       <Hero />
       <Page width="wide">
         <Stack spacing={5}>
@@ -350,6 +378,6 @@ export default function FrontDoor() {
           </Stack>
         </Stack>
       </Page>
-    </>
+    </Box>
   );
 }

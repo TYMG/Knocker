@@ -1,10 +1,14 @@
 import Box from '@mui/material/Box';
 import { colors } from '../theme';
 import { formatScore } from '../lib/format';
+import RollingNumber from './RollingNumber';
 
 /**
  * Scores render like a pinball dot-matrix display: amber dots on dark glass.
  * This is the app's one loud visual moment; everything else stays quiet.
+ *
+ * The digits roll to a new value like a score reel. The big size also rolls up from zero when it
+ * first appears.
  */
 export default function ScoreDisplay({ value, size = 'md', label }: { value: number | null; size?: 'sm' | 'md' | 'lg'; label?: string }) {
   const fontSize = { sm: '1.05rem', md: '1.6rem', lg: 'clamp(2rem, 10vw, 3.4rem)' }[size];
@@ -34,7 +38,7 @@ export default function ScoreDisplay({ value, size = 'md', label }: { value: num
         whiteSpace: 'nowrap'
       }}
     >
-      {value === null ? '––' : formatScore(value)}
+      {value === null ? '––' : <RollingNumber value={value} rollIn={size === 'lg'} />}
     </Box>
   );
 }

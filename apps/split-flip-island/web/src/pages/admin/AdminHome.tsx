@@ -74,7 +74,9 @@ export default function AdminHome() {
 
   // ---- The line under each button ----
   const missing = sum.teams - sum.here;
-  const hereNote = !night.open ? `${sum.here} of ${sum.teams} were here` : missing === 0 ? `All ${sum.teams} are here` : `${sum.here} of ${sum.teams} are here`;
+  const baseHere = !night.open ? `${sum.here} of ${sum.teams} were here` : missing === 0 ? `All ${sum.teams} are here` : `${sum.here} of ${sum.teams} are here`;
+  // Teams that tapped "I'm here" come first: someone is waiting on the admin.
+  const hereNote = night.open && sum.asking > 0 ? `${sum.asking} waiting to be confirmed. ${baseHere}` : baseHere;
 
   const scoreParts = [flagged > 0 ? `${flagged} ${flagged === 1 ? 'needs' : 'need'} a look` : null, unchecked > 0 ? `${unchecked} not checked` : null].filter(Boolean);
   const scoresNote = scoreParts.length ? scoreParts.join(', ') : all === 0 ? 'No scores yet' : `All ${all} checked`;

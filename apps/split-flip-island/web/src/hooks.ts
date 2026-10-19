@@ -1,9 +1,20 @@
 import { useDispatch, useSelector } from 'react-redux';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import { myTeam } from './sample/league';
 import type { AppDispatch, RootState } from './store';
 
 export const useAppDispatch = useDispatch.withTypes<AppDispatch>();
 export const useAppSelector = useSelector.withTypes<RootState>();
+
+/**
+ * True when effects should stay off: the calm switch in the top bar is on, or the phone or
+ * computer is set to reduce motion. Confetti, rolling numbers and the like all ask this.
+ */
+export function useCalm(): boolean {
+  const switchedOn = useAppSelector((s) => s.ui.calm);
+  const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+  return switchedOn || reduceMotion;
+}
 
 /** The whole sample league. Pass it to the functions in sample/league.ts to ask it questions. */
 export const useLeague = () => useAppSelector((s) => s.sample);

@@ -258,6 +258,7 @@ export function buildSeed(seed = SEED): SampleState {
         joinedAt: { 'outlane-lovers': at(TONIGHT, '20:04') , 'extra-ballers': at(TONIGHT, '20:08') }, notify: ['extra-ballers']
       }
     ],
+    checkInRequests: {},
     checkIns: {
       'tilt-me-tender': at(TONIGHT, '18:52'), 'flip-city': at(TONIGHT, '18:55'), 'nudge-nudge': at(TONIGHT, '18:58'),
       'outlane-lovers': at(TONIGHT, '19:01'), [MY_TEAM]: at(TONIGHT, '19:04'), 'bumper-crop': at(TONIGHT, '19:06'),

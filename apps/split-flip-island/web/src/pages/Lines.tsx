@@ -22,15 +22,38 @@ import Page from '../ui/Page';
 import Tag from '../ui/Tag';
 import { capital, Fact, Facts, smallLabel, teamsBeforeYou } from './lineWords';
 import { useTopOfPage } from './useTopOfPage';
+import { Slide } from '../ui/motion';
+import { mmss, turnLeft, useNow } from '../ui/turnClock';
+import { HELP_TABS, openHelp } from '../layout/HowToPlay';
+import { LINES_SHORT } from '../layout/howToPlayText';
+
+/** The short how-to under the status card. The full version is the Lines tab of the ? modal. */
+function HowLinesWork() {
+  return (
+    <Card sx={{ p: 2 }}>
+      <Typography variant="h4" component="h2" sx={{ mb: 1 }}>How lines work</Typography>
+      <Box component="ol" sx={{ m: 0, pl: 2.75, display: 'grid', gap: 0.75, color: 'text.secondary', '& li::marker': { color: 'primary.main', fontWeight: 700 } }}>
+        {LINES_SHORT.map((t) => <li key={t}>{t}</li>)}
+      </Box>
+      <Link component="button" type="button" onClick={() => openHelp(HELP_TABS.lines)} sx={{ mt: 1.25, fontWeight: 700 }}>
+        More about lines
+      </Link>
+    </Card>
+  );
+}
 
 /** The highlighted card at the top when the team is in a line. */
 function MyLineCard({ mine }: { mine: MyLine }) {
   const name = mine.machine.name;
+  const dispatch = useAppDispatch();
+  const waitingToStart = mine.position === 1 && !mine.started && !!mine.upAt;
+  const now = useNow(waitingToStart);
   const title =
     mine.position === 1 ? `It is your turn on ${name}` : mine.position === 2 ? `You are next on ${name}` : `You are ${ordinal(mine.position)} in line for ${name}`;
   let detail: string;
-  if (mine.position === 1) detail = 'Walk up and play one game, then submit your score. Submitting takes you out of this line.';
-  else if (mine.position === 2) detail = `${mine.ahead[0]?.teamName ?? 'One team'} is playing. You go when they finish.`;
+  if (mine.position === 1 && waitingToStart) detail = `${mmss(turnLeft(mine.upAt, now))} left to start your game, or you forfeit your turn. Tap "We started" once your first ball is in play.`;
+  else if (mine.position === 1) detail = 'You started. Play one game, then submit your score. Submitting takes you out of this line.';
+  else if (mine.position === 2) detail = `${mine.ahead[0]?.teamName ?? 'One team'} is playing. Head over now: once they finish, you have 5 minutes to start.`;
   // Teams choose on the sign-up form whether to get a message, so say which one applies.
   else detail = `${teamsBeforeYou(mine.ahead.length)} ${mine.notify ? 'We tell you when you are next.' : 'You asked not to get a message, so keep an eye on this page.'}`;
 
@@ -41,6 +64,11 @@ function MyLineCard({ mine }: { mine: MyLine }) {
         {title}
       </Typography>
       <Typography sx={{ color: 'text.secondary' }}>{detail}</Typography>
+      {waitingToStart && (
+        <Button variant="contained" onClick={() => dispatch(sample.startTurn())} sx={{ mt: 1.25, minHeight: 44 }}>
+          We started
+        </Button>
+      )}
       {mine.position === 1 && (
         <Button component={RouterLink} to={`/submit?machine=${mine.machine.machineId}`} variant="contained" color="secondary" size="large" fullWidth sx={{ mt: 1.5 }}>
           Submit a score on {name}
@@ -167,7 +195,7 @@ export default function Lines() {
   return (
     <Page
       title="Lines"
-      subtitle={mine ? 'You are signed up. Play one game when it is your turn, then sign up again if others are waiting.' : 'Sign up for a machine before you play it.'}
+      subtitle={mine ? 'You are signed up. When it is your turn, play one game and submit it. Want another go? Sign up again at the back of the line.' : 'Sign up for a machine before you play it. One line at a time, one game per turn.'}
     >
       <Stack spacing={1.5}>
         {mine ? (
@@ -180,9 +208,12 @@ export default function Lines() {
             <Typography sx={{ color: 'text.secondary' }}>Pick a machine below to sign up. One line at a time.</Typography>
           </Card>
         )}
+        <HowLinesWork />
         {lines.length === 0 && <EmptyNote>No machines are picked for tonight yet.</EmptyNote>}
         {lines.map((line) => (
-          <LineCard key={line.machine.machineId} line={line} mine={mine} myTeamId={me.team.teamId} onLeave={leave} />
+          <Slide key={line.machine.machineId}>
+            <LineCard line={line} mine={mine} myTeamId={me.team.teamId} onLeave={leave} />
+          </Slide>
         ))}
       </Stack>
     </Page>

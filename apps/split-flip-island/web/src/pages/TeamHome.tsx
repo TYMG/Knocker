@@ -9,31 +9,40 @@
 //   - league night closed: how the week ended, with the line and submit parts hidden.
 
 import type { ReactNode } from 'react';
-import { Link as RouterLink } from 'react-router';
+import { Link as RouterLink, useSearchParams } from 'react-router';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import ButtonBase from '@mui/material/ButtonBase';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
 import AddAPhotoIcon from '@mui/icons-material/AddAPhoto';
-import CampaignIcon from '@mui/icons-material/Campaign';
+import SportsMmaIcon from '@mui/icons-material/SportsMma';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlined';
 import GroupsIcon from '@mui/icons-material/Groups';
 import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
+import { DrCheckUp, DrNotes, DrWrapped } from './DrParts';
+import { CHALLENGE_CHAMPION_BONUS, challengeRace } from '../sample/league';
+import DrPrescription from './DrPrescription';
 import LoveDr from './LoveDr';
-import { useLeague, useMe } from '../hooks';
+import { useAppDispatch, useLeague, useMe } from '../hooks';
+import { sample } from '../sample/slice';
+import { showToast } from '../store';
 import { WaitingForApproval } from '../layout/guards';
-import { challenges, lineCount, lineFor, linesView, nightStatus, placeInLine, teamTonight, weekLabel, weekOf } from '../sample/league';
+import { challenges, lineCount, lineFor, linesView, nightStatus, placeInLine, seasonLine, teamSeason, teamTonight, weekLabel, weekOf } from '../sample/league';
+import ChallengeChampionRace from '../ui/ChallengeChampionRace';
 import { ago, clock, clockLabel, longDate, ordinal } from '../sample/time';
 import type { STeam } from '../sample/types';
 import ActionCard from '../ui/ActionCard';
 import EmptyNote from '../ui/EmptyNote';
 import MachineArt from '../ui/MachineArt';
 import Page from '../ui/Page';
+import RollingNumber from '../ui/RollingNumber';
 import { Row, RowCard, RowText } from '../ui/Rows';
 import ScoreDisplay from '../ui/ScoreDisplay';
 import Section from '../ui/Section';
@@ -58,12 +67,140 @@ function Header({ team, children }: { team: STeam; children?: ReactNode }) {
   );
 }
 
+type HomeTab = 'tonight' | 'doc' | 'season';
+const HOME_TABS: HomeTab[] = ['tonight', 'doc', 'season'];
+
+/**
+ * Team home is split into three tabs so nothing is buried at the bottom of a long page:
+ *   Tonight  the night: status, your line, what is left to play, what you played, challenges
+ *   Doc      the Love Dr.: tonight's prescription, what he noticed, the check-up, his card
+ *   Season   Wrapped first, then where you stand, badges and the Challenge Champion race
+ * The tab lives in the address (?tab=doc), so a link can open the right one. While a night is
+ * open, home starts on Tonight; once it closes, home starts on Season.
+ */
+function useHomeTab(nightOpen: boolean): [HomeTab, (t: HomeTab) => void] {
+  const [params, setParams] = useSearchParams();
+  const asked = params.get('tab') as HomeTab | null;
+  const tab = asked && HOME_TABS.includes(asked) ? asked : nightOpen ? 'tonight' : 'season';
+  const set = (t: HomeTab) =>
+    setParams(
+      (p) => {
+        p.set('tab', t);
+        return p;
+      },
+      { replace: true }
+    );
+  return [tab, set];
+}
+
+function HomeTabs({ tab, onChange, tonightLabel }: { tab: HomeTab; onChange: (t: HomeTab) => void; tonightLabel: string }) {
+  return (
+    <Tabs value={tab} onChange={(_, v: HomeTab) => onChange(v)} variant="fullWidth" aria-label="Team home sections" sx={{ borderBottom: 1, borderColor: 'divider', mt: '8px !important' }}>
+      <Tab value="tonight" label={tonightLabel} sx={{ minHeight: 48 }} />
+      <Tab value="doc" label="Doc" sx={{ minHeight: 48 }} />
+      <Tab value="season" label="Season" sx={{ minHeight: 48 }} />
+    </Tabs>
+  );
+}
+
+/** One of the three numbers on the Season tab. */
+function SeasonTile({ label, value, under }: { label: string; value: string; under?: string }) {
+  return (
+    <Card sx={{ px: 1, py: 1.5, textAlign: 'center', minWidth: 0 }}>
+      <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 700 }}>{label}</Typography>
+      <Typography sx={{ fontFamily: "'Bungee', sans-serif", fontSize: '1.6rem', lineHeight: 1.2, color: 'primary.main' }}>{value}</Typography>
+      <Typography variant="body2" sx={{ color: 'text.secondary', minHeight: '1.43em' }}>{under}</Typography>
+    </Card>
+  );
+}
+
+/** The Season tab: Wrapped up top, then the season in numbers, badges and the challenge race. */
+function SeasonTab({ team }: { team: STeam }) {
+  const league = useLeague();
+  const stats = teamSeason(league, team.teamId);
+  return (
+    <Stack spacing={3}>
+      <DrWrapped teamId={team.teamId} />
+      <Section title="Your season">
+        <Typography sx={{ fontWeight: 700, mb: 1.5 }}>{seasonLine(league, team.teamId)}</Typography>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 1 }}>
+          <SeasonTile label="Games" value={String(stats.games)} />
+          <SeasonTile label="Best night" value={stats.bestNight ? ordinal(stats.bestNight.rank) : 'None'} under={stats.bestNight ? `week ${stats.bestNight.week}` : 'yet'} />
+          <SeasonTile label="Machine wins" value={String(stats.machineWins)} />
+        </Box>
+        {stats.badges.length > 0 && (
+          <Box component="ul" sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, m: 0, mt: 1.5, p: 0, listStyle: 'none' }}>
+            {stats.badges.map((badge) => (
+              <Box component="li" key={badge} sx={{ maxWidth: '100%', '& > span': { whiteSpace: 'normal' } }}>
+                <Tag tone="good">{badge}</Tag>
+              </Box>
+            ))}
+          </Box>
+        )}
+        <Button component={RouterLink} to={`/teams/${team.teamId}`} sx={{ mt: 1, minHeight: 44 }}>
+          Your full team page
+        </Button>
+      </Section>
+      <Section title="Challenge Champion race">
+        <ChallengeChampionRace myTeamId={team.teamId} limit={5} />
+      </Section>
+    </Stack>
+  );
+}
+
+/**
+ * Checking in: the team taps "I'm here" when it arrives, and the request waits on the admin's
+ * Check In page until an admin confirms. The admin can still check a team in by hand.
+ */
+function CheckInCard({ teamId }: { teamId: string }) {
+  const league = useLeague();
+  const dispatch = useAppDispatch();
+  const asked = league.checkInRequests?.[teamId];
+  if (asked) {
+    return (
+      <Card sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2, border: 2, borderColor: 'primary.main' }}>
+        <TimerOutlinedIcon color="primary" />
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography sx={{ fontWeight: 700 }}>Waiting for the league admin</Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            You tapped "I'm here" at {clock(asked)}. You can play while you wait; your night counts once they confirm.
+          </Typography>
+        </Box>
+        <Button onClick={() => dispatch(sample.cancelCheckInRequest(teamId))} sx={{ flexShrink: 0, minHeight: 44 }}>
+          Cancel
+        </Button>
+      </Card>
+    );
+  }
+  return (
+    <Card sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2, border: 2, borderColor: 'secondary.main' }}>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography sx={{ fontWeight: 700 }}>Just got here?</Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>Let the league admin know, and they will check you in.</Typography>
+      </Box>
+      <Button
+        variant="contained"
+        color="secondary"
+        size="large"
+        onClick={() => {
+          dispatch(sample.requestCheckIn(teamId));
+          dispatch(showToast("Sent. The league admin will confirm you're here."));
+        }}
+        sx={{ flexShrink: 0, minHeight: 48, whiteSpace: 'nowrap' }}
+      >
+        I'm here
+      </Button>
+    </Card>
+  );
+}
+
 export default function TeamHome() {
   const league = useLeague();
   const { team } = useMe();
   const night = nightStatus(league);
   const week = night.week;
   const weekLine = `${weekLabel(week.week)}, ${longDate(week.date)}`;
+  const [tab, setTab] = useHomeTab(night.open);
 
   // 1. A new team that no admin has approved yet.
   if (team.status === 'pending') {
@@ -172,13 +309,15 @@ export default function TeamHome() {
     </Section>
   );
 
+  const record = challengeRace(league).find((r) => r.team.teamId === team.teamId);
+  // Challenges sit high on the page, right under how the night is going.
   const challengesRow = (
     <ActionCard
       to="/challenges"
-      icon={<CampaignIcon />}
+      icon={<SportsMmaIcon />}
       title="Challenges"
       alert={waitingOnMe > 0}
-      note={waitingOnMe > 0 ? `${waitingOnMe} waiting on you` : 'Nobody is waiting on you'}
+      note={waitingOnMe > 0 ? `${waitingOnMe} waiting on you` : `${record ? `Your record: ${record.wins} won, ${record.losses} lost. ` : ''}Most wins this season takes ${CHALLENGE_CHAMPION_BONUS} bonus points.`}
     />
   );
 
@@ -192,6 +331,9 @@ export default function TeamHome() {
           <Header team={team}>
             <Typography sx={{ color: 'text.secondary' }}>{weekLine}</Typography>
           </Header>
+          <HomeTabs tab={tab} onChange={setTab} tonightLabel={weekLabel(week.week)} />
+          {tab === 'tonight' && (
+          <>
           <Card sx={{ p: 2 }}>
             <Typography sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
               {weekLabel(week.week)} is closed. Scores open at {clockLabel(league.night.opensAt)} on league night.
@@ -218,10 +360,18 @@ export default function TeamHome() {
               See the standings
             </Button>
           </Card>
-          {played}
-          <LoveDr teamId={team.teamId} />
-          {justHappened}
           {challengesRow}
+          {played}
+          {justHappened}
+          </>
+          )}
+          {tab === 'doc' && (
+            <>
+              <DrCheckUp teamId={team.teamId} week={week.week} />
+              <LoveDr teamId={team.teamId} />
+            </>
+          )}
+          {tab === 'season' && <SeasonTab team={team} />}
         </Stack>
       </Page>
     );
@@ -247,10 +397,14 @@ export default function TeamHome() {
             sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5, mt: 0.5, fontWeight: 700, color: tonight.checkedInAt ? 'primary.main' : 'secondary.main', '& svg': { fontSize: '1.1rem', mt: '1px', flexShrink: 0 } }}
           >
             {tonight.checkedInAt ? <CheckCircleIcon /> : <ErrorOutlineIcon />}
-            {tonight.checkedInAt ? `Checked in at ${clock(tonight.checkedInAt)}` : 'Not checked in yet. Find the league admin when you arrive.'}
+            {tonight.checkedInAt ? `Checked in at ${clock(tonight.checkedInAt)}` : 'Not checked in yet'}
           </Typography>
         </Header>
+        {!tonight.checkedInAt && <CheckInCard teamId={team.teamId} />}
+        <HomeTabs tab={tab} onChange={setTab} tonightLabel="Tonight" />
 
+        {tab === 'tonight' && (
+        <>
         <Card sx={{ p: 2 }}>
           <Typography component="p" sx={{ fontSize: '1.2rem', fontWeight: 700, lineHeight: 1.3 }}>
             Tonight so far:{' '}
@@ -260,9 +414,17 @@ export default function TeamHome() {
           </Typography>
           <Typography sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.75 }}>
             <TimerOutlinedIcon fontSize="small" />
-            {minutes > 0 ? `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} left` : 'Time is up. The league admin will close the night.'}
+            {minutes > 0 ? (
+              <span aria-label={`${minutes} ${minutes === 1 ? 'minute' : 'minutes'} left`}>
+                <RollingNumber value={minutes} /> {minutes === 1 ? 'minute' : 'minutes'} left
+              </span>
+            ) : (
+              'Time is up. The league admin will close the night.'
+            )}
           </Typography>
         </Card>
+
+        {challengesRow}
 
         <ActionCard
           to="/lines"
@@ -310,9 +472,19 @@ export default function TeamHome() {
         </Section>
 
         {played}
-        <LoveDr teamId={team.teamId} />
         {justHappened}
-        {challengesRow}
+        </>
+        )}
+
+        {tab === 'doc' && (
+          <>
+            <DrPrescription teamId={team.teamId} />
+            <DrNotes teamId={team.teamId} />
+            <LoveDr teamId={team.teamId} />
+          </>
+        )}
+
+        {tab === 'season' && <SeasonTab team={team} />}
       </Stack>
     </Page>
   );

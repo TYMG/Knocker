@@ -5,6 +5,7 @@ import Typography from '@mui/material/Typography';
 import type { STeam } from '../sample/types';
 import EmptyNote from './EmptyNote';
 import MovingList from './MovingList';
+import RollingNumber from './RollingNumber';
 import Movement from './Movement';
 import TeamAvatar, { TeamLink } from './TeamAvatar';
 
@@ -62,7 +63,7 @@ export default function StandingsTable({
                 )}
               </Box>
               <Typography sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                {r.points.toLocaleString('en-US')}{' '}
+                <RollingNumber value={r.points} />{' '}
                 <Typography component="span" variant="body2" color="textSecondary">
                   {unit}
                 </Typography>

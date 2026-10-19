@@ -47,8 +47,8 @@ function MyLineCard({ mine }: { mine: MyLine }) {
   const title =
     mine.position === 1 ? `It is your turn on ${name}` : mine.position === 2 ? `You are next on ${name}` : `You are ${ordinal(mine.position)} in line for ${name}`;
   let detail: string;
-  if (mine.position === 1) detail = 'Walk up and play one game, then submit your score. Submitting takes you out of this line.';
-  else if (mine.position === 2) detail = `${mine.ahead[0]?.teamName ?? 'One team'} is playing. You go when they finish.`;
+  if (mine.position === 1) detail = 'Start your game within 5 minutes or you forfeit your turn. Play one game, then submit your score. Submitting takes you out of this line.';
+  else if (mine.position === 2) detail = `${mine.ahead[0]?.teamName ?? 'One team'} is playing. Head over now: once they finish, you have 5 minutes to start.`;
   // Teams choose on the sign-up form whether to get a message, so say which one applies.
   else detail = `${teamsBeforeYou(mine.ahead.length)} ${mine.notify ? 'We tell you when you are next.' : 'You asked not to get a message, so keep an eye on this page.'}`;
 

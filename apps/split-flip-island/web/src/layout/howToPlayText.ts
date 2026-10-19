@@ -118,16 +118,16 @@ export const LINES: HelpSection[] = [
     title: 'Waiting your turn',
     lines: [
       { text: "The Lines page shows who is playing and how many teams are ahead of you." },
-      { lead: "You're next:", text: 'head over to the machine so you are ready when the team playing finishes.' },
+      { lead: "You're next:", text: 'head over to the machine now. Once the team playing finishes, the clock starts.' },
       { text: 'Changed your mind? Leave the line anytime.' }
     ]
   },
   {
     title: "When it's your turn",
     lines: [
-      { text: 'Walk up and play one game.' },
-      { text: 'Take the photo, have your partner double-check, and submit. Submitting your score takes you out of that line.' },
-      { lead: 'Not there when your turn comes?', text: 'The admin can move you to the back of the line, or take you off it.' }
+      { lead: 'You have 5 minutes to start your game.', text: "The clock starts when the machine is free. Don't start within 5 minutes and you forfeit your turn: you're off the line, and the next team goes. Want to play? Sign up again at the back." },
+      { text: "This keeps anyone from holding a machine to stall a night out." },
+      { text: 'Play one game. Take the photo, have your partner double-check, and submit. Submitting your score takes you out of that line.' }
     ]
   },
   {
@@ -143,6 +143,6 @@ export const LINES: HelpSection[] = [
 export const LINES_SHORT: string[] = [
   'Pick a machine and sign up. You can be in one line at a time.',
   "Wait for your turn. This page shows your place, and we can message you when you're next.",
-  'Play one game, then submit your score. That takes you out of the line.',
+  "When it's your turn, start within 5 minutes or you forfeit your spot. Play one game, then submit your score.",
   'Want another go? Sign up again at the back of the line.'
 ];

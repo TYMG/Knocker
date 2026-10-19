@@ -154,7 +154,7 @@ function Header({ title, calm }: { title: string; calm: boolean }) {
           ...(!calm && { transform: 'translateY(calc(var(--y) * 0.5px))', opacity: 'max(0, calc(1 - var(--y) / 220))' })
         }}
       >
-        <Flippers />
+        <Flippers calm={calm} />
         <Typography id="sfi-help-title" variant="h2" component="h2" sx={{ color: colors.lime, textAlign: 'center', px: 2, textWrap: 'balance' }}>
           {title}
         </Typography>
@@ -163,13 +163,44 @@ function Header({ title, calm }: { title: string; calm: boolean }) {
   );
 }
 
-function Flippers() {
+/**
+ * Two flippers rallying the ball: the ball arcs from one flipper tip to the other, and each flipper
+ * flicks up as the ball lands on it. Off in calm mode (the ball just sits above them).
+ */
+function Flippers({ calm }: { calm: boolean }) {
+  const T = '2.4s';
+  const motion = calm ? {} : {
+    '& .ball-x': { animation: `sfiBallX ${T} ease-in-out infinite` },
+    '& .ball-y': { animation: `sfiBallY calc(${T} / 2) infinite` },
+    '& .flip-l': { animation: `sfiFlipL ${T} ease-out infinite` },
+    '& .flip-r': { animation: `sfiFlipR ${T} ease-out infinite` },
+    '@keyframes sfiBallX': { '0%': { transform: 'translateX(0)' }, '50%': { transform: 'translateX(38px)' }, '100%': { transform: 'translateX(0)' } },
+    // Up fast, slowing at the top, then dropping onto the next flipper.
+    '@keyframes sfiBallY': {
+      '0%': { transform: 'translateY(0)', animationTimingFunction: 'cubic-bezier(0.2, 0.7, 0.4, 1)' },
+      '50%': { transform: 'translateY(-30px)', animationTimingFunction: 'cubic-bezier(0.6, 0, 0.8, 0.3)' },
+      '100%': { transform: 'translateY(0)' }
+    },
+    // Each flipper kicks just as the ball arrives, then settles.
+    '@keyframes sfiFlipL': { '0%': { transform: 'rotate(0deg)' }, '5%': { transform: 'rotate(-28deg)' }, '16%, 100%': { transform: 'rotate(0deg)' } },
+    '@keyframes sfiFlipR': { '0%, 50%': { transform: 'rotate(0deg)' }, '55%': { transform: 'rotate(28deg)' }, '66%, 100%': { transform: 'rotate(0deg)' } }
+  };
   return (
-    <svg width="150" height="56" viewBox="0 0 150 56" aria-hidden="true">
-      <circle cx="75" cy="10" r="8" fill={colors.paleYellow} stroke={colors.black} strokeWidth="2" />
-      <g transform="rotate(22 22 30)"><rect x="14" y="24" width="48" height="13" rx="6.5" fill={colors.coral} stroke={colors.black} strokeWidth="2" /><circle cx="22" cy="30.5" r="3" fill={colors.black} /></g>
-      <g transform="rotate(-22 128 30)"><rect x="88" y="24" width="48" height="13" rx="6.5" fill={colors.coral} stroke={colors.black} strokeWidth="2" /><circle cx="128" cy="30.5" r="3" fill={colors.black} /></g>
-    </svg>
+    <Box component="svg" width="160" height="72" viewBox="0 -10 150 66" aria-hidden="true" sx={{ overflow: 'visible', ...motion, '& .flip-l, & .flip-r': { transformBox: 'fill-box' }, '& g.flip-l': { transformOrigin: '16.7% 50%' }, '& g.flip-r': { transformOrigin: '83.3% 50%' } }}>
+      <g transform="rotate(22 22 30)">
+        <g className="flip-l"><rect x="14" y="24" width="48" height="13" rx="6.5" fill={colors.coral} stroke={colors.black} strokeWidth="2" /><circle cx="22" cy="30.5" r="3" fill={colors.black} /></g>
+      </g>
+      <g transform="rotate(-22 128 30)">
+        <g className="flip-r"><rect x="88" y="24" width="48" height="13" rx="6.5" fill={colors.coral} stroke={colors.black} strokeWidth="2" /><circle cx="128" cy="30.5" r="3" fill={colors.black} /></g>
+      </g>
+      {/* The ball is drawn last so it sits on top of the flippers. */}
+      <g className="ball-x">
+        <g className="ball-y">
+          <circle cx="56" cy="33" r="7" fill={colors.paleYellow} stroke={colors.black} strokeWidth="2" />
+          <circle cx="53.5" cy="30.5" r="2" fill="#fff" />
+        </g>
+      </g>
+    </Box>
   );
 }
 

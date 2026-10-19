@@ -279,6 +279,17 @@ and every admin request re-reads the account, so removal or a password reset is 
 `.deploy-logs/`. `plan-*` steps change nothing; `apply-*` applies exactly the saved plan.
 Summarize every plan and wait for a yes before the matching apply.
 
+## Texting (decided Oct 19)
+
+- **AWS End User Messaging**, toll-free number, set up in Terraform. Not Twilio.
+- Texts only for the **check-in reminder**, one phone per team, **opt-in at sign-up**, every
+  text ends "Reply STOP to stop". Turn alerts use free web push from the app, not texts.
+  Budget: under $10–20 a season (about $8 expected).
+- Until the January launch: a proof of concept that texts only Matt's own verified number,
+  inside AWS's SMS sandbox. Before launch: request production access and a higher spend
+  limit, and register the toll-free number (2–3 weeks). The phone number is never in the repo.
+- Comparison and costs: Notion page "Texting: Twilio vs AWS" under Web App.
+
 ## Open decisions (ask before assuming)
 
 - How teams get their PIN (choose at sign-up, shown on screen, or texted)
@@ -286,8 +297,6 @@ Summarize every plan and wait for a yes before the matching apply.
 - Lyman's machine lineup
 - The penalty for 3 forfeited turns in a season
 - What a team gets for a night it misses (the app gives 0; there are no dropped nights)
-- Texting: the plan is free phone notifications for turns, and texts only for the check-in
-  reminder (one phone per team, opt-in at sign-up), to stay under $10–20 a season
 - Whether finals scores need a photo (the admin page has none yet)
 - A tie at the line for the finals (4th/5th, 8th/9th): the rules say a one-game split-flip
   playoff, but the app does not run it yet

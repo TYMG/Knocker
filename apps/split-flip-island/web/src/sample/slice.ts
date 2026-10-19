@@ -6,11 +6,11 @@
 
 import { createSlice, current, type PayloadAction } from '@reduxjs/toolkit';
 import { teamPhoto } from './art';
-import { alreadyChallenged, challengeView, currentWeek, machine, seasonHigh, team, tonightRows, weekOf } from './league';
+import { alreadyChallenged, challengeView, currentWeek, finalsPool, finalsStep, finalsUsed, machine, season, seasonHigh, team, tonightRows, weekOf, type Bracket, type SeasonOption } from './league';
 import { buildSeed, MY_TEAM } from './seed';
 import { buildFreshLeague, HELPERS, helperScore, helperTeam } from './fresh';
 import { addMinutes as plusMinutes, at, clockLabel, longDate, ordinal } from './time';
-import type { Role, SampleState, SScore } from './types';
+import type { Role, SampleState, SFinal, SScore } from './types';
 
 /** Bump this when the shape of the sample data changes, so old saved copies are ignored. */
 const SAVED_KEY = 'sfi-sample-v2';
@@ -68,6 +68,26 @@ function refreshTurns(s: SampleState) {
 
 function lineEvent(s: SampleState, kind: 'started' | 'forfeit', teamId: string, machineId: string) {
   s.lineEvents = [{ id: nextId(s, 'e'), kind, teamId, machineId, real: Date.now() }, ...(s.lineEvents ?? [])].slice(0, 20);
+}
+
+
+// ---- Finals, run by an admin ----
+
+/** Keeps the public "Game N is on" panel in step with the play order and the scores in. */
+function syncLive(f: SFinal) {
+  const i = f.games.length - 1;
+  const g = f.games[i];
+  if (!g || g.places || !g.order || !g.machineId) { f.live = undefined; return; }
+  const scores = g.scores ?? {};
+  const waiting = g.order.filter((id) => scores[id] === undefined);
+  f.live = { game: i, scores: { ...scores }, playing: waiting[0], next: waiting[1] };
+}
+
+/** Places for one game: the higher score is better; equal scores share the better place. */
+function placesFor(order: string[], scores: Record<string, number>): Record<string, number> {
+  const places: Record<string, number> = {};
+  for (const id of order) places[id] = 1 + order.filter((o) => scores[o]! > scores[id]!).length;
+  return places;
 }
 
 function leaveLines(s: SampleState, teamId: string, onlyMachineId?: string) {
@@ -201,6 +221,83 @@ const slice = createSlice({
     },
     lineRemove(s, a: PayloadAction<{ machineId: string; teamId: string }>) {
       leaveLines(s, a.payload.teamId, a.payload.machineId);
+    },
+
+    // ---- Finals ----
+
+    /** Lock in the four teams for a final, seeded from the season standings. */
+    finalsLock(s, a: PayloadAction<{ bracket: Bracket; option: SeasonOption }>) {
+      const rows = season(current(s))[a.payload.option];
+      const [from, to] = a.payload.bracket === 'championship' ? [0, 4] : [4, 8];
+      const teamIds = rows.slice(from, to).map((r) => r.team.teamId);
+      if (teamIds.length < 4) return;
+      const f = s.finals[a.payload.bracket];
+      f.teamIds = teamIds; f.games = []; f.live = undefined; f.locked = true; f.winnerId = undefined;
+      addLog(s, 'admin', `Admin locked in the ${f.title.toLowerCase()}: ${teamIds.map((id) => team(current(s), id).teamName).join(', ')}`);
+    },
+    /** The team whose turn it is picks the machine, or (games 2 and 3) a spot in the play order. */
+    finalsChoose(s, a: PayloadAction<{ bracket: Bracket; machineId?: string; spot?: number }>) {
+      const f = s.finals[a.payload.bracket];
+      if (!f.locked) return;
+      const step = finalsStep(current(f) as SFinal);
+      if (step.kind !== 'choose') return;
+      const { machineId, spot } = a.payload;
+      if (machineId) {
+        if (finalsUsed(f).includes(machineId) || !finalsPool(current(s)).some((m) => m.machineId === machineId)) return;
+      } else if (!spot || !step.canSpot || !step.spotsLeft.includes(spot)) return;
+      if (step.mustMachine && !machineId) return;
+      if (machineId && f.games[step.game]?.machineId) return;
+      if (step.game === f.games.length) f.games.push({ machineId: '', places: null, picks: [] });
+      const g = f.games[step.game]!;
+      const picks = (g.picks ??= []);
+      if (machineId) { g.machineId = machineId; picks.push({ teamId: step.teamId, pick: 'machine' }); }
+      else picks.push({ teamId: step.teamId, pick: spot! });
+      const name = team(current(s), step.teamId).teamName;
+      if (step.game === 0) {
+        // Game 1: the 1st seed picks the machine and everyone plays in seed order.
+        g.order = [...f.teamIds];
+      } else if (picks.length === f.teamIds.length) {
+        // Everyone has chosen: the machine picker takes the spot nobody picked.
+        const order: string[] = [];
+        for (const n of [1, 2, 3, 4]) order.push(picks.find((p) => p.pick === n)?.teamId ?? picks.find((p) => p.pick === 'machine')!.teamId);
+        g.order = order;
+      }
+      if (machineId) addLog(s, 'league', `${f.title}, game ${step.game + 1}: ${name} picked ${machine(current(s), machineId).name}`);
+      syncLive(f);
+    },
+    /** The admin enters (or corrects) a team's score for the game being played. */
+    finalsScore(s, a: PayloadAction<{ bracket: Bracket; teamId: string; score: number }>) {
+      const f = s.finals[a.payload.bracket];
+      const g = f.games[f.games.length - 1];
+      if (!f.locked || !g || g.places || !g.order) return;
+      g.scores = { ...(g.scores ?? {}), [a.payload.teamId]: a.payload.score };
+      const snap = current(s);
+      if (g.order.every((id) => g.scores![id] !== undefined)) {
+        g.places = placesFor(g.order, g.scores);
+        const first = g.order.find((id) => g.places![id] === 1)!;
+        addLog(s, 'league', `${f.title}, game ${f.games.length}: ${team(snap, first).teamName} won ${machine(snap, g.machineId).name}`);
+        const step = finalsStep(current(f) as SFinal);
+        if (f.games.length === 3 && step.kind === 'done') {
+          const totals = f.teamIds.map((id) => ({ id, t: f.games.reduce((sum, gm) => sum + (gm.places ? 5 - (gm.places[id] ?? 5) : 0), 0) }));
+          f.winnerId = totals.sort((x, y) => y.t - x.t)[0]!.id;
+          addLog(s, 'league', `${team(snap, f.winnerId).teamName} won the ${f.title.toLowerCase()}`);
+        }
+      }
+      syncLive(f);
+    },
+    /** A tie at the top after game 3, settled by a one-ball playoff. */
+    finalsPlayoff(s, a: PayloadAction<{ bracket: Bracket; winnerId: string }>) {
+      const f = s.finals[a.payload.bracket];
+      const step = finalsStep(current(f) as SFinal);
+      if (step.kind !== 'playoff' || !step.tied.includes(a.payload.winnerId)) return;
+      f.winnerId = a.payload.winnerId;
+      addLog(s, 'league', `${team(current(s), f.winnerId).teamName} won the one-ball playoff and the ${f.title.toLowerCase()}`);
+    },
+    /** Start a final over: back to locking in the teams. */
+    finalsReset(s, a: PayloadAction<Bracket>) {
+      const f = s.finals[a.payload];
+      f.games = []; f.live = undefined; f.locked = false; f.winnerId = undefined;
+      addLog(s, 'admin', `Admin started the ${f.title.toLowerCase()} over`);
     },
 
     // ---- Scores ----

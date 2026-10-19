@@ -169,9 +169,28 @@ export interface SNightSettings {
 export interface SFinal {
   title: string;
   teamIds: string[]; // in seed order
-  games: { machineId: string; places: Record<string, number> | null }[];
+  games: SFinalGame[];
   /** The game being played right now, with scores so far. */
   live?: { game: number; scores: Record<string, number>; playing?: string; next?: string };
+  /** An admin locked in the teams and is running this final for real (not the made-up preview). */
+  locked?: boolean;
+  /** Set once the final is decided: after game 3, or after a one-ball playoff for a tie at the top. */
+  winnerId?: string;
+}
+
+/**
+ * One finals game. Game 1: the 1st seed picks the machine and the order is by seed. Games 2 and 3:
+ * in seed order, each team picks either the machine or a spot in the play order; one machine pick
+ * per game, and the last team gets what is left. No machine is played twice in a final.
+ */
+export interface SFinalGame {
+  machineId: string; // '' until picked
+  places: Record<string, number> | null;
+  /** Choices so far, in seed order: 'machine', or a play spot (1 to 4). */
+  picks?: { teamId: string; pick: 'machine' | number }[];
+  /** Play order, once settled. */
+  order?: string[];
+  scores?: Record<string, number>;
 }
 
 export interface SampleState {

@@ -274,6 +274,19 @@ export const TOUR: TourPage[] = [
     tryIt: 'Approve Shoot Again before its time runs out. It joins the league starting next week.'
   },
   {
+    path: '/admin/finals', example: '/admin/finals', title: 'Run the finals', group: 'Running the season', role: 'admin',
+    who: 'The one admin running championship night.',
+    when: 'Finals night (week 9), for the championship and the second-chance final.',
+    does: [
+      'Lock in the four teams from the season standings (choose which scoring option seeds them).',
+      'Game 1: the 1st seed picks the machine and play goes in seed order.',
+      'Games 2 and 3: in seed order, each team picks the machine or a spot in the play order; the last team gets what is left. Machines already played are greyed out.',
+      'Enter each team\'s score as they finish. All four in: 4-3-2-1 points. After game 3 the champion is crowned, or a one-ball playoff settles a tie.',
+      'The public Finals tab follows along live.'
+    ],
+    tryIt: 'Lock in the championship, then play all three games with made-up scores. Watch the Finals tab on another device or tab.'
+  },
+  {
     path: '/admin/teams/:teamId', example: '/admin/teams/flip-city', title: 'One team (admin)', group: 'Running the season', role: 'admin',
     who: 'A league admin.',
     when: 'A team asks about their scores, or forgot their PIN.',

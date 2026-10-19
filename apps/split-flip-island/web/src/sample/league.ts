@@ -717,3 +717,44 @@ export function forfeitCounts(s: SampleState, teamId: string): { tonight: number
 
 /** The forfeit count that brings a penalty (what the penalty is has not been decided). */
 export const FORFEIT_LIMIT = 3;
+
+// ---- Running the finals (admin) ----
+
+export type Bracket = 'championship' | 'secondChance';
+
+/** The finals machine pool: every machine played this season, minus any marked out on finals night. */
+export function finalsPool(s: SampleState): SMachine[] {
+  const used = new Set(s.weeks.filter((w) => w.week <= 8).flatMap((w) => w.machineIds));
+  const finalsNight = s.weeks.find((w) => w.week === 9);
+  return s.machines.filter((m) => used.has(m.machineId) && !m.removed && !finalsNight?.out[m.machineId]);
+}
+
+/** Where the current game stands, for the admin finals page. */
+export function finalsStep(final: SFinal):
+  | { kind: 'choose'; game: number; teamId: string; canSpot: boolean; spotsLeft: number[]; mustMachine: boolean }
+  | { kind: 'scores'; game: number }
+  | { kind: 'playoff'; tied: string[] }
+  | { kind: 'done' } {
+  if (final.winnerId) return { kind: 'done' };
+  const n = final.games.length;
+  const g = final.games[n - 1];
+  if (g && !g.places) {
+    if (g.machineId && g.order) return { kind: 'scores', game: n - 1 };
+    const picks = g.picks ?? [];
+    const teamId = final.teamIds[picks.length]!;
+    const taken = picks.map((p) => p.pick).filter((p): p is number => typeof p === 'number');
+    const spotsLeft = [1, 2, 3, 4].filter((x) => !taken.includes(x));
+    const machinePicked = picks.some((p) => p.pick === 'machine');
+    const last = picks.length === final.teamIds.length - 1;
+    return { kind: 'choose', game: n - 1, teamId, canSpot: n - 1 > 0 && !(last && !machinePicked), spotsLeft, mustMachine: n - 1 === 0 || (last && !machinePicked) };
+  }
+  if (n < 3) return { kind: 'choose', game: n, teamId: final.teamIds[0]!, canSpot: n > 0, spotsLeft: [1, 2, 3, 4], mustMachine: n === 0 };
+  // Three games in: a clear leader wins; a tie at the top goes to a one-ball playoff.
+  const totals = final.teamIds.map((id) => ({ id, total: final.games.reduce((sum, gm) => sum + (gm.places ? 5 - (gm.places[id] ?? 5) : 0), 0) }));
+  const top = Math.max(...totals.map((t) => t.total));
+  const tied = totals.filter((t) => t.total === top).map((t) => t.id);
+  return tied.length > 1 ? { kind: 'playoff', tied } : { kind: 'done' };
+}
+
+/** Machines already played (or picked) in this final. */
+export const finalsUsed = (final: SFinal) => final.games.map((g) => g.machineId).filter(Boolean);

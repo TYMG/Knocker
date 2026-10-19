@@ -54,7 +54,9 @@ export default function Finals() {
   const finalsWeek = weekOf(league, 9);
   const away = finalsWeek?.state === 'upcoming' ? howFarAway(league, finalsWeek.date) : undefined;
   // Finals night itself (or after it) opens straight on the night view.
-  const [mode, setMode] = useState<Mode>(finalsWeek && finalsWeek.state !== 'upcoming' ? 'night' : 'before');
+  // Once an admin is running a final, it opens on the night too.
+  const running = league.finals.championship.locked || league.finals.secondChance.locked;
+  const [mode, setMode] = useState<Mode>((finalsWeek && finalsWeek.state !== 'upcoming') || running ? 'night' : 'before');
   const [bracket, setBracket] = useState<Bracket>('championship');
 
   return (
@@ -75,9 +77,14 @@ export default function Finals() {
             { value: 'night', label: 'On the night' }
           ]}
         />
-        {away && (
+        {away && !running && (
           <Typography variant="body2" color="textSecondary" sx={{ mt: 1, maxWidth: 640 }}>
             Finals are {away}. "On the night" is a preview of how this page will look then, using made-up results.
+          </Typography>
+        )}
+        {away && running && (
+          <Typography variant="body2" color="textSecondary" sx={{ mt: 1, maxWidth: 640 }}>
+            Sample: an admin is running the finals early, so "On the night" shows those results.
           </Typography>
         )}
       </div>
@@ -160,10 +167,12 @@ function SeedCard({ title, rows, firstSeed, myTeamId, outside }: { title: string
 
 // ---- On the night ----
 
-function OnTheNight({ bracket, onBracket, preview }: { bracket: Bracket; onBracket: (b: Bracket) => void; preview: boolean }) {
+function OnTheNight({ bracket, onBracket, preview: early }: { bracket: Bracket; onBracket: (b: Bracket) => void; preview: boolean }) {
   const league = useLeague();
   const me = useMe();
   const final = league.finals[bracket];
+  // Made-up results until an admin locks in the teams and runs it.
+  const preview = early && !final.locked;
   const rows = finalTable(league, final);
   const inFinal = me.isTeam && final.teamIds.includes(me.team.teamId);
   const needs = inFinal ? whatTeamNeeds(league, final, me.team.teamId) : null;
@@ -171,7 +180,7 @@ function OnTheNight({ bracket, onBracket, preview }: { bracket: Bracket; onBrack
 
   // The League Champion is decided: the whole screen celebrates, once.
   const top = rows.length ? Math.max(...rows.map((r) => r.total)) : 0;
-  const champion = bracket === 'championship' && allPlayed && !preview && rows.filter((r) => r.total === top).length === 1;
+  const champion = bracket === 'championship' && !preview && (final.winnerId ? true : allPlayed && rows.filter((r) => r.total === top).length === 1);
   useEffect(() => {
     if (champion) celebrateOnce('champion', 'champion');
   }, [champion]);
@@ -228,7 +237,9 @@ function resultLine(league: SampleState, final: SFinal): string {
   const top = Math.max(...rows.map((r) => r.total));
   const leaders = rows.filter((r) => r.total === top);
   if (leaders.length === 1) return `All games are played. ${leaders[0]!.team.teamName} win with ${top} points.`;
-  return `All games are played and ${leaders.map((r) => r.team.teamName).join(' and ')} are tied on ${top} points. One more game settles it.`;
+  const winner = final.winnerId ? leaders.find((r) => r.team.teamId === final.winnerId) : undefined;
+  if (winner) return `All games are played. ${leaders.map((r) => r.team.teamName).join(' and ')} tied on ${top} points, and ${winner.team.teamName} won the one-ball playoff.`;
+  return `All games are played and ${leaders.map((r) => r.team.teamName).join(' and ')} are tied on ${top} points. A one-ball playoff settles it.`;
 }
 
 /**
@@ -249,7 +260,7 @@ function FinalPointsTable({ final, myTeamId }: { final: SFinal; myTeamId?: strin
             {final.games.map((g, i) => (
               <TableCell key={i} align="center" sx={{ ...cell, px: { xs: 0.25, sm: 1.5 }, width: { xs: 58, sm: 110 }, fontWeight: 700, lineHeight: 1.2 }}>
                 <Box component="span" sx={{ whiteSpace: 'nowrap' }}>Game {i + 1}</Box>
-                <Box component="span" sx={{ display: 'block', fontWeight: 400, fontSize: '0.72rem', color: 'text.secondary' }}>{machineOf(league, g.machineId).name}</Box>
+                <Box component="span" sx={{ display: 'block', fontWeight: 400, fontSize: '0.72rem', color: 'text.secondary' }}>{g.machineId ? machineOf(league, g.machineId).name : 'Picking'}</Box>
               </TableCell>
             ))}
             <TableCell align="right" sx={{ ...cell, pr: 2, width: { xs: 54, sm: 90 }, fontWeight: 700, lineHeight: 1.2 }}>

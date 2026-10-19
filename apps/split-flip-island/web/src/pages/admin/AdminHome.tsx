@@ -9,6 +9,7 @@ import Card from '@mui/material/Card';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import FactCheckIcon from '@mui/icons-material/FactCheck';
@@ -132,6 +133,7 @@ export default function AdminHome() {
           <Buttons>
             <ActionCard to="/admin/teams" title="Teams" note={<Note alert={sum.pending > 0}>{teamsNote}</Note>} alert={sum.pending > 0} icon={<GroupsIcon />} />
             <ActionCard to="/admin/weeks" title="Weeks" note={<Note>{`Week ${week.week} of ${leagueWeeks}, then finals`}</Note>} icon={<CalendarMonthIcon />} />
+            <ActionCard to="/admin/finals" title="Run the finals" note={<Note>{league.finals.championship.winnerId ? 'Champion decided' : league.finals.championship.locked ? 'Championship under way' : 'Lock in the top 4, then 3 games'}</Note>} icon={<EmojiEventsIcon />} />
             <ActionCard to="/admin/machines" title="Locations and machines" note={<Note>{placesNote}</Note>} icon={<PlaceIcon />} />
           </Buttons>
         </Section>

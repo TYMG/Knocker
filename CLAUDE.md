@@ -200,8 +200,9 @@ and every admin request re-reads the account, so removal or a password reset is 
 - Check-in opens **30 minutes before** the night. A team taps **I'm here**; an admin
   **confirms** (or declines) it. Admins can also check a team in directly. Requests are cleared
   when the night closes.
-- **No lines and no score submissions until a team has checked in** (tapped I'm here or been
-  confirmed).
+- **No lines and no score submissions until an admin has confirmed the team's check-in.**
+- Every check-in request pops up for admins (Confirm / Not here / Later), wherever they are in
+  the app.
 - Reminders: a countdown in the last 5 minutes before the night opens, with a sub reminder at
   1 minute, and a standing note once the night is open.
 - **Everyone plays every week** (no dropped nights). **Each player can be subbed out once a
@@ -222,7 +223,7 @@ and every admin request re-reads the account, so removal or a password reset is 
   removed from the line, and the next team's clock starts. An admin can also forfeit a team.
 - Forfeits are logged and counted **per night and per season**. **3 in a season brings a
   penalty** (not decided yet; the app flags the team to admins).
-- Admins get a quiet, mutable note when a team starts or forfeits a turn.
+- Admins get a quiet, mutable note when a team starts a turn, and a pop-up for every forfeit.
 
 ### Challenges and bonuses
 - A challenge wagers season points a team already has, **10 at most**; the better score on that

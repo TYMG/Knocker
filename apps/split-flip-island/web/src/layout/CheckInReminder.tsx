@@ -17,6 +17,13 @@ export default function CheckInReminder() {
   if (canPlayTonight(league, t.teamId)) return null;
   const win = checkInWindow(league);
   if (!win.open) return null;
+  if (league.checkInRequests?.[t.teamId]) {
+    return (
+      <Box role="status" sx={{ px: 2, py: 1, bgcolor: colors.lime, color: colors.black }}>
+        <Typography sx={{ fontWeight: 700 }}>Waiting for the league admin to confirm you're here. Lines and scores open once they do.</Typography>
+      </Box>
+    );
+  }
   const opening = win.minutesToOpen > 0;
   if (opening && win.minutesToOpen > 5) return null;
 

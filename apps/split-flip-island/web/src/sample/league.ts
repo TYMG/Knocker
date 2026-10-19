@@ -761,8 +761,8 @@ export const finalsUsed = (final: SFinal) => final.games.map((g) => g.machineId)
 
 // ---- Check-in, subs, withdrawn teams ----
 
-/** Checked in, or asked to be ("I'm here"). Either one lets a team join lines and submit. */
-export const canPlayTonight = (s: SampleState, teamId: string) => !!s.checkIns[teamId] || !!s.checkInRequests?.[teamId];
+/** Only a check-in the admin has confirmed lets a team join lines and submit scores. */
+export const canPlayTonight = (s: SampleState, teamId: string) => !!s.checkIns[teamId];
 
 /** Which partners have used their one sub this season. */
 export function subsUsed(s: SampleState, teamId: string): Partial<Record<0 | 1, SSub>> {

@@ -35,7 +35,7 @@ export const PLAY: HelpSection[] = [
   {
     title: 'League night basics',
     lines: [
-      { lead: 'Check in when you arrive:', text: "tap I'm here on your Home page (from 6:30), and the admin confirms you once they see you. You can't join a line or submit a score until you've checked in. League night runs 7 to 9 PM." },
+      { lead: 'Check in when you arrive:', text: "tap I'm here on your Home page (from 6:30), and the admin confirms you once they see you. You can't join a line or submit a score until the admin has confirmed you. League night runs 7 to 9 PM." },
       { lead: 'Everyone plays every week.', text: "Partner can't make it? Each player can be subbed out once a season, so a team has two subs in all. At check-in, tap Sub next to the partner who's out and type the sub's name. A sub has to be someone not in the league." },
       { text: 'Your best score on each machine each night is the one that counts.' },
       { lead: 'How you score:', text: "on each machine, each night, your best score is ranked against every team's. 1st earns as many points as there are teams, down to 1 for last. The Scoring tab has the full breakdown." },

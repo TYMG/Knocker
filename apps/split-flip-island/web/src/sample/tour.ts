@@ -62,7 +62,7 @@ export const TOUR: TourPage[] = [
     does: [
       'See where you stand tonight and how long is left.',
       'Just got here? Tap I\'m here on the Tonight tab (from 6:30). Partner out tonight? Tap Sub next to them and type the sub\'s name: one sub per player per season, never someone in the league. The card says Waiting for the league admin until an admin confirms you.',
-      'Until you check in, Lines and Submit are closed. A banner counts down the last 5 minutes before 7 PM, with a sub reminder at 1 minute.',
+      'Until the admin confirms your check-in, Lines and Submit are closed. A banner counts down the last 5 minutes before 7 PM, with a sub reminder at 1 minute.',
       'See your place in line, what you still have to play and what you have played.',
       'Jump to Submit a score.',
       'Read what just happened to you: someone beat your score, passed you, or challenged you.',
@@ -208,7 +208,7 @@ export const TOUR: TourPage[] = [
     who: 'A league admin.',
     when: 'As teams arrive, 6:45 to 7:15 PM.',
     does: [
-      'Says they\'re here: teams that tapped I\'m here on their phone wait at the top, with any sub they named. Confirm once you see them (that uses the sub), or Not here if they are not.',
+      'Says they\'re here: teams that tapped I\'m here on their phone wait at the top, with any sub they named. Confirm once you see them (that uses the sub), or Not here if they are not. Each request also pops up for the admin wherever they are in the app.',
       'Tap Check in next to a team that walks in without tapping.',
       'Undo a check-in made by mistake.',
       'See at a glance who has not shown up. Admin home also says how many are waiting to be confirmed.'
@@ -249,7 +249,7 @@ export const TOUR: TourPage[] = [
     path: '/admin/lines', example: '/admin/lines', title: 'Machine lines', group: 'Running the night', role: 'admin',
     who: 'A league admin.',
     when: 'All night, to see who is on each machine, and when a team is not at the machine for its turn.',
-    does: ['See who is up on each machine: started, or the time left to start.', 'Forfeit now, when a team is plainly not at the machine. The app also forfeits on its own after 5 minutes.', 'Send a team to the back of a line, or take it off.', 'Turn the quick notes on or off: a small note when a team starts or forfeits a turn, gone in a few seconds.', 'For an admin who is not on a team, this is what the Lines tab opens.'],
+    does: ['See who is up on each machine: started, or the time left to start.', 'Forfeit now, when a team is plainly not at the machine. The app also forfeits on its own after 5 minutes.', 'Send a team to the back of a line, or take it off.', 'Turn the quick notes on or off: a small note when a team starts a turn, gone in a few seconds. A forfeit always pops up.', 'For an admin who is not on a team, this is what the Lines tab opens.'],
     tryIt: 'Remove the team at the front of a line, then tap Sample: skip 1 minute on the next team until the clock runs out.'
   },
   {

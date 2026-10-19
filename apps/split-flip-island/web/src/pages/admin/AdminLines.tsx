@@ -65,7 +65,7 @@ function BlipSwitch() {
   return (
     <FormControlLabel
       control={<Switch checked={!muted} onChange={(e) => setBlipsMuted(!e.target.checked)} />}
-      label="Quick note when a team starts or forfeits a turn"
+      label="Quick note when a team starts a turn (check-ins and forfeits always pop up)"
       sx={{ mb: 1.5 }}
     />
   );

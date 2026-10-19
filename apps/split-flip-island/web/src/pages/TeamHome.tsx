@@ -175,7 +175,7 @@ function CheckInCard({ teamId }: { teamId: string }) {
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography sx={{ fontWeight: 700 }}>Waiting for the league admin</Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            You tapped "I'm here" at {clock(asked)}{pending ? `, with ${pending.subName} in for ${t.players[pending.outPlayer]}` : ''}. You can join lines and play while you wait; your night counts once they confirm.
+            You tapped "I'm here" at {clock(asked)}{pending ? `, with ${pending.subName} in for ${t.players[pending.outPlayer]}` : ''}. Lines and scores open as soon as they confirm you.
           </Typography>
         </Box>
         <Button onClick={() => dispatch(sample.cancelCheckInRequest(teamId))} sx={{ flexShrink: 0, minHeight: 44 }}>

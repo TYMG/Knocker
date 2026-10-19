@@ -14,6 +14,7 @@ import { useAppDispatch, useLeague, useMe } from '../hooks';
 import { FORFEIT_LIMIT, forfeitCounts, lineFor } from '../sample/league';
 import { sample, TURN_MS } from '../sample/slice';
 import { showToast } from '../store';
+import { clock } from '../sample/time';
 import { colors } from '../theme';
 import { mmss, setBlipsMuted, turnLeft, useBlipsMuted, useNow } from '../ui/turnClock';
 
@@ -25,6 +26,8 @@ export default function TurnAlerts() {
       {me.isTeam && <TeamTurn teamId={me.team.teamId} />}
       {me.isTeam && <TeamForfeit teamId={me.team.teamId} />}
       {me.isAdmin && <AdminBlips />}
+      {me.isAdmin && <AdminCheckInAlert />}
+      {me.isAdmin && <AdminForfeitAlert />}
     </>
   );
 }
@@ -155,7 +158,8 @@ function AdminBlips() {
   const muted = useBlipsMuted();
   const opened = useRef(Date.now());
   const [gone, setGone] = useState<string[]>([]);
-  const fresh = (league.lineEvents ?? []).filter((e) => e.real > opened.current && !gone.includes(e.id)).slice(0, 3);
+  // Only the small things are quick notes. Check-ins and forfeits get a pop-up (below).
+  const fresh = (league.lineEvents ?? []).filter((e) => e.kind === 'started' && e.real > opened.current && !gone.includes(e.id)).slice(0, 3);
 
   useEffect(() => {
     if (fresh.length === 0) return;
@@ -180,5 +184,83 @@ function AdminBlips() {
         </Box>
       ))}
     </Box>
+  );
+}
+
+/**
+ * A team tapped "I'm here": a pop-up for the admin, oldest first, with Confirm and Not here.
+ * "Later" hides that one request until the team taps again; the Check In page still lists it.
+ */
+function AdminCheckInAlert() {
+  const league = useLeague();
+  const dispatch = useAppDispatch();
+  const [later, setLater] = useState<string[]>([]);
+  const requests = Object.entries(league.checkInRequests ?? {})
+    .filter(([teamId, at]) => !league.checkIns[teamId] && !later.includes(`${teamId}@${at}`))
+    .sort((a, b) => (a[1] < b[1] ? -1 : 1));
+  const first = requests[0];
+  if (!first) return null;
+  const [teamId, at] = first;
+  const t = league.teams.find((x) => x.teamId === teamId);
+  if (!t) return null;
+  const sub = league.pendingSubs?.[teamId]?.[0];
+
+  return (
+    <Dialog open onClose={() => undefined} aria-labelledby="sfi-checkin-title" slotProps={{ paper: { sx: { m: 2, p: 3, bgcolor: colors.card, color: colors.paleYellow, border: `3px solid ${colors.lime}`, borderRadius: 3, maxWidth: 420, width: '100%' } } }}>
+      <Typography sx={{ fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', fontSize: '0.8rem', opacity: 0.8 }}>
+        Check-in{requests.length > 1 ? ` · ${requests.length} waiting` : ''}
+      </Typography>
+      <Typography id="sfi-checkin-title" variant="h2" component="h2" sx={{ color: colors.lime, mt: 0.5 }}>{t.teamName}</Typography>
+      <Typography sx={{ mt: 1, lineHeight: 1.5 }}>
+        {t.players.filter(Boolean).join(' and ')} tapped "I'm here" at {clock(at)}. Confirm once you see them.
+      </Typography>
+      {sub && (
+        <Box sx={{ mt: 1.5, p: 1.25, borderRadius: 2, bgcolor: 'rgba(255,255,153,0.08)' }}>
+          <Typography sx={{ fontWeight: 700 }}>Sub tonight: {sub.subName} in for {t.players[sub.outPlayer]}</Typography>
+          <Typography variant="body2" sx={{ opacity: 0.85 }}>That is {t.players[sub.outPlayer]}'s one sub this season. Check {sub.subName} is not in the league.</Typography>
+        </Box>
+      )}
+      <Button fullWidth size="large" variant="contained" onClick={() => { dispatch(sample.checkIn(teamId)); dispatch(showToast(`Checked in ${t.teamName}`)); }} sx={{ mt: 2.5, minHeight: 52, bgcolor: colors.lime, color: colors.black, fontWeight: 700, '&:hover': { bgcolor: colors.lime } }}>
+        Confirm {t.teamName}
+      </Button>
+      <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+        <Button fullWidth onClick={() => { dispatch(sample.declineCheckIn(teamId)); dispatch(showToast(`${t.teamName} can tap "I'm here" again when they arrive`)); }} sx={{ color: colors.coral }}>
+          Not here
+        </Button>
+        <Button fullWidth onClick={() => setLater((l) => [...l, `${teamId}@${at}`])} sx={{ color: colors.paleYellow }}>
+          Later
+        </Button>
+      </Box>
+    </Dialog>
+  );
+}
+
+/** A forfeit while the admin has the app open: a pop-up, so it is not missed. */
+function AdminForfeitAlert() {
+  const league = useLeague();
+  const opened = useRef(Date.now());
+  const [seen, setSeen] = useState<string[]>([]);
+  const e = (league.lineEvents ?? []).filter((x) => x.kind === 'forfeit' && x.real > opened.current && !seen.includes(x.id)).pop();
+  if (!e) return null;
+  const t = league.teams.find((x) => x.teamId === e.teamId);
+  const m = league.machines.find((x) => x.machineId === e.machineId);
+  const f = [...(league.forfeits ?? [])].reverse().find((x) => x.teamId === e.teamId && x.machineId === e.machineId);
+  const counts = forfeitCounts(league, e.teamId);
+  const over = counts.season >= FORFEIT_LIMIT;
+
+  return (
+    <Dialog open onClose={() => undefined} aria-labelledby="sfi-forfeit-admin" slotProps={{ paper: { sx: { m: 2, p: 3, bgcolor: colors.card, color: colors.paleYellow, border: `3px solid ${colors.coral}`, borderRadius: 3, maxWidth: 420, width: '100%' } } }}>
+      <Typography sx={{ fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', fontSize: '0.8rem', opacity: 0.8 }}>Turn forfeited</Typography>
+      <Typography id="sfi-forfeit-admin" variant="h2" component="h2" sx={{ color: colors.coral, mt: 0.5 }}>{t?.teamName ?? 'A team'}</Typography>
+      <Typography sx={{ mt: 1, lineHeight: 1.5 }}>
+        {f?.by === 'admin' ? 'Forfeited by an admin' : "Didn't start within 5 minutes"} on {m?.name ?? 'a machine'}. They're off the line and the next team is up.
+      </Typography>
+      <Typography sx={{ mt: 1.5, fontWeight: 700, color: over ? colors.coral : undefined }}>
+        Forfeits: {counts.tonight} tonight, {counts.season} this season{over ? `. That's ${FORFEIT_LIMIT} or more: penalty to decide.` : ''}
+      </Typography>
+      <Button fullWidth size="large" variant="contained" onClick={() => setSeen((x) => [...x, e.id])} sx={{ mt: 2.5, minHeight: 48, bgcolor: colors.coral, color: colors.black, fontWeight: 700, '&:hover': { bgcolor: colors.coral } }}>
+        Got it
+      </Button>
+    </Dialog>
   );
 }

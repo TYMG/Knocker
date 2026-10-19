@@ -36,6 +36,7 @@ import { ApprovalCheer } from './guards';
 import ThemeToggle from './ThemeToggle';
 import TourDrawer from './TourDrawer';
 import StoryCard from './StoryCard';
+import HowToPlay from './HowToPlay';
 
 interface NavItem {
   to: string;
@@ -215,6 +216,7 @@ export default function PlayerLayout() {
       <Toaster />
       <TourDrawer />
       <StoryCard />
+      <HowToPlay />
     </Box>
   );
 }

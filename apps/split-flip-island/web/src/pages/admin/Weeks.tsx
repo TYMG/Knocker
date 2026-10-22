@@ -85,6 +85,7 @@ export default function Weeks() {
 
   return (
     <Page title="Weeks" back={{ to: '/admin', label: 'Admin home' }}>
+      <Recalculate />
       <Stack spacing={1}>
         {items.map((item) => {
           if (!item.week) {
@@ -212,5 +213,33 @@ export default function Weeks() {
         </DialogActions>
       </Dialog>
     </Page>
+  );
+}
+
+/**
+ * Work the season standings out again, after removing or adding teams. Every closed night is
+ * scored again from its scores with the teams that count that week.
+ */
+function Recalculate() {
+  const dispatch = useAppDispatch();
+  const league = useLeague();
+  const teams = league.teams.filter((t) => t.status === 'approved').length;
+  return (
+    <Card sx={{ p: 2, mb: 2 }}>
+      <Typography sx={{ fontWeight: 700 }}>Recalculate the season</Typography>
+      <Typography variant="body2" color="textSecondary" sx={{ mt: 0.5 }}>
+        After withdrawing, bringing back or adding a team, every closed night is scored again from its scores, with the teams that count that week. Points scale with the number of teams, so places and totals can shift. The league log keeps a note.
+      </Typography>
+      <Button
+        variant="outlined"
+        sx={{ mt: 1.25, minHeight: 44 }}
+        onClick={() => {
+          dispatch(sample.recalculateSeason());
+          dispatch(showToast(`Season standings worked out again with ${teams} teams.`));
+        }}
+      >
+        Recalculate standings
+      </Button>
+    </Card>
   );
 }

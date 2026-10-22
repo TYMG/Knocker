@@ -18,7 +18,7 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
 import { useAppDispatch, useLeague } from '../../hooks';
-import { currentWeek, FORFEIT_LIMIT, forfeitCounts, subsUsed, findTeam, machine, scoreCounts, scoreList, seasonLine, teamTonight, weekLabel, weekOf } from '../../sample/league';
+import { currentWeek, FORFEIT_LIMIT, forfeitCounts, NO_SHOW_LIMIT, noShowCount, subsUsed, findTeam, machine, scoreCounts, scoreList, seasonLine, teamTonight, weekLabel, weekOf } from '../../sample/league';
 import { sample } from '../../sample/slice';
 import { clock, longDate, ordinal } from '../../sample/time';
 import type { SampleState, STeam, SWeek } from '../../sample/types';
@@ -133,6 +133,7 @@ export default function TeamDetail() {
             </Box>
           )}
           <Forfeits league={league} teamId={team.teamId} />
+          <NoShows teamId={team.teamId} />
           <Subs league={league} teamId={team.teamId} />
           <Withdraw teamId={team.teamId} />
           {pinWasReset && (
@@ -255,7 +256,7 @@ function Withdraw({ teamId }: { teamId: string }) {
   return (
     <>
       <Button color="secondary" variant="outlined" onClick={() => setOpen(true)} sx={{ mt: 1.5, minHeight: 44 }}>
-        Withdraw this team
+        {t.eliminated ? 'Remove from the standings entirely' : 'Withdraw this team'}
       </Button>
       <ReasonDialog
         open={open}
@@ -266,5 +267,41 @@ function Withdraw({ teamId }: { teamId: string }) {
         onClose={() => setOpen(false)}
       />
     </>
+  );
+}
+
+/** No-shows this season, each with Excuse, and the team's place in the running. */
+function NoShows({ teamId }: { teamId: string }) {
+  const league = useLeague();
+  const dispatch = useAppDispatch();
+  const t = league.teams.find((x) => x.teamId === teamId)!;
+  const list = (league.noShows ?? []).filter((n) => n.teamId === teamId);
+  const count = noShowCount(league, teamId);
+  return (
+    <Box sx={{ mt: 1 }}>
+      <Typography variant="body2" sx={{ color: count >= NO_SHOW_LIMIT ? 'secondary.main' : 'text.secondary', fontWeight: count >= NO_SHOW_LIMIT ? 700 : 400 }}>
+        No-shows: {count} of {NO_SHOW_LIMIT} allowed this season.
+      </Typography>
+      {list.map((n) => (
+        <Stack key={n.id} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          <Typography variant="body2" color="textSecondary" sx={{ flex: 1 }}>
+            Week {n.week}{n.excused ? ': excused' : ''}
+          </Typography>
+          {!n.excused && (
+            <Button size="small" onClick={() => { dispatch(sample.excuseNoShow(n.id)); dispatch(showToast(`Excused ${t.teamName}'s week ${n.week} no-show`)); }}>
+              Excuse
+            </Button>
+          )}
+        </Stack>
+      ))}
+      {t.eliminated && (
+        <Box sx={{ mt: 1, p: 1.5, borderRadius: 2, border: 1, borderColor: 'secondary.main' }}>
+          <Typography sx={{ fontWeight: 700 }}>Out of the running since week {t.eliminated.week}</Typography>
+          <Typography variant="body2" color="textSecondary">
+            They keep the points they earned before, can still come and play for fun, but nothing after week {t.eliminated.week} counts and they can't make the finals or win season prizes. Excuse a no-show above to bring them back, or remove them from the standings entirely below.
+          </Typography>
+        </Box>
+      )}
+    </Box>
   );
 }

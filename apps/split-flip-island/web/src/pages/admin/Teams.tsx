@@ -14,7 +14,7 @@ import Typography from '@mui/material/Typography';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import SearchIcon from '@mui/icons-material/Search';
 import { useAppDispatch, useLeague } from '../../hooks';
-import { approvedTeams, currentWeek, nightStatus, pendingTeams, scoreCounts, FORFEIT_LIMIT, forfeitCounts, withdrawnTeams } from '../../sample/league';
+import { approvedTeams, currentWeek, nightStatus, pendingTeams, scoreCounts, FORFEIT_LIMIT, forfeitCounts, NO_SHOW_LIMIT, noShowCount, withdrawnTeams } from '../../sample/league';
 import { sample } from '../../sample/slice';
 import { ago } from '../../sample/time';
 import type { SampleState, STeam } from '../../sample/types';
@@ -32,6 +32,8 @@ function teamNotes(league: SampleState, team: STeam): { text: string; alert?: bo
   const notes: { text: string; alert?: boolean }[] = [];
   const toLookAt = scoreCounts(league, week.week, team.teamId).flagged;
   if (toLookAt > 0) notes.push({ text: `${toLookAt} to look at`, alert: true });
+  if (team.eliminated) notes.push({ text: `Out of the running (week ${team.eliminated.week})`, alert: true });
+  else if (noShowCount(league, team.teamId) > 0) notes.push({ text: `${noShowCount(league, team.teamId)} of ${NO_SHOW_LIMIT} no-shows` });
   const forfeits = forfeitCounts(league, team.teamId);
   if (forfeits.season >= FORFEIT_LIMIT) notes.push({ text: `${forfeits.season} forfeits: penalty to decide`, alert: true });
   else if (forfeits.season > 0) notes.push({ text: `${forfeits.season} ${forfeits.season === 1 ? 'forfeit' : 'forfeits'} this season` });

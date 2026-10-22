@@ -11,7 +11,7 @@ import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import CloseIcon from '@mui/icons-material/Close';
 import { useAppDispatch, useLeague, useMe } from '../hooks';
-import { FORFEIT_LIMIT, forfeitCounts, forgivenTonight, lineFor } from '../sample/league';
+import { FORFEIT_LIMIT, forfeitCounts, forgivenTonight, lineFor, NO_SHOW_LIMIT, noShowCount } from '../sample/league';
 import { sample, TURN_MS } from '../sample/slice';
 import { showToast } from '../store';
 import { clock } from '../sample/time';
@@ -26,6 +26,7 @@ export default function TurnAlerts() {
       {me.isTeam && <TeamTurn teamId={me.team.teamId} />}
       {me.isTeam && <TeamForfeit teamId={me.team.teamId} />}
       {me.isTeam && <TeamForgiven teamId={me.team.teamId} />}
+      {me.isTeam && <TeamNoShow teamId={me.team.teamId} />}
       {me.isAdmin && <AdminBlips />}
       {me.isAdmin && <AdminCheckInAlert />}
       {me.isAdmin && <AdminForfeitAlert />}
@@ -307,4 +308,60 @@ function TeamForgiven({ teamId }: { teamId: string }) {
       </Button>
     </Dialog>
   );
+}
+
+/**
+ * No-shows, for the team: a pop-up the next time it opens the app after a night it missed, and a
+ * bigger one when a third no-show puts it out of the running.
+ */
+function TeamNoShow({ teamId }: { teamId: string }) {
+  const league = useLeague();
+  const dispatch = useAppDispatch();
+  const t = league.teams.find((x) => x.teamId === teamId);
+  const n = (league.noShows ?? []).find((x) => x.teamId === teamId && !x.seen && !x.excused);
+  if (!t) return null;
+  const count = noShowCount(league, teamId);
+  const paper = (color: string) => ({ paper: { sx: { m: 2, p: 3, bgcolor: colors.card, color: colors.paleYellow, border: `3px solid ${color}`, borderRadius: 3, maxWidth: 420 } } });
+
+  if (n) {
+    const left = NO_SHOW_LIMIT - count;
+    return (
+      <Dialog open onClose={() => undefined} aria-labelledby="sfi-noshow-title" slotProps={paper(colors.coral)}>
+        <Typography sx={{ fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', fontSize: '0.8rem', opacity: 0.8 }}>No-show</Typography>
+        <Typography id="sfi-noshow-title" variant="h2" component="h2" sx={{ color: colors.coral, mt: 0.5 }}>We missed you in week {n.week}</Typography>
+        <Typography sx={{ mt: 1.5, lineHeight: 1.5 }}>
+          You weren't checked in when the night closed, so it counts as a no-show. Only one of you there (with your sub already used) counts the same way.
+        </Typography>
+        <Typography sx={{ mt: 1.5, fontWeight: 700, color: left <= 0 ? colors.coral : undefined }}>
+          No-shows this season: {count} of {NO_SHOW_LIMIT} allowed.
+        </Typography>
+        <Typography variant="body2" sx={{ mt: 0.5, opacity: 0.85 }}>
+          {count > NO_SHOW_LIMIT
+            ? "That was one too many."
+            : left === 0
+              ? 'One more and you are out of the running. Each of you still has a sub if you haven\'t used it.'
+              : 'Partner can\'t make it next time? Each of you can be subbed out once a season.'}
+        </Typography>
+        <Button fullWidth size="large" variant="contained" onClick={() => dispatch(sample.noShowSeen(n.id))} sx={{ mt: 2.5, minHeight: 48, bgcolor: colors.coral, color: colors.black, fontWeight: 700, '&:hover': { bgcolor: colors.coral } }}>
+          Got it
+        </Button>
+      </Dialog>
+    );
+  }
+
+  if (t.eliminated && !t.eliminated.seen) {
+    return (
+      <Dialog open onClose={() => undefined} aria-labelledby="sfi-out-title" slotProps={paper(colors.coral)}>
+        <Typography id="sfi-out-title" variant="h2" component="h2" sx={{ color: colors.coral }}>Out of the running</Typography>
+        <Typography sx={{ mt: 1.5, lineHeight: 1.5 }}>
+          That was your third no-show this season. You keep the points you earned up to week {t.eliminated.week}, and you're still welcome to come and play for fun, but nothing from here on counts and you can't make the finals or win season prizes.
+        </Typography>
+        <Typography variant="body2" sx={{ mt: 1, opacity: 0.85 }}>Was there a good reason? Talk to the league admin; they can bring you back.</Typography>
+        <Button fullWidth size="large" variant="contained" onClick={() => dispatch(sample.eliminatedSeen(teamId))} sx={{ mt: 2.5, minHeight: 48, bgcolor: colors.coral, color: colors.black, fontWeight: 700, '&:hover': { bgcolor: colors.coral } }}>
+          OK
+        </Button>
+      </Dialog>
+    );
+  }
+  return null;
 }

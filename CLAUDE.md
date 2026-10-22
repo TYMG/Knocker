@@ -115,6 +115,7 @@ the app.
 | Check-in request | `NIGHT#<leagueId>#<date>` | `CHECKIN#<teamId>` |
 | Machine line | `NIGHT#<leagueId>#<date>` | `LINE#<machineId>` |
 | Forfeited turn | `LEAGUE#<leagueId>` | `FORFEIT#<teamId>#<timestamp>` |
+| No-show | `LEAGUE#<leagueId>` | `NOSHOW#<teamId>#<week>` |
 | Final (championship / second chance) | `LEAGUE#<leagueId>` | `FINAL#<bracket>` |
 
 Indexes (login uses the team name claim item, which also guarantees unique names):
@@ -134,7 +135,8 @@ Line record fields: ordered team IDs, who asked to be messaged, and for the team
 `upTeamId`, `upAt` (when its 5 minutes began), `started` (tapped "We started"), `turnId`.
 Forfeit fields: team, machine, week, time, `by` (`clock` | `admin`), `forgiven`.
 Sub fields: team, week, which partner is out (0 or 1), sub's name, time. Team `status` adds
-`withdrawn` (with time, week and reason).
+`withdrawn` (with time, week and reason); a team can also carry `eliminated` (week, time).
+No-show fields: team, week, time, `excused`.
 Final fields: seeded team IDs, `locked`, `winnerId`, and per game: machine, picks (in seed
 order: `machine` or a play spot 1–4), play order, scores, places.
 
@@ -207,8 +209,26 @@ and every admin request re-reads the account, so removal or a password reset is 
   1 minute, and a standing note once the night is open.
 - **Everyone plays every week** (no dropped nights). **Each player can be subbed out once a
   season** (two subs per team). At check-in the team marks which partner is out and names the
-  sub; at most one partner is out. **A sub must be someone not in the league.** The sub is used
-  when the admin confirms the check-in.
+  sub; at most one partner is out (**both partners can never be subbed out the same night**).
+  **A sub must be someone not in the league.** The sub is used when the admin confirms the
+  check-in.
+
+### No-shows and elimination
+- A **no-show** is a team not checked in when the night closes. Only one partner present when
+  the other's sub is already used counts the same (they can't check in).
+- **2 no-shows a season are allowed.** With one sub per player, a team can miss or be short
+  4 weeks and stay eligible.
+- The **3rd no-show puts the team out of the running** (not a disqualification): it keeps the
+  points it earned up to that week, can still come and play for fun, but nothing after that
+  week counts, it can't challenge or be challenged, and it can't make the finals or win season
+  prizes (season-high and Challenge Champion bonuses). Finals seeding skips it.
+- The team gets a pop-up after each no-show ("1 of 2") and when it is out of the running.
+- An admin can **excuse** a no-show for a good reason; dropping back to 2 or fewer puts the team
+  back in the running. For a big team, the admin can instead **remove it from the standings
+  entirely** (withdraw), which works every night out again without it.
+- **Recalculate the season** (admin, Weeks page) scores every closed night again after teams
+  are withdrawn, brought back or added. Teams can be added mid-season; they count from the
+  week they start, and points scale with the teams in each week.
 
 ### Withdrawn teams
 - An admin can **withdraw** a team mid-season, with a reason. Its scores stop counting and

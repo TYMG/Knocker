@@ -33,7 +33,12 @@ export const weekLabel = (week: number) => (week >= 9 ? 'Finals' : `Week ${week}
 export const approvedTeams = (s: SampleState) => s.teams.filter((t) => t.status === 'approved');
 export const pendingTeams = (s: SampleState) => s.teams.filter((t) => t.status === 'pending');
 /** Teams that count in a given week. A team approved mid-season starts the week after. */
-export const teamsIn = (s: SampleState, week: number) => approvedTeams(s).filter((t) => t.firstWeek <= week);
+export const teamsIn = (s: SampleState, week: number) =>
+  // An eliminated team's earlier weeks still count; nothing after the week it was eliminated does.
+  approvedTeams(s).filter((t) => t.firstWeek <= week && !(t.eliminated && week > t.eliminated.week));
+
+/** Still in the running: approved and not eliminated. Only these can make the finals or win season prizes. */
+export const inTheRunning = (t: STeam) => t.status === 'approved' && !t.eliminated;
 
 /** The week that is open now. If none is open: the latest finished week. */
 export function currentWeek(s: SampleState): SWeek {
@@ -173,7 +178,7 @@ export function seasonHighBonuses(s: SampleState): SeasonHighBonus[] {
   const out: SeasonHighBonus[] = [];
   for (const m of s.machines) {
     const top = seasonHigh(s, m.machineId);
-    if (top && team(s, top.teamId).status === 'approved') out.push({ machine: m, team: team(s, top.teamId), score: top });
+    if (top && inTheRunning(team(s, top.teamId))) out.push({ machine: m, team: team(s, top.teamId), score: top });
   }
   return out;
 }
@@ -242,7 +247,7 @@ export function challengeRace(s: SampleState): ChallengeRecord[] {
     of(loserId).losses += 1;
   }
   return [...records.values()]
-    .filter((r) => r.team.status === 'approved')
+    .filter((r) => inTheRunning(r.team))
     .sort((a, b) => b.wins - a.wins || b.pointsWon - a.pointsWon || a.losses - b.losses || a.team.teamName.localeCompare(b.team.teamName));
 }
 
@@ -572,7 +577,8 @@ export function finalTable(s: SampleState, final: SFinal): FinalRow[] {
 
 /** Who would play in each final if the season ended now. */
 export function finalsPreview(s: SampleState, option: SeasonOption = 'option1') {
-  const rows = season(s)[option];
+  // An eliminated team keeps its place in the table but can't make the finals.
+  const rows = season(s)[option].filter((r) => inTheRunning(r.team));
   return { championship: rows.slice(0, 4), secondChance: rows.slice(4, 8) };
 }
 
@@ -798,3 +804,11 @@ export function checkInWindow(s: SampleState): { open: boolean; minutesToOpen: n
   const m = minutesBetween(s.now, n.opensAt);
   return { open: m >= 0 && m <= CHECK_IN_EARLY, minutesToOpen: m };
 }
+
+// ---- No-shows ----
+
+/** No-shows allowed in a season. The next one eliminates the team. */
+export const NO_SHOW_LIMIT = 2;
+
+/** No-shows that count (not excused). */
+export const noShowCount = (s: SampleState, teamId: string) => (s.noShows ?? []).filter((n) => n.teamId === teamId && !n.excused).length;

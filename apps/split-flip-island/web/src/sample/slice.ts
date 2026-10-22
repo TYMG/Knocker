@@ -6,7 +6,7 @@
 
 import { createSlice, current, type PayloadAction } from '@reduxjs/toolkit';
 import { teamPhoto } from './art';
-import { alreadyChallenged, canPlayTonight, challengeView, currentWeek, finalsPool, subProblem, subsUsed, finalsStep, finalsUsed, machine, season, seasonHigh, team, tonightRows, weekOf, type Bracket, type SeasonOption } from './league';
+import { inTheRunning, NO_SHOW_LIMIT, noShowCount, teamsIn, alreadyChallenged, canPlayTonight, challengeView, currentWeek, finalsPool, subProblem, subsUsed, finalsStep, finalsUsed, machine, season, seasonHigh, team, tonightRows, weekOf, type Bracket, type SeasonOption } from './league';
 import { buildSeed, MY_TEAM } from './seed';
 import { buildFreshLeague, HELPERS, helperScore, helperTeam } from './fresh';
 import { addMinutes as plusMinutes, at, clockLabel, longDate, ordinal } from './time';
@@ -243,7 +243,7 @@ const slice = createSlice({
 
     /** Lock in the four teams for a final, seeded from the season standings. */
     finalsLock(s, a: PayloadAction<{ bracket: Bracket; option: SeasonOption }>) {
-      const rows = season(current(s))[a.payload.option];
+      const rows = season(current(s))[a.payload.option].filter((r) => inTheRunning(r.team));
       const [from, to] = a.payload.bracket === 'championship' ? [0, 4] : [4, 8];
       const teamIds = rows.slice(from, to).map((r) => r.team.teamId);
       if (teamIds.length < 4) return;
@@ -429,6 +429,33 @@ const slice = createSlice({
       delete s.checkInRequests?.[a.payload];
       delete s.pendingSubs?.[a.payload];
     },
+    /** Admin: excuse a no-show for a good reason. It stops counting; if that brings the team back under the limit, it is back in the running. */
+    excuseNoShow(s, a: PayloadAction<string>) {
+      const n = s.noShows?.find((x) => x.id === a.payload);
+      if (!n || n.excused) return;
+      n.excused = true;
+      const t = s.teams.find((x) => x.teamId === n.teamId);
+      if (!t) return;
+      addLog(s, 'admin', `Admin excused ${t.teamName}'s no-show in week ${n.week}`);
+      if (t.eliminated && noShowCount(current(s), t.teamId) <= NO_SHOW_LIMIT) {
+        t.eliminated = undefined;
+        addLog(s, 'admin', `${t.teamName} are back in the running`);
+      }
+    },
+    noShowSeen(s, a: PayloadAction<string>) {
+      const n = s.noShows?.find((x) => x.id === a.payload);
+      if (n) n.seen = true;
+    },
+    eliminatedSeen(s, a: PayloadAction<string>) {
+      const t = s.teams.find((x) => x.teamId === a.payload);
+      if (t?.eliminated) t.eliminated.seen = true;
+    },
+    /** Admin: work the season standings out again (after removing or adding teams). */
+    recalculateSeason(s) {
+      // The sample works standings out from the scores every time, so this records the request;
+      // the real server re-runs every closed night here.
+      addLog(s, 'admin', 'Admin recalculated the season standings');
+    },
     /** Admin: a team leaves mid-season. Its scores stop counting, so every night is worked out again without it. */
     withdrawTeam(s, a: PayloadAction<{ teamId: string; reason: string }>) {
       const t = s.teams.find((x) => x.teamId === a.payload.teamId);
@@ -504,6 +531,21 @@ const slice = createSlice({
         line.joinedAt = {};
       }
       refreshTurns(s);
+      // No-shows: every team in the running that wasn't checked in. The third one eliminates it.
+      const snap = current(s);
+      for (const t of teamsIn(snap, week.week)) {
+        if (t.eliminated || s.checkIns[t.teamId]) continue;
+        // A night reopened and closed again doesn't count the same no-show twice.
+        if ((s.noShows ?? []).some((x) => x.teamId === t.teamId && x.week === week.week)) continue;
+        s.noShows = [...(s.noShows ?? []), { id: nextId(s, 'n'), teamId: t.teamId, week: week.week, at: s.now }];
+        const n = noShowCount(current(s), t.teamId);
+        addLog(s, 'league', `${t.teamName} did not check in for week ${week.week} (no-show ${n} of ${NO_SHOW_LIMIT} allowed)`);
+        if (n > NO_SHOW_LIMIT) {
+          const live = s.teams.find((x) => x.teamId === t.teamId)!;
+          live.eliminated = { at: s.now, week: week.week };
+          addLog(s, 'league', `${t.teamName} are out of the running after a third no-show. Their points so far stay; nothing after week ${week.week} counts`);
+        }
+      }
       week.state = 'final';
       s.checkInRequests = {};
       for (const line of settledNow) addLog(s, 'league', line);
@@ -633,6 +675,9 @@ const slice = createSlice({
      */
     challenge(s, a: PayloadAction<{ toTeamId: string; machineId: string; stake: number }>) {
       if (alreadyChallenged(s, s.myTeamId, a.payload.toTeamId)) return;
+      // An eliminated team is out of the running: no challenges either way.
+      const pair = [s.myTeamId, a.payload.toTeamId].map((id) => s.teams.find((t) => t.teamId === id));
+      if (pair.some((t) => !t || !inTheRunning(t))) return;
       const stake = Math.min(Math.max(Math.round(a.payload.stake), 1), 10);
       const { who } = names(s, { teamId: s.myTeamId, machineId: a.payload.machineId });
       const { who: them, what } = names(s, { teamId: a.payload.toTeamId, machineId: a.payload.machineId });

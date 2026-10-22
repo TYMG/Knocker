@@ -218,7 +218,11 @@ function CheckInCard({ teamId }: { teamId: string }) {
                   <ToggleButton value="sub" disabled={!!usedSub || (out !== null && out !== i)} sx={{ px: 1.5 }}>Sub</ToggleButton>
                 </ToggleButtonGroup>
               </Stack>
-              {usedSub && <Typography variant="body2" sx={{ color: 'text.secondary' }}>{name} used their sub in week {usedSub.week} ({usedSub.subName}).</Typography>}
+              {usedSub && (
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  {name} used their sub in week {usedSub.week} ({usedSub.subName}). If {name} can't make it tonight, it counts as a no-show.
+                </Typography>
+              )}
               {subbed && (
                 <TextField
                   fullWidth

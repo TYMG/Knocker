@@ -56,9 +56,9 @@ export default function StandingsTable({
               <TeamAvatar team={r.team} mine={r.team.teamId === myTeamId} />
               <Box sx={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                 <TeamLink team={r.team} />
-                {r.note && (
+                {(r.note || r.team.eliminated) && (
                   <Typography variant="body2" color="textSecondary" noWrap>
-                    {r.note}
+                    {r.note ?? 'Out of the running (no-shows)'}
                   </Typography>
                 )}
               </Box>

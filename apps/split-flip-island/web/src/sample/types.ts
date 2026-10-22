@@ -15,6 +15,11 @@ export interface STeam {
   status: 'pending' | 'approved' | 'withdrawn';
   /** Set when an admin withdrew the team mid-season. Its scores stop counting everywhere. */
   withdrawn?: { at: string; week: number; reason: string };
+  /**
+   * Set on a team's third no-show. It keeps the points it had, can still come and play for fun,
+   * but nothing after that week counts and it can't make the finals or win season prizes.
+   */
+  eliminated?: { at: string; week: number; seen?: boolean };
   createdAt: string;
   expiresAt?: string; // pending teams only
   /** The first week this team counts in. Points scale with the number of teams in a week. */
@@ -104,6 +109,18 @@ export interface SForfeit {
 }
 
 /** Something on a line an admin may want a quick heads-up about. */
+/** A team that wasn't checked in when a league night closed. Two a season are allowed. */
+export interface SNoShow {
+  id: string;
+  teamId: string;
+  week: number;
+  at: string;
+  /** An admin excused it: it doesn't count toward the two. */
+  excused?: boolean;
+  /** The team has seen the "you missed a night" alert. */
+  seen?: boolean;
+}
+
 /** A sub, in for one partner for one night. Each player can be subbed out once a season. */
 export interface SSub {
   id: string;
@@ -232,6 +249,7 @@ export interface SampleState {
   scores: SScore[];
   lines: SLine[];
   forfeits?: SForfeit[];
+  noShows?: SNoShow[];
   /** Subs confirmed at check-in, all season. */
   subs?: SSub[];
   /** Subs a team asked for when it tapped "I'm here", waiting with the check-in request. */

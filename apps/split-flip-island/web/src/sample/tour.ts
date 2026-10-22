@@ -62,6 +62,7 @@ export const TOUR: TourPage[] = [
     does: [
       'See where you stand tonight and how long is left.',
       'Just got here? Tap I\'m here on the Tonight tab (from 6:30). Partner out tonight? Tap Sub next to them and type the sub\'s name: one sub per player per season, never someone in the league. The card says Waiting for the league admin until an admin confirms you.',
+      'Missed a night? A pop-up the next time you open the app counts your no-shows (2 allowed a season). A third puts the team out of the running.',
       'Until the admin confirms your check-in, Lines and Submit are closed. A banner counts down the last 5 minutes before 7 PM, with a sub reminder at 1 minute.',
       'See your place in line, what you still have to play and what you have played.',
       'Jump to Submit a score.',
@@ -292,13 +293,13 @@ export const TOUR: TourPage[] = [
     path: '/admin/teams/:teamId', example: '/admin/teams/flip-city', title: 'One team (admin)', group: 'Running the season', role: 'admin',
     who: 'A league admin.',
     when: 'A team asks about their scores, or forgot their PIN.',
-    does: ['See both phone numbers and reset the PIN.', "Go through the team's scores week by week.", 'Mark a whole week as checked in one tap.', 'See forfeited turns: tonight and this season. The Teams list flags a team at 3.', 'See which partner has used their sub.', 'Withdraw this team: every night is worked out again as if they were never in the league. Bring them back undoes it.']
+    does: ['See both phone numbers and reset the PIN.', "Go through the team's scores week by week.", 'Mark a whole week as checked in one tap.', 'See forfeited turns: tonight and this season. The Teams list flags a team at 3.', 'See which partner has used their sub.', 'See no-shows (2 allowed a season) and Excuse one for a good reason. A third no-show puts the team out of the running; for a big team, Remove from the standings entirely works the season out without them.', 'Withdraw this team: every night is worked out again as if they were never in the league. Bring them back undoes it.']
   },
   {
     path: '/admin/weeks', example: '/admin/weeks', title: 'Weeks', group: 'Running the season', role: 'admin',
     who: 'A league admin.',
     when: 'Looking back at a night, or changing the calendar.',
-    does: ['See every week and its state: final, open or still to come.', 'Skip a week, which moves the later ones back.', 'Reopen a night that was closed by mistake.']
+    does: ['See every week and its state: final, open or still to come.', 'Skip a week, which moves the later ones back.', 'Reopen a night that was closed by mistake.', 'Recalculate the season standings after withdrawing, bringing back or adding a team.']
   },
   {
     path: '/admin/weeks/:week', example: '/admin/weeks/5', title: 'One week', group: 'Running the season', role: 'admin',

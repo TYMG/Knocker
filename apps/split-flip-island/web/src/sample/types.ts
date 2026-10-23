@@ -10,6 +10,8 @@ export interface STeam {
   players: [string, string];
   phone1: string;
   phone2: string;
+  /** Agreed at sign-up to a check-in reminder text on league nights (Player 1's phone). */
+  smsOptIn?: boolean;
   photo: string; // image address (a drawn placeholder)
   /** New teams wait for an admin. Only approved teams play and appear in standings. */
   status: 'pending' | 'approved' | 'withdrawn';

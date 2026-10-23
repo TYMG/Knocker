@@ -310,6 +310,22 @@ Summarize every plan and wait for a yes before the matching apply.
   limit, and register the toll-free number (2–3 weeks). The phone number is never in the repo.
 - Comparison and costs: Notion page "Texting: Twilio vs AWS" under Web App.
 
+**Built (Oct 22, branch `night-rules`):**
+- Terraform: `apps/split-flip-island/infra/sms.tf` (toll-free number, opt-out list, config
+  set, HELP keyword, Lambda send permission; `sms_enabled`, `sms_registration_id`). The number
+  is created with `wait_for_active = false`: it can't send anything until the carriers approve
+  the toll-free registration. The registration itself is NOT in Terraform (no resource exists);
+  it is filed once in the AWS console, then its id goes in `sms_registration_id`.
+- Public terms and privacy page for the carriers: `infra/foundation/site/sms.html` (knckr.com/sms.html).
+- Wording: `shared/sms.ts` (one 160-character segment each, plain characters, ends "Reply STOP to stop").
+- API: `GET /api/admin/sms` (number status, account tier, verified test phones as last 4 only),
+  `POST /api/admin/sms/test` (sends one template to verified test phones only). Sign-up stores
+  `smsOptIn` and `smsOptInAt` in the team's private item.
+- Web: sign-up checkbox (off by default), admin **Texts** page (`/admin/texts`), and the
+  sample check-in banner shows the text an opted-in team would get.
+- Verify a test phone: `scripts/sms-verify.sh add` (asks for the number, never stores it).
+- Not built yet: the scheduled sender that texts the reminder 5 minutes before start.
+
 ## Open decisions (ask before assuming)
 
 - How teams get their PIN (choose at sign-up, shown on screen, or texted)

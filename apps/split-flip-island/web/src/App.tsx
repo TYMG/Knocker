@@ -22,6 +22,7 @@ import Tv from './pages/Tv';
 import AdminHome from './pages/admin/AdminHome';
 import AdminLines from './pages/admin/AdminLines';
 import RunFinals from './pages/admin/RunFinals';
+import Texts from './pages/admin/Texts';
 import CheckInGate from './layout/CheckInGate';
 import AdminLogIn from './pages/admin/AdminLogin';
 import CheckIn from './pages/admin/CheckIn';
@@ -127,6 +128,7 @@ export default function App() {
             <Route path="/admin/weeks/:week" element={<WeekDetail />} />
             <Route path="/admin/machines" element={<Machines />} />
             <Route path="/admin/finals" element={<RunFinals />} />
+            <Route path="/admin/texts" element={<Texts />} />
           </Route>
         </Route>
 

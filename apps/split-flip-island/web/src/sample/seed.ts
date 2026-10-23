@@ -69,6 +69,7 @@ export function buildSeed(seed = SEED): SampleState {
     players,
     phone1: `(202) 555-01${pad(10 + i * 2)}`,
     phone2: `(202) 555-01${pad(11 + i * 2)}`,
+    smsOptIn: i % 3 !== 2, // most teams ticked "text me reminders" at sign-up
     photo: teamPhoto(teamName),
     status: 'approved',
     createdAt: at('2026-10-01', `${10 + i}:15`),

@@ -94,6 +94,17 @@ resource "aws_s3_object" "index" {
   cache_control = "max-age=300"
 }
 
+# Public terms and privacy for the league's text reminders (knckr.com/sms.html). The carriers
+# check this page when they review the toll-free number, so it has to stay up.
+resource "aws_s3_object" "sms" {
+  bucket        = aws_s3_bucket.landing.id
+  key           = "sms.html"
+  source        = "${path.module}/site/sms.html"
+  etag          = filemd5("${path.module}/site/sms.html")
+  content_type  = "text/html; charset=utf-8"
+  cache_control = "max-age=300"
+}
+
 resource "aws_cloudfront_origin_access_control" "landing" {
   name                              = "knckr-landing"
   origin_access_control_origin_type = "s3"

@@ -11,6 +11,8 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
+import Checkbox from '@mui/material/Checkbox';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import Button from '@mui/material/Button';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
@@ -61,6 +63,8 @@ function PairForm() {
   const [name, setName] = useState('');
   const [phone1, setPhone1] = useState('');
   const [phone2, setPhone2] = useState('');
+  // Texts are opt-in: off until the team ticks it (needed for the carrier registration too).
+  const [smsOptIn, setSmsOptIn] = useState(false);
   const [pin, setPin] = useState('');
   const [pinAgain, setPinAgain] = useState('');
   const [photo, setPhoto] = useState<PickedPhoto | null>(null);
@@ -100,7 +104,7 @@ function PairForm() {
       return;
     }
     // The PIN stops here on purpose. Only the name and the two phone numbers go to the league.
-    dispatch(sample.signUp({ teamName, phone1, phone2 }));
+    dispatch(sample.signUp({ teamName, phone1, phone2, smsOptIn }));
     dispatch(showToast(`${teamName} is signed up and waiting for approval`));
     navigate('/');
   };
@@ -114,6 +118,16 @@ function PairForm() {
         <Typography variant="body2" sx={{ color: 'text.secondary', mt: '8px !important' }}>
           Phone numbers stay private. They never appear in the standings or the league log.
         </Typography>
+        <FormControlLabel
+          control={<Checkbox checked={smsOptIn} onChange={(e) => setSmsOptIn(e.target.checked)} />}
+          label={
+            <Typography variant="body2">
+              Text Player 1's phone a reminder to check in on league nights (about 1 text a league night). Msg &amp; data rates may apply. Reply STOP to stop, HELP for help.{' '}
+              <Link href="https://knckr.com/sms.html" target="_blank" rel="noopener">Text terms and privacy</Link>
+            </Typography>
+          }
+          sx={{ alignItems: 'flex-start', mx: 0, '& .MuiCheckbox-root': { pt: 0.25 } }}
+        />
         <TextField
           label="4-digit PIN"
           type="password"

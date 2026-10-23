@@ -7,6 +7,7 @@ import Typography from '@mui/material/Typography';
 import { useLeague, useMe } from '../hooks';
 import { canPlayTonight, checkInWindow, subsUsed } from '../sample/league';
 import { colors } from '../theme';
+import { SMS_TEMPLATES } from '../../../shared/sms';
 
 export default function CheckInReminder() {
   const league = useLeague();
@@ -46,6 +47,12 @@ export default function CheckInReminder() {
       <Box sx={{ flex: '1 1 220px', minWidth: 0 }}>
         <Typography sx={{ fontWeight: 700 }}>{title}</Typography>
         {(win.minutesToOpen <= 1 || !opening) && <Typography variant="body2">{subLine}</Typography>}
+        {/* Demo of the real text: teams that opted in get it on Player 1's phone 5 minutes before start. */}
+        {opening && t.smsOptIn && (
+          <Typography variant="body2" sx={{ mt: 0.5, fontStyle: 'italic' }}>
+            Texted to {t.players[0] || 'Player 1'}'s phone: "{SMS_TEMPLATES.checkInReminder.body({ teamName: t.teamName, machineName: '', minutes: 5, week: 0, noShows: 0 })}"
+          </Typography>
+        )}
       </Box>
       {(
         <Button component={RouterLink} to="/?tab=tonight" variant="contained" sx={{ bgcolor: colors.black, color: colors.paleYellow, flexShrink: 0, '&:hover': { bgcolor: colors.black } }}>

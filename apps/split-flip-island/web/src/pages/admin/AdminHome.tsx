@@ -20,6 +20,7 @@ import KeyboardIcon from '@mui/icons-material/Keyboard';
 import PlaceIcon from '@mui/icons-material/Place';
 import SettingsIcon from '@mui/icons-material/Settings';
 import TuneIcon from '@mui/icons-material/Tune';
+import SmsIcon from '@mui/icons-material/Sms';
 import TvIcon from '@mui/icons-material/Tv';
 import { useLeague } from '../../hooks';
 import { adminSummary, approvedTeams, machinesAt, nightStatus } from '../../sample/league';
@@ -135,6 +136,7 @@ export default function AdminHome() {
             <ActionCard to="/admin/weeks" title="Weeks" note={<Note>{`Week ${week.week} of ${leagueWeeks}, then finals`}</Note>} icon={<CalendarMonthIcon />} />
             <ActionCard to="/admin/finals" title="Run the finals" note={<Note>{league.finals.championship.winnerId ? 'Champion decided' : league.finals.championship.locked ? 'Championship under way' : 'Lock in the top 4, then 3 games'}</Note>} icon={<EmojiEventsIcon />} />
             <ActionCard to="/admin/machines" title="Locations and machines" note={<Note>{placesNote}</Note>} icon={<PlaceIcon />} />
+            <ActionCard to="/admin/texts" title="Texts" note={<Note>{`${league.teams.filter((t) => t.status === 'approved' && t.smsOptIn).length} teams get reminders`}</Note>} icon={<SmsIcon />} />
           </Buttons>
         </Section>
 

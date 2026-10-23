@@ -33,7 +33,11 @@ export interface TeamItem {
 interface MachineItem { type: 'machine'; machineId: string; name: string; order?: number }
 interface NightItem { type: 'night'; date: string; week: number; machineIds: string[]; open: boolean }
 interface MetaItem { type: 'meta'; activeNight?: string }
-export interface PrivateItem { pinHash: string; phone1: string; phone2: string; failures?: number; lastFailureAt?: number }
+export interface PrivateItem {
+  pinHash: string; phone1: string; phone2: string; failures?: number; lastFailureAt?: number;
+  /** Consent to the check-in reminder text, and when it was given (kept as the opt-in record). */
+  smsOptIn?: boolean; smsOptInAt?: string;
+}
 interface ScoreItem {
   type: 'score'; scoreId: string; teamId: string; machineId: string; date: string; score: number;
   submittedAt: string; enteredBy: 'team' | 'admin'; photoKey?: string; thumbKey?: string;
@@ -175,7 +179,7 @@ export async function register(event: APIGatewayProxyEventV2): Promise<AuthRespo
         { Put: { TableName: table(), Item: { PK: keys.league(l), SK: keys.teamName(teamName), type: 'teamName', teamId }, ConditionExpression: 'attribute_not_exists(PK)' } },
         // The conditions guard against the (very unlikely) case of two teams drawing the same ID.
         { Put: { TableName: table(), Item: { PK: keys.league(l), SK: keys.team(teamId), ...team }, ConditionExpression: 'attribute_not_exists(PK)' } },
-        { Put: { TableName: table(), Item: { PK: keys.league(l), SK: keys.teamPrivate(teamId), type: 'private', pinHash: hashPin(pin), phone1, phone2 }, ConditionExpression: 'attribute_not_exists(PK)' } },
+        { Put: { TableName: table(), Item: { PK: keys.league(l), SK: keys.teamPrivate(teamId), type: 'private', pinHash: hashPin(pin), phone1, phone2, smsOptIn: body.smsOptIn === true, smsOptInAt: body.smsOptIn === true ? nowIso() : undefined }, ConditionExpression: 'attribute_not_exists(PK)' } },
         // The league log is public inside the app, so a team's name stays out of it until an admin approves the team.
         auditPut('A new team signed up and is waiting for approval', 'League')
       ]

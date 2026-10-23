@@ -151,11 +151,11 @@ const slice = createSlice({
       s.role = 'visitor';
     },
     /** A new team waits for an admin, and is deleted if nobody approves it in 24 hours. */
-    signUp(s, a: PayloadAction<{ teamName: string; phone1: string; phone2: string }>) {
+    signUp(s, a: PayloadAction<{ teamName: string; phone1: string; phone2: string; smsOptIn?: boolean }>) {
       const teamName = a.payload.teamName.trim().replace(/\s+/g, ' ');
       const teamId = slug(teamName, s.teams.map((t) => t.teamId));
       s.teams.push({
-        teamId, teamName, players: ['Player 1', 'Player 2'], phone1: a.payload.phone1, phone2: a.payload.phone2, photo: teamPhoto(teamName),
+        teamId, teamName, players: ['Player 1', 'Player 2'], phone1: a.payload.phone1, phone2: a.payload.phone2, photo: teamPhoto(teamName), smsOptIn: !!a.payload.smsOptIn,
         status: 'pending', createdAt: s.now, expiresAt: plusMinutes(s.now, 24 * 60), firstWeek: startWeek(s)
       });
       s.myTeamId = teamId;

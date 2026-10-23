@@ -75,10 +75,13 @@ resource "aws_lambda_function" "api" {
       # Sign-up approval: how long a team waits, and how many can wait at once.
       PENDING_TEAM_HOURS = tostring(var.pending_team_hours)
       MAX_PENDING_TEAMS  = tostring(var.max_pending_teams)
+      # Texting (sms.tf). Empty when texting is turned off.
+      SMS_ORIGINATION = var.sms_enabled ? aws_pinpointsmsvoicev2_phone_number.sms[0].arn : ""
+      SMS_CONFIG_SET  = var.sms_enabled ? aws_pinpointsmsvoicev2_configuration_set.sms[0].name : ""
     }
   }
 
-  depends_on = [aws_cloudwatch_log_group.api, aws_iam_role_policy.api]
+  depends_on = [aws_cloudwatch_log_group.api, aws_iam_role_policy.api, aws_iam_role_policy.sms]
 }
 
 resource "aws_apigatewayv2_api" "http" {

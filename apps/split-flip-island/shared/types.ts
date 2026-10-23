@@ -63,6 +63,8 @@ export interface RegisterRequest {
   phone2: string;
   pin: string;
   photoKey: string;
+  /** Ticked "text me league-night reminders" at sign-up (Player 1's phone). Off if missing. */
+  smsOptIn?: boolean;
 }
 
 export interface LoginRequest {

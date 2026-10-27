@@ -2,6 +2,8 @@ import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from '
 import { adminLogin, adminTeams, approveTeam, purgeExpired, removeTeam } from './admin.js';
 import { sameSecret } from './auth.js';
 import { audit, createUpload, login, me, register, standings, submitScore } from './handlers.js';
+import { adminCheckIns, answerCheckIn, checkIn, myCheckIn, setNightStart } from './checkin.js';
+import { sendCheckInReminders } from './reminders.js';
 import { setTeamTexts, smsStatus, smsTest, teamTexts } from './sms.js';
 import { env, HttpError, json } from './util.js';
 
@@ -22,18 +24,27 @@ const routes: Record<string, { run: Route; status?: 201 }> = {
   'GET /api/admin/sms': { run: smsStatus },
   'POST /api/admin/sms/test': { run: smsTest },
   'GET /api/me/texts': { run: teamTexts },
-  'POST /api/me/texts': { run: setTeamTexts }
+  'POST /api/me/texts': { run: setTeamTexts },
+  'GET /api/me/check-in': { run: myCheckIn },
+  'POST /api/me/check-in': { run: checkIn },
+  'GET /api/admin/check-ins': { run: adminCheckIns }
 };
+
+// POST /api/admin/check-ins/{teamId}/confirm and /decline.
+const CHECK_IN_ACTION = /^POST \/api\/admin\/check-ins\/([0-9a-z-]{1,40})\/(confirm|decline)$/;
+// POST /api/admin/nights/{YYYY-MM-DD}/start
+const NIGHT_START = /^POST \/api\/admin\/nights\/(\d{4}-\d{2}-\d{2})\/start$/;
 
 // POST /api/admin/teams/{teamId}/approve and /remove. Team IDs are 8 hex characters.
 const TEAM_ACTION = /^POST \/api\/admin\/teams\/([0-9a-f]{8})\/(approve|remove)$/;
 
-/** The schedule that clears out unapproved sign-ups invokes the function with this. */
-interface PurgeTask { task: 'purge' }
+/** Schedules invoke the function with one of these instead of a web request (see infra). */
+interface ScheduledTask { task: 'purge' | 'reminders' }
 
-function isPurgeTask(event: APIGatewayProxyEventV2 | PurgeTask): event is PurgeTask {
+function isTask(event: APIGatewayProxyEventV2 | ScheduledTask): event is ScheduledTask {
   // API Gateway events always carry requestContext, so a web request can never look like this.
-  return (event as PurgeTask).task === 'purge' && !('requestContext' in event);
+  const task = (event as ScheduledTask).task;
+  return (task === 'purge' || task === 'reminders') && !('requestContext' in event);
 }
 
 /**
@@ -45,8 +56,13 @@ function cameThroughFrontDoor(event: APIGatewayProxyEventV2): boolean {
   return typeof given === 'string' && sameSecret(given, env('ORIGIN_SECRET'));
 }
 
-export async function handler(event: APIGatewayProxyEventV2 | PurgeTask): Promise<APIGatewayProxyStructuredResultV2 | { purged: number; failed: number }> {
-  if (isPurgeTask(event)) {
+export async function handler(event: APIGatewayProxyEventV2 | ScheduledTask): Promise<APIGatewayProxyStructuredResultV2 | Record<string, unknown>> {
+  if (isTask(event)) {
+    if (event.task === 'reminders') {
+      const sent = await sendCheckInReminders();
+      if (!sent.skipped) console.log('Check-in reminders', JSON.stringify(sent));
+      return { ...sent };
+    }
     const result = await purgeExpired();
     console.log('Purged unapproved sign-ups', JSON.stringify(result));
     return result;
@@ -58,6 +74,10 @@ export async function handler(event: APIGatewayProxyEventV2 | PurgeTask): Promis
   try {
     const route = routes[key];
     if (route) return json(route.status ?? 200, await route.run(event));
+    const answer = CHECK_IN_ACTION.exec(key);
+    if (answer) return json(200, await answerCheckIn(event, answer[1], answer[2] as 'confirm' | 'decline'));
+    const start = NIGHT_START.exec(key);
+    if (start) return json(200, await setNightStart(event, start[1]));
     const action = TEAM_ACTION.exec(key);
     if (action) {
       const [, teamId, verb] = action;

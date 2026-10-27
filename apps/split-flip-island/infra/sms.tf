@@ -88,6 +88,32 @@ resource "aws_iam_role_policy" "sms" {
   policy = data.aws_iam_policy_document.sms[0].json
 }
 
+# The check-in reminder: runs the API function every 5 minutes with {"task": "reminders"}. The
+# function does nothing unless tonight's league night starts within the next few minutes; then it
+# texts opted-in phones on teams that haven't checked in, once per night (api/src/reminders.ts).
+resource "aws_cloudwatch_event_rule" "reminders" {
+  count               = local.sms
+  name                = "${local.name}-check-in-reminders"
+  description         = "Texts the check-in reminder about 5 minutes before a league night starts"
+  schedule_expression = "rate(5 minutes)"
+}
+
+resource "aws_cloudwatch_event_target" "reminders" {
+  count = local.sms
+  rule  = aws_cloudwatch_event_rule.reminders[0].name
+  arn   = aws_lambda_function.api.arn
+  input = jsonencode({ task = "reminders" })
+}
+
+resource "aws_lambda_permission" "reminders" {
+  count         = local.sms
+  statement_id  = "AllowCheckInReminderSchedule"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.api.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.reminders[0].arn
+}
+
 # Hands the number to the knckr.com stack (infra/foundation), which publishes the "Add to
 # contacts" card at knckr.com/split-flip-island.vcf. This way the number never sits in the code.
 resource "aws_ssm_parameter" "sms_number" {

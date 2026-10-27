@@ -24,6 +24,8 @@ export const keys = {
   nightPartition: (l: string, date: string) => `NIGHT#${l}#${date}`,
   score: (teamId: string, machineId: string, at: string, id: string) => `SCORE#${teamId}#${machineId}#${at}#${id}`,
   audit: (l: string) => `AUDIT#${l}`,
+  checkIn: (date: string, teamId: string) => `CHECKIN#${date}#${teamId}`,
+  remindersSent: (date: string) => `REMINDERS#${date}`,
   teamScores: (l: string, teamId: string) => `TEAM#${l}#${teamId}`,
   // Admin accounts sit in their own partition so league queries never load them.
   admins: (l: string) => `ADMIN#${l}`,

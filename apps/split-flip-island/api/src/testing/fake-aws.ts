@@ -106,6 +106,12 @@ export class FakeTable {
         if (typeof input.Limit === 'number') found = found.slice(0, input.Limit);
         return { Items: structuredClone(found) };
       }
+      case 'PutCommand': {
+        const w = input as Write;
+        if (!this.passes(this.items.get(this.id({ PK: w.Item!.PK, SK: w.Item!.SK })), w)) throw new ConditionFailed('The conditional request failed');
+        this.put(structuredClone(w.Item!));
+        return {};
+      }
       case 'UpdateCommand': {
         const w = input as Write;
         const existing = this.items.get(this.id(w.Key!));

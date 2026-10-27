@@ -31,7 +31,8 @@ export interface TeamItem {
   status: 'pending' | 'approved'; expiresAt?: string; approvedAt?: string; approvedBy?: string;
 }
 interface MachineItem { type: 'machine'; machineId: string; name: string; order?: number }
-interface NightItem { type: 'night'; date: string; week: number; machineIds: string[]; open: boolean }
+export interface NightItem { type: 'night'; date: string; week: number; machineIds: string[]; open: boolean; startsAt?: string }
+export interface CheckInItem { type: 'checkin'; date: string; teamId: string; state: 'requested' | 'confirmed' | 'declined'; at: string; by?: string }
 interface MetaItem { type: 'meta'; activeNight?: string }
 export interface PrivateItem {
   pinHash: string; phone1: string; phone2: string; failures?: number; lastFailureAt?: number;
@@ -51,7 +52,7 @@ export const toTeam = (t: TeamItem): Team => ({
   ...(t.status === 'pending' && t.expiresAt ? { expiresAt: t.expiresAt } : {})
 });
 const toMachine = (m: MachineItem): Machine => ({ machineId: m.machineId, name: m.name });
-const toNight = (n: NightItem): Night => ({ date: n.date, week: n.week, machineIds: n.machineIds, open: n.open });
+const toNight = (n: NightItem): Night => ({ date: n.date, week: n.week, machineIds: n.machineIds, open: n.open, ...(n.startsAt ? { startsAt: n.startsAt } : {}) });
 const toScore = (s: ScoreItem): Score => ({
   scoreId: s.scoreId, teamId: s.teamId, machineId: s.machineId, date: s.date, score: s.score,
   submittedAt: s.submittedAt, enteredBy: s.enteredBy, photoUrl: photoUrl(s.photoKey), thumbUrl: photoUrl(s.thumbKey),
@@ -80,7 +81,8 @@ export async function loadLeague() {
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name));
   const nights = (items.filter((i) => i.type === 'night') as unknown as NightItem[]).sort((a, b) => a.date.localeCompare(b.date));
   const activeNight = nights.find((n) => n.date === meta.activeNight) ?? null;
-  return { meta, allTeams, teams, privates, machines, nights, activeNight };
+  const checkIns = items.filter((i) => i.type === 'checkin') as unknown as CheckInItem[];
+  return { meta, allTeams, teams, privates, machines, nights, activeNight, checkIns };
 }
 
 async function loadNightScores(date: string): Promise<ScoreItem[]> {

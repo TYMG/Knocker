@@ -341,8 +341,18 @@ Summarize every plan and wait for a yes before the matching apply.
 - **Settings page** (`/settings`, the gear in the top bar; open to everyone): Look (Dark / Light /
   Auto), Motion (Effects = calm mode), Alerts (reminder texts + Save our number, Doc's pop-ups,
   admin started-a-turn notes), Account (log out). The old sparkle and moon header buttons are gone.
-- Not built yet: the scheduled sender that texts the reminder 5 minutes before start. It must
-  skip teams with `smsOptIn` off and only run on league nights (so nothing goes out off-season).
+- **Reminder sender (built Oct 27):** `api/src/reminders.ts`, run every 5 minutes by
+  `aws_cloudwatch_event_rule.reminders` (infra/sms.tf) with `{"task": "reminders"}`. It acts only
+  when today's league night (league time, Eastern) has a `startsAt` 0–6 minutes away. It claims
+  the night first (`REMINDERS#<date>`, conditional put) so it sends once, then texts every opted-in
+  phone on approved teams with no check-in ("requested" or "confirmed" both count), keeps going if
+  one phone fails (never logs numbers), and adds a counts-only line to the league log.
+- **Server check-in and start times (built Oct 27):** `api/src/checkin.ts`. Night item `startsAt`
+  (set with `seed.ts --starts 19:00` or `POST /api/admin/nights/{date}/start {startTime}`).
+  `GET/POST /api/me/check-in` (opens 30 min before start), `GET /api/admin/check-ins`,
+  `POST /api/admin/check-ins/{teamId}/confirm|decline`. Item `CHECKIN#<date>#<teamId>`
+  {state, at, by}. Subs are not on the server yet. The web app still runs on the sample league,
+  so these endpoints are not wired to the pages yet (part of the real-server wiring).
 
 ## Open decisions (ask before assuming)
 

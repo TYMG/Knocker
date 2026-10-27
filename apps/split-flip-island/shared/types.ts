@@ -33,7 +33,27 @@ export interface Night {
   week: number;
   machineIds: string[]; // machines in play tonight (broken ones removed)
   open: boolean;
+  /** When the night starts (UTC ISO). Check-in opens 30 minutes before; the reminder text goes out 5 before. */
+  startsAt?: string;
 }
+
+// ---- Check-in ----
+
+/** requested: the team tapped "I'm here". confirmed / declined: the admin's answer. */
+export type CheckInState = 'none' | 'requested' | 'confirmed' | 'declined';
+
+export interface CheckInResponse {
+  night: { date: string; week: number; startsAt?: string } | null;
+  state: CheckInState;
+  at?: string;
+}
+
+export interface AdminCheckInsResponse {
+  night: { date: string; week: number; startsAt?: string } | null;
+  teams: { teamId: string; teamName: string; state: CheckInState; at?: string }[];
+}
+
+export interface NightStartRequest { startTime: string } // "19:00", league time
 
 export interface Score {
   scoreId: string;

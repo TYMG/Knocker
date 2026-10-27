@@ -3,6 +3,7 @@ import { adminLogin, adminTeams, approveTeam, purgeExpired, removeTeam } from '.
 import { sameSecret } from './auth.js';
 import { audit, createUpload, login, me, register, standings, submitScore } from './handlers.js';
 import { adminCheckIns, answerCheckIn, checkIn, myCheckIn, setNightStart } from './checkin.js';
+import { getLeague, postAction } from './leagueApi.js';
 import { changePin, resetPin } from './pin.js';
 import { sendCheckInReminders } from './reminders.js';
 import { setTeamTexts, smsStatus, smsTest, teamTexts } from './sms.js';
@@ -29,7 +30,9 @@ const routes: Record<string, { run: Route; status?: 201 }> = {
   'GET /api/me/check-in': { run: myCheckIn },
   'POST /api/me/check-in': { run: checkIn },
   'GET /api/admin/check-ins': { run: adminCheckIns },
-  'POST /api/me/pin': { run: changePin }
+  'POST /api/me/pin': { run: changePin },
+  'GET /api/league': { run: getLeague },
+  'POST /api/league/action': { run: postAction }
 };
 
 // POST /api/admin/check-ins/{teamId}/confirm and /decline.

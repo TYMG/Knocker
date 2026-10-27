@@ -10,7 +10,7 @@
 
 import { inTheRunning, NO_SHOW_LIMIT, noShowCount, teamsIn, alreadyChallenged, canPlayTonight, challengeView, currentWeek, finalsPool, subProblem, subsUsed, finalsStep, finalsUsed, machine, season, seasonHigh, team, tonightRows, weekOf, type Bracket, type SeasonOption } from './league.js';
 import { teamPhoto } from './art.js';
-import { addMinutes as plusMinutes, at, clockLabel, longDate, ordinal } from './time.js';
+import { addMinutes as plusMinutes, at, clockLabel, easternDate, longDate, ordinal } from './time.js';
 import type { SampleState, SFinal, SScore } from './types.js';
 
 /** An action's payload (the same shape Redux uses). */
@@ -512,6 +512,20 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
         // Challenge points move in the season standings, not in the night's own points, so the night's winner is who played best.
         const winner = tonightRows(current(s), week.week)[0];
         addLog(s, 'league', winner && winner.points > 0 ? `Week ${week.week} closed. ${winner.team.teamName} won the night with ${winner.points} points.` : `Week ${week.week} closed.`);
+      },
+      /**
+       * Opens the next league night: only on its own date (Eastern), only from 30 minutes before
+       * it starts, and only when no other night is open. The server does this by itself at the
+       * opening time; an admin can also do it.
+       */
+      openNight(s: SampleState) {
+        const week = s.weeks.find((w) => w.state === 'upcoming');
+        if (!week || s.weeks.some((w) => w.state === 'open')) return;
+        if (easternDate(s.now) !== week.date) return;
+        if (Date.parse(s.now) < Date.parse(at(week.date, s.night.opensAt)) - 30 * 60_000) return;
+        week.state = 'open';
+        s.night.extraMinutes = 0;
+        addLog(s, 'league', `Week ${week.week} opened`);
       },
       /** For a night closed by mistake. Only when no other night is open. */
       reopenNight(s: SampleState, a: PayloadAction<number>) {

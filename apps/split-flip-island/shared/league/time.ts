@@ -5,16 +5,32 @@ export const SAMPLE_NOW = '2026-11-12T01:12:00.000Z'; // Wednesday, November 11,
 
 const TZ = 'America/New_York';
 
-/** Builds a time on a league date from a bar-clock time, e.g. at('2026-11-11', '19:04'). November is UTC-5. */
-export function at(date: string, clock: string): string {
-  const [h, m] = clock.split(':').map(Number);
-  const d = new Date(`${date}T00:00:00.000Z`);
-  d.setUTCHours(h + (isDaylightTime(date) ? 4 : 5), m, 0, 0);
-  return d.toISOString();
+/** How far Eastern time is from UTC at that moment, in minutes (-300 in winter, -240 in summer). */
+function offsetMinutes(atMs: number): number {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', { timeZone: TZ, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      .formatToParts(new Date(atMs)).map((p) => [p.type, p.value])
+  );
+  return Math.round((Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second) - atMs) / 60_000);
 }
 
-// Daylight time ends November 1 in 2026; the season starts in October.
-const isDaylightTime = (date: string) => date < '2026-11-01';
+/**
+ * Builds a time on a league date from a bar-clock time, e.g. at('2026-11-11', '19:04') -> UTC ISO.
+ * Follows daylight saving properly (a January to March season crosses the March switch).
+ */
+export function at(date: string, clock: string): string {
+  const [y, mo, d] = date.split('-').map(Number);
+  const [h, m] = clock.split(':').map(Number);
+  const wall = Date.UTC(y, mo - 1, d, h, m);
+  let ms = wall - offsetMinutes(wall) * 60_000;
+  ms = wall - offsetMinutes(ms) * 60_000; // second pass settles times near the switch
+  return new Date(ms).toISOString();
+}
+
+/** The calendar date (YYYY-MM-DD) in Eastern time at that moment. */
+export function easternDate(iso: string): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
+}
 
 /** 8:05 PM */
 export function clock(iso: string): string {

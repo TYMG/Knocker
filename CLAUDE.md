@@ -200,9 +200,16 @@ The server runs the **same rules code** as the sample league, so the two can nev
   start (rule `openNight`), then the check-in reminder. Closing the night is still the admin's.
 - **Season setup:** `./scripts/league.sh setup --first-night YYYY-MM-DD --opens 19:00 --closes
   21:00 --machines "A,B"`; `show`; `clear` (typed confirmation; for clearing the demo).
-- **The web app** stays on the sample league by default; a "Live league" switch loads the real
-  league from the server into the same place, so pages work unchanged. Flip the default to live
+- **The web app** stays on the sample league by default. The **Sample | Live** switch in the top
+  bar (`web/src/live/`) loads the real league from `GET /api/league` into the same place, every
+  10 seconds and after each change, so pages work unchanged. In live mode a page's action goes to
+  the server (`live/sync.ts` middleware; `shared/league/permissions.ts` says which), and log-in,
+  admin log-in, sign-up and posting a score (with photo uploads), Change PIN and Reset PIN call
+  the server from their pages. Sample-only controls are turned away. Flip the default to live
   before the Dec 14 demo.
+- **Try it on one computer:** `cd apps/split-flip-island/api && node dev/build-local.mjs && node
+  dev/local-server.mjs ../web/dist` serves the real API on an in-memory database plus the built
+  pages at http://127.0.0.1:4190 (teams Left & Right / Tilt Me Tender, PIN 4821; admin Matt).
 
 ## League rules the code must enforce
 

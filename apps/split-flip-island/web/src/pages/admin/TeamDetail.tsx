@@ -4,6 +4,8 @@
 // approve / remove card instead, because it has no scores yet.
 
 import { useState } from 'react';
+import { live } from '../../live/client';
+import { refreshLive } from '../../live/sync';
 import { pinProblem } from '../../../../shared/pin';
 import { playersLine } from '../../ui/players';
 import { Link as RouterLink, useNavigate, useParams, useSearchParams } from 'react-router';
@@ -19,7 +21,7 @@ import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
-import { useAppDispatch, useLeague } from '../../hooks';
+import { useAppDispatch, useAppSelector, useLeague } from '../../hooks';
 import { currentWeek, FORFEIT_LIMIT, forfeitCounts, NO_SHOW_LIMIT, noShowCount, subsUsed, findTeam, machine, scoreCounts, scoreList, seasonLine, teamTonight, weekLabel, weekOf } from '../../sample/league';
 import { sample } from '../../sample/slice';
 import { clock, longDate, ordinal } from '../../sample/time';
@@ -70,6 +72,7 @@ export default function TeamDetail() {
   const [resetOpen, setResetOpen] = useState(false);
   // The temporary PIN, shown once in the dialog right after the reset.
   const [tempPin, setTempPin] = useState('');
+  const liveOn = useAppSelector((x) => x.live.on);
 
   const team = findTeam(league, teamId);
   if (!team) {
@@ -105,6 +108,13 @@ export default function TeamDetail() {
   const players = team.players.filter(Boolean);
 
   const resetPin = () => {
+    if (liveOn) {
+      // The live league: the server makes the temporary PIN and shows it here once.
+      live.resetPin(team.teamId)
+        .then((r) => { setTempPin(r.pin); void refreshLive(); })
+        .catch((err: Error) => { setResetOpen(false); dispatch(showToast(err.message)); });
+      return;
+    }
     setTempPin(temporaryPin());
     dispatch(sample.resetPin(team.teamId));
   };

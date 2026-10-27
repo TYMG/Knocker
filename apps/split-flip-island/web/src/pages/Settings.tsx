@@ -28,6 +28,7 @@ import { TextsSetting } from '../ui/TextsParts';
 import TextField from '@mui/material/TextField';
 import { useState } from 'react';
 import { pinProblem } from '../../../shared/pin';
+import { live } from '../live/client';
 
 export default function Settings() {
   const me = useMe();
@@ -160,6 +161,8 @@ function ChangePinSection() {
   const [next, setNext] = useState('');
   const [again, setAgain] = useState('');
   const [tried, setTried] = useState(false);
+  const liveOn = useAppSelector((x) => x.live.on);
+  const [failed, setFailed] = useState('');
   const errors = {
     current: /^\d{4}$/.test(current) ? '' : 'Your current 4-digit PIN.',
     next: pinProblem(next),
@@ -168,9 +171,13 @@ function ChangePinSection() {
   const save = () => {
     setTried(true);
     if (errors.current || errors.next || errors.again) return;
-    // The sample league keeps no PINs; on the real server this checks the current PIN first.
-    dispatch(showToast('PIN changed. Both of you use the new one next time you log in.'));
-    setCurrent(''); setNext(''); setAgain(''); setTried(false);
+    const done = () => {
+      dispatch(showToast('PIN changed. Both of you use the new one next time you log in.'));
+      setCurrent(''); setNext(''); setAgain(''); setTried(false); setFailed('');
+    };
+    // The sample league keeps no PINs; the live league checks the current PIN first.
+    if (liveOn) live.changePin(current, next).then(done).catch((err: Error) => setFailed(err.message));
+    else done();
   };
   const err = (k: keyof typeof errors) => (tried && errors[k] ? { error: true, helperText: errors[k] } : {});
   return (
@@ -183,6 +190,7 @@ function ChangePinSection() {
           <TextField label="Current PIN" type="password" value={current} onChange={(e) => setCurrent(digits(e.target.value))} slotProps={pinInput} {...err('current')} />
           <TextField label="New PIN" type="password" value={next} onChange={(e) => setNext(digits(e.target.value))} slotProps={pinInput} {...err('next')} />
           <TextField label="New PIN again" type="password" value={again} onChange={(e) => setAgain(digits(e.target.value))} slotProps={pinInput} {...err('again')} />
+          {failed && <Typography role="alert" sx={{ color: 'secondary.main', fontWeight: 700 }}>{failed}</Typography>}
           <Button variant="contained" onClick={save} sx={{ minHeight: 44 }}>Change PIN</Button>
         </Stack>
       </Card>

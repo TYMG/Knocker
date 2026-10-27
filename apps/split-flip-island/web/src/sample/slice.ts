@@ -18,6 +18,11 @@ export { startWeek, TURN_MS };
 /** Bump this when the shape of the sample data changes, so old saved copies are ignored. */
 const SAVED_KEY = 'sfi-sample-v2';
 
+/** The sample league as last saved in this tab (or the story's start). */
+export function loadSavedSample(): SampleState {
+  return load();
+}
+
 function load(): SampleState {
   try {
     const saved = sessionStorage.getItem(SAVED_KEY);
@@ -52,6 +57,10 @@ const slice = createSlice({
   initialState: load,
   reducers: {
     ...makeLeagueRules(current as Current, MY_TEAM),
+    /** Puts a whole league in place: the live league from the server, or the sample back. */
+    loadLeague(_s: SampleState, a: PayloadAction<SampleState>) {
+      return a.payload;
+    },
     // ---- Who you are ----
 
     /** The switcher in the sample bar. */

@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
+import { startLiveRefresh } from './live/sync';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router';
 import { useAppDispatch, useAppSelector, useMe } from './hooks';
 import { sample } from './sample/slice';
@@ -63,6 +64,12 @@ function Root() {
  * first; once the address is no longer an admin page, this changes who you are. It lives here,
  * above the page frames, because the strip itself is replaced when the frame changes.
  */
+/** Keeps the live league fresh while the Live switch is on. */
+function LiveRefresh() {
+  useEffect(() => startLiveRefresh(), []);
+  return null;
+}
+
 function FinishRoleSwitch() {
   const pending = useAppSelector((s) => s.ui.pendingRole);
   const { pathname } = useLocation();
@@ -80,6 +87,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <FinishRoleSwitch />
+      <LiveRefresh />
       <Routes>
         <Route element={<PlayerLayout />}>
           <Route path="/" element={<Root />} />

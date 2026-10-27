@@ -23,7 +23,7 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 import CheckIcon from '@mui/icons-material/Check';
-import { useAppDispatch, useLeague, useMe } from '../hooks';
+import { useAppDispatch, useAppSelector, useLeague, useMe } from '../hooks';
 import { formatPhoneInput } from '../lib/format';
 import { teamPhoto } from '../sample/art';
 import { approvedTeams, findTeamByName, pendingTeams } from '../sample/league';
@@ -31,6 +31,8 @@ import { sample } from '../sample/slice';
 import { showToast } from '../store';
 import { PLAYER_NAME_MAX, PRONOUN_CHOICES, PRONOUNS_MAX } from '../../../shared/types';
 import { pinProblem } from '../../../shared/pin';
+import { live } from '../live/client';
+import { refreshLive } from '../live/sync';
 import Page from '../ui/Page';
 import PhotoPicker, { type PickedPhoto } from '../ui/PhotoPicker';
 import TeamAvatar from '../ui/TeamAvatar';
@@ -123,6 +125,9 @@ function PairForm() {
   // An error shows once the person has left that field, or has pressed Sign up. Not while typing.
   const [left, setLeft] = useState<Record<string, boolean>>({});
   const [tried, setTried] = useState(false);
+  const liveOn = useAppSelector((x) => x.live.on);
+  const [failed, setFailed] = useState('');
+  const [sending, setSending] = useState(false);
 
   const teamName = tidy(name);
   const errors = {
@@ -164,6 +169,17 @@ function PairForm() {
       { name: tidy(name1), pronouns: tidy(pronouns1) },
       { name: tidy(name2), pronouns: tidy(pronouns2) }
     ];
+    if (liveOn) {
+      // The live league: the photo uploads first, then the server creates the team.
+      if (!photo?.photo) { setFailed('Take or choose a real team photo for the live league.'); return; }
+      setFailed('');
+      setSending(true);
+      live.signUp({ teamName, players, phone1, phone2, pin, texts }, photo.photo)
+        .then(async () => { await refreshLive(); dispatch(showToast(`${teamName} is signed up and waiting for approval`)); navigate('/'); })
+        .catch((err: Error) => setFailed(err.message))
+        .finally(() => setSending(false));
+      return;
+    }
     dispatch(sample.signUp({ teamName, players, phone1, phone2, texts }));
     dispatch(showToast(`${teamName} is signed up and waiting for approval`));
     navigate('/');
@@ -236,8 +252,9 @@ function PairForm() {
           )}
         </Box>
 
-        <Button type="submit" variant="contained" color="secondary" size="large">
-          Sign up
+        {failed && <Typography role="alert" sx={{ color: 'secondary.main', fontWeight: 700 }}>{failed}</Typography>}
+        <Button type="submit" variant="contained" color="secondary" size="large" disabled={sending}>
+          {sending ? 'Signing up…' : 'Sign up'}
         </Button>
       </Stack>
     </Box>

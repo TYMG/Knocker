@@ -9,6 +9,7 @@ import { useAppDispatch, useAppSelector, useLeague } from '../hooks';
 import { sample } from '../sample/slice';
 import type { Role } from '../sample/types';
 import { setPendingRole, setTourOpen } from '../store';
+import { setLive } from '../live/sync';
 import { colors } from '../theme';
 
 export const SAMPLE_BAR_HEIGHT = 44;
@@ -47,6 +48,13 @@ export default function SampleBar() {
     if (role === 'admin' && league.role !== 'admin') navigate('/admin');
   };
 
+  const liveOn = useAppSelector((s) => s.live.on);
+  const liveError = useAppSelector((s) => s.live.error);
+  const flipLive = (on: boolean) => {
+    void setLive(on);
+    navigate('/');
+  };
+
   const button = { color: colors.paleYellow, borderColor: 'rgba(255,255,153,0.4)', py: 0.25, px: { xs: 0.9, sm: 1.25 }, fontSize: { xs: '0.74rem', sm: '0.8rem' }, minWidth: 0, lineHeight: 1.6 };
 
   return (
@@ -56,9 +64,26 @@ export default function SampleBar() {
         bgcolor: colors.black, color: colors.paleYellow, borderBottom: `2px dashed ${colors.lime}`
       }}
     >
-      <Box component="span" sx={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: colors.lime, lineHeight: 1.1, display: { xs: 'none', md: 'block' } }}>
-        Sample data
-      </Box>
+      {/* Sample or live: the live league comes from the server (see live/sync.ts). */}
+      <ToggleButtonGroup
+        exclusive
+        size="small"
+        value={liveOn ? 'live' : 'sample'}
+        onChange={(_, v: 'live' | 'sample' | null) => v && flipLive(v === 'live')}
+        aria-label="Sample or live league"
+        sx={{
+          '& .MuiToggleButton-root': { ...button, textTransform: 'none', fontWeight: 700, whiteSpace: 'nowrap' },
+          '& .MuiToggleButton-root.Mui-selected, & .MuiToggleButton-root.Mui-selected:hover': { bgcolor: liveOn ? colors.coral : colors.lime, color: colors.black }
+        }}
+      >
+        <ToggleButton value="sample">Sample</ToggleButton>
+        <ToggleButton value="live">Live</ToggleButton>
+      </ToggleButtonGroup>
+      {liveOn ? (
+        <Box component="span" role="status" sx={{ fontSize: '0.78rem', fontWeight: 700, color: liveError ? colors.coral : colors.paleYellow, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
+          {liveError || 'The real league server. Log in with a real team or admin account.'}
+        </Box>
+      ) : (
       <ToggleButtonGroup
         exclusive
         size="small"
@@ -75,6 +100,7 @@ export default function SampleBar() {
         <ToggleButton value="admin">Admin</ToggleButton>
         <ToggleButton value="team-admin">Admin + team</ToggleButton>
       </ToggleButtonGroup>
+      )}
       <Box sx={{ flexGrow: 1 }} />
       {/* On a phone the four choices need the room, so "About this page" becomes a question mark. */}
       <IconButton aria-label="About this page" onClick={() => dispatch(setTourOpen(true))} sx={{ color: colors.paleYellow, display: { xs: 'inline-flex', sm: 'none' } }}>
@@ -94,7 +120,7 @@ export default function SampleBar() {
           dispatch(league.story ? sample.resetSample() : sample.startStory());
           navigate('/');
         }}
-        sx={{ ...button, display: { xs: 'none', sm: 'inline-flex' } }}
+        sx={{ ...button, display: liveOn ? 'none' : { xs: 'none', sm: 'inline-flex' } }}
       >
         {league.story ? 'Full demo' : 'New league'}
       </Button>

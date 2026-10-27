@@ -12,6 +12,9 @@ import Typography from '@mui/material/Typography';
 import { useAppDispatch, useLeague, useMe } from '../../hooks';
 import { sample } from '../../sample/slice';
 import { showToast } from '../../store';
+import { useAppSelector } from '../../hooks';
+import { live } from '../../live/client';
+import { refreshLive } from '../../live/sync';
 import Page from '../../ui/Page';
 
 export default function AdminLogIn() {
@@ -26,6 +29,8 @@ export default function AdminLogIn() {
   const [password, setPassword] = useState('');
   // Errors only show after the first try, so the form is not red before anyone has typed.
   const [tried, setTried] = useState(false);
+  const liveOn = useAppSelector((x) => x.live.on);
+  const [failed, setFailed] = useState('');
 
   if (me.isAdmin) {
     return (
@@ -46,6 +51,13 @@ export default function AdminLogIn() {
     e.preventDefault();
     setTried(true);
     if (!name.trim() || !password) return;
+    if (liveOn) {
+      setFailed('');
+      live.adminLogIn(name, password)
+        .then(async (r) => { await refreshLive(); dispatch(showToast(`Logged in as the admin ${r.admin.name}`)); navigate(next, { replace: true }); })
+        .catch((err: Error) => setFailed(err.message));
+      return;
+    }
     dispatch(sample.logInAdmin());
     dispatch(showToast('Logged in as a league admin'));
     // Replace, so Back does not return to the log-in form.
@@ -73,12 +85,15 @@ export default function AdminLogIn() {
           error={tried && !password}
           helperText={tried && !password ? 'Type your password.' : undefined}
         />
+        {failed && <Typography role="alert" sx={{ color: 'secondary.main', fontWeight: 700 }}>{failed}</Typography>}
         <Button type="submit" variant="contained" color="secondary" size="large">
           Log in
         </Button>
-        <Typography variant="body2" color="textSecondary">
-          This is the sample league, so any name and password work.
-        </Typography>
+        {!liveOn && (
+          <Typography variant="body2" color="textSecondary">
+            This is the sample league, so any name and password work.
+          </Typography>
+        )}
         <Typography variant="body2" color="textSecondary">
           Admin accounts are created on the organizer's computer, never on the website.
         </Typography>

@@ -7,26 +7,13 @@
 // endpoints, which save the private part and then apply the same rule.
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import type { LeagueActionName } from '../../shared/league/rules.js';
+import { ADMIN_ACTIONS, TEAM_ACTIONS } from '../../shared/league/permissions.js';
 import { requireAdmin } from './admin.js';
 import { readAdminToken, readToken } from './auth.js';
 import { teamPhoto } from '../../shared/league/art.js';
 import { loadPrivates } from './handlers.js';
 import { applyAction, loadLeagueState, type Actor, type League } from './leagueStore.js';
 import { HttpError, nowIso, parseBody, photoUrl } from './util.js';
-
-const TEAM_ACTIONS = new Set<LeagueActionName>([
-  'joinLine', 'leaveLine', 'startTurn', 'requestCheckIn', 'cancelCheckInRequest', 'challenge', 'answerChallenge',
-  'forgivenSeen', 'forfeitSeen', 'noShowSeen', 'eliminatedSeen', 'answerSeasonTexts'
-]);
-
-const ADMIN_ACTIONS = new Set<LeagueActionName>([
-  'lineToBack', 'forfeitTurn', 'forgiveForfeit', 'lineRemove',
-  'finalsLock', 'finalsChoose', 'finalsScore', 'finalsPlayoff', 'finalsReset',
-  'markChecked', 'markAllChecked', 'correctScore', 'voidScore',
-  'checkIn', 'declineCheckIn', 'undoCheckIn', 'excuseNoShow', 'recalculateSeason', 'withdrawTeam', 'reinstateTeam',
-  'postMessage', 'takeDownMessage', 'addMinutes', 'setNightTimes', 'openNight', 'closeNight', 'reopenNight', 'skipWeek',
-  'setMachineInPlay', 'addMachine', 'removeMachine', 'restoreMachine', 'addLocation'
-]);
 
 /** A saved photo path becomes the address the pages load it from (through the site's front door). */
 const photoSrc = (key: string | undefined) => (key?.startsWith('leagues/') ? photoUrl(key) ?? undefined : key || undefined);

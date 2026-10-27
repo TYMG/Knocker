@@ -18,6 +18,9 @@ import { approvedTeams, findTeam, findTeamByName } from '../sample/league';
 import { MY_TEAM } from '../sample/seed';
 import { sample } from '../sample/slice';
 import { showToast } from '../store';
+import { useAppSelector } from '../hooks';
+import { live } from '../live/client';
+import { refreshLive } from '../live/sync';
 import Page from '../ui/Page';
 import TeamAvatar from '../ui/TeamAvatar';
 
@@ -31,6 +34,8 @@ export default function LogIn() {
   const [name, setName] = useState('');
   const [pin, setPin] = useState('');
   const [tried, setTried] = useState(false);
+  const liveOn = useAppSelector((x) => x.live.on);
+  const [failed, setFailed] = useState('');
 
   // Already logged in: say who, and offer the way home.
   if (me.isTeam) {
@@ -80,6 +85,14 @@ export default function LogIn() {
       document.getElementById('login-pin')?.focus();
       return;
     }
+    if (liveOn) {
+      // The live league: the server checks the PIN.
+      setFailed('');
+      live.logIn(name, pin)
+        .then(async (r) => { await refreshLive(); dispatch(showToast(`Logged in as ${r.team.teamName}`)); navigate('/'); })
+        .catch((err: Error) => setFailed(err.message));
+      return;
+    }
     dispatch(sample.logInAs(match.teamId));
     dispatch(showToast(`Logged in as ${match.teamName}`));
     navigate('/');
@@ -110,10 +123,11 @@ export default function LogIn() {
             // Brings up the number keypad on a phone.
             slotProps={{ htmlInput: { inputMode: 'numeric', pattern: '[0-9]*', maxLength: 4, autoComplete: 'off' } }}
           />
+          {failed && <Typography role="alert" sx={{ color: 'secondary.main', fontWeight: 700 }}>{failed}</Typography>}
           <Button type="submit" variant="contained" color="secondary" size="large">
             Log in
           </Button>
-          {example && (
+          {example && !liveOn && (
             <Typography sx={{ color: 'text.secondary' }} variant="body2">
               This is sample data, so there are no real PINs. Try “{example}” with any 4 digits.
             </Typography>

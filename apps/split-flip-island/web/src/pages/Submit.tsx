@@ -9,6 +9,8 @@
 // "/submit?machine=godzilla" (what the code on a machine opens) picks the machine for you.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { live } from '../live/client';
+import { refreshLive } from '../live/sync';
 import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -21,7 +23,7 @@ import Typography from '@mui/material/Typography';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import { useAppDispatch, useLeague, useMe } from '../hooks';
+import { useAppDispatch, useAppSelector, useLeague, useMe } from '../hooks';
 import { formatScore, formatScoreInput } from '../lib/format';
 import { scorePhoto } from '../sample/art';
 import { countedMachines, findMachine, machineBoard, nightStatus, seasonHigh, teamTonight, weekLabel, weekOf } from '../sample/league';
@@ -80,6 +82,9 @@ export default function Submit() {
   const [photo, setPhoto] = useState<PickedPhoto | null>(null);
   const [scoreText, setScoreText] = useState('');
   const [reviewing, setReviewing] = useState(false);
+  const liveOn = useAppSelector((x) => x.live.on);
+  const [failed, setFailed] = useState('');
+  const [sending, setSending] = useState(false);
   const top = useRef<HTMLDivElement>(null);
 
   // Switching between the form and the review changes the whole screen, so start it at the top.
@@ -142,6 +147,22 @@ export default function Submit() {
       const leader = machineBoard(league, week.week, picked.machineId)[0];
       const newHigh = !!high && score > high.score;
       const takesFirst = !!leader && leader.team.teamId !== team.teamId && score > leader.best.score;
+      if (liveOn) {
+        // The live league: the photo uploads, then the server posts the score.
+        if (!photo.photo) { setFailed('Take or choose a real photo of the score for the live league.'); return; }
+        setFailed('');
+        setSending(true);
+        live.submitScore(picked.machineId, score, photo.photo)
+          .then(async () => {
+            await refreshLive();
+            dispatch(showToast(newHigh ? `New season high on ${picked.name}! Worth 10 bonus points if it stands.` : takesFirst ? `You took 1st on ${picked.name}!` : `Score posted on ${picked.name}`));
+            if (newHigh) celebrate('seasonHigh'); else if (takesFirst) celebrate('first');
+            navigate('/standings');
+          })
+          .catch((err: Error) => setFailed(err.message))
+          .finally(() => setSending(false));
+        return;
+      }
       dispatch(sample.submitScore({ machineId: picked.machineId, score, photoSource: photo.source, photo: photo.photo }));
       if (newHigh) {
         dispatch(showToast(`New season high on ${picked.name}! Worth 10 bonus points if it stands.`));
@@ -176,6 +197,7 @@ export default function Submit() {
             </Typography>
             <ScoreDisplay size="lg" value={score} />
           </Card>
+          {failed && <Typography role="alert" sx={{ color: 'secondary.main', fontWeight: 700 }}>{failed}</Typography>}
 
           <Alert severity="warning" icon={<WarningAmberIcon />}>
             You cannot change a score after it posts. A league admin can.
@@ -186,7 +208,7 @@ export default function Submit() {
             <Button variant="outlined" size="large" onClick={() => setReviewing(false)} sx={{ flex: '1 1 0' }}>
               Fix it
             </Button>
-            <Button variant="contained" color="secondary" size="large" onClick={post} sx={{ flex: '2 1 0' }}>
+            <Button variant="contained" color="secondary" size="large" onClick={post} disabled={sending} sx={{ flex: '2 1 0' }}>
               Submit score
             </Button>
           </Stack>

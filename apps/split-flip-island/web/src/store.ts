@@ -1,5 +1,7 @@
 import { configureStore, createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { sampleReducer, saveSample } from './sample/slice';
+import { liveReducer } from './live/liveSlice';
+import { liveMiddleware } from './live/sync';
 import type { Role } from './sample/types';
 
 const CALM_KEY = 'sfi-calm';
@@ -59,7 +61,8 @@ export const { showToast, hideToast, setTourOpen, setPendingRole, setCalm, setDr
 // The app runs on a made-up league for now (see sample/README.md). The real API and its login
 // state are in live/, ready to be added back here.
 export const store = configureStore({
-  reducer: { sample: sampleReducer, ui: uiSlice.reducer }
+  reducer: { sample: sampleReducer, ui: uiSlice.reducer, live: liveReducer },
+  middleware: (getDefault) => getDefault().concat(liveMiddleware)
 });
 
 let savedCalmValue = store.getState().ui.calm;
@@ -87,7 +90,8 @@ store.subscribe(() => {
   const next = store.getState().sample;
   if (next === saved) return;
   saved = next;
-  saveSample(next);
+  // Only the sample league is kept in the tab; the live one always comes from the server.
+  if (!store.getState().live.on) saveSample(next);
 });
 
 export type RootState = ReturnType<typeof store.getState>;

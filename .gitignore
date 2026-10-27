@@ -17,3 +17,6 @@ test-report/
 .env
 .env.*
 .DS_Store
+
+# Local live-league server bundle (api/dev/build-local.mjs)
+apps/split-flip-island/api/dev/local-server.mjs

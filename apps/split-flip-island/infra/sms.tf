@@ -88,6 +88,16 @@ resource "aws_iam_role_policy" "sms" {
   policy = data.aws_iam_policy_document.sms[0].json
 }
 
+# Hands the number to the knckr.com stack (infra/foundation), which publishes the "Add to
+# contacts" card at knckr.com/split-flip-island.vcf. This way the number never sits in the code.
+resource "aws_ssm_parameter" "sms_number" {
+  count       = local.sms
+  name        = "/knckr/split-flip-island/sms-number"
+  description = "Split Flipper Island's toll-free texting number, for the contact card on knckr.com."
+  type        = "String"
+  value       = aws_pinpointsmsvoicev2_phone_number.sms[0].phone_number
+}
+
 output "sms_phone_number" {
   description = "The league's toll-free texting number (it can't send until its registration is approved)."
   value       = var.sms_enabled ? aws_pinpointsmsvoicev2_phone_number.sms[0].phone_number : null

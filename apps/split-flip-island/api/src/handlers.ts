@@ -36,7 +36,7 @@ interface MetaItem { type: 'meta'; activeNight?: string }
 export interface PrivateItem {
   pinHash: string; phone1: string; phone2: string; failures?: number; lastFailureAt?: number;
   /** Consent to the check-in reminder text, and when it was given (kept as the opt-in record). */
-  smsOptIn?: boolean; smsOptInAt?: string;
+  smsOptIn?: boolean; smsOptInAt?: string; smsOptOutAt?: string;
 }
 interface ScoreItem {
   type: 'score'; scoreId: string; teamId: string; machineId: string; date: string; score: number;

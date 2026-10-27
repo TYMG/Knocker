@@ -12,6 +12,7 @@ import { Link as RouterLink, useNavigate } from 'react-router';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Checkbox from '@mui/material/Checkbox';
+import { SaveNumberButton } from '../ui/TextsParts';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Button from '@mui/material/Button';
 import Link from '@mui/material/Link';
@@ -128,6 +129,7 @@ function PairForm() {
           }
           sx={{ alignItems: 'flex-start', mx: 0, '& .MuiCheckbox-root': { pt: 0.25 } }}
         />
+        {smsOptIn && <SaveNumberButton />}
         <TextField
           label="4-digit PIN"
           type="password"

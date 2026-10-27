@@ -3,6 +3,7 @@
 // - for a team: "You're next", "It's your turn" (with a countdown and "We started"), "Turn forfeited"
 // - for an admin: a quick, quiet note when a team starts a game or forfeits, which can be muted
 import { useEffect, useRef, useState } from 'react';
+import { TeamSeasonTexts } from '../ui/TextsParts';
 import { useNavigate } from 'react-router';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -27,6 +28,7 @@ export default function TurnAlerts() {
       {me.isTeam && <TeamForfeit teamId={me.team.teamId} />}
       {me.isTeam && <TeamForgiven teamId={me.team.teamId} />}
       {me.isTeam && <TeamNoShow teamId={me.team.teamId} />}
+      {me.isTeam && <TeamSeasonTexts teamId={me.team.teamId} />}
       {me.isAdmin && <AdminBlips />}
       {me.isAdmin && <AdminCheckInAlert />}
       {me.isAdmin && <AdminForfeitAlert />}

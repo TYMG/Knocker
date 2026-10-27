@@ -12,6 +12,8 @@ export interface STeam {
   phone2: string;
   /** Agreed at sign-up to a check-in reminder text on league nights (Player 1's phone). */
   smsOptIn?: boolean;
+  /** Answered the end-of-season "keep the reminder texts?" question. */
+  smsSeasonAsked?: boolean;
   photo: string; // image address (a drawn placeholder)
   /** New teams wait for an admin. Only approved teams play and appear in standings. */
   status: 'pending' | 'approved' | 'withdrawn';

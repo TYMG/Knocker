@@ -105,6 +105,28 @@ resource "aws_s3_object" "sms" {
   cache_control = "max-age=300"
 }
 
+# "Add to contacts" card for the league's texting number, so phones show "Split Flipper Island"
+# instead of a bare number. The number comes from the league stack (apps/split-flip-island/infra,
+# sms.tf) through the parameter store. Until that stack exists, there is simply no card.
+data "aws_ssm_parameters_by_path" "knckr" {
+  path = "/knckr/split-flip-island"
+}
+
+locals {
+  sms_number_at = index(concat(data.aws_ssm_parameters_by_path.knckr.names, ["/knckr/split-flip-island/sms-number"]), "/knckr/split-flip-island/sms-number")
+  sms_number    = local.sms_number_at < length(data.aws_ssm_parameters_by_path.knckr.names) ? nonsensitive(data.aws_ssm_parameters_by_path.knckr.values[local.sms_number_at]) : ""
+}
+
+resource "aws_s3_object" "sms_contact" {
+  count               = local.sms_number == "" ? 0 : 1
+  bucket              = aws_s3_bucket.landing.id
+  key                 = "split-flip-island.vcf"
+  content             = templatefile("${path.module}/site/split-flip-island.vcf.tftpl", { number = local.sms_number, logo = filebase64("${path.module}/site/split-flip-island-contact.jpg") })
+  content_type        = "text/vcard; charset=utf-8"
+  content_disposition = "attachment; filename=\"Split Flipper Island.vcf\""
+  cache_control       = "max-age=300"
+}
+
 resource "aws_cloudfront_origin_access_control" "landing" {
   name                              = "knckr-landing"
   origin_access_control_origin_type = "s3"

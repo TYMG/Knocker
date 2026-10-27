@@ -2,7 +2,7 @@ import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from '
 import { adminLogin, adminTeams, approveTeam, purgeExpired, removeTeam } from './admin.js';
 import { sameSecret } from './auth.js';
 import { audit, createUpload, login, me, register, standings, submitScore } from './handlers.js';
-import { smsStatus, smsTest } from './sms.js';
+import { setTeamTexts, smsStatus, smsTest, teamTexts } from './sms.js';
 import { env, HttpError, json } from './util.js';
 
 type Route = (event: APIGatewayProxyEventV2) => Promise<unknown>;
@@ -20,7 +20,9 @@ const routes: Record<string, { run: Route; status?: 201 }> = {
   'POST /api/admin/login': { run: adminLogin },
   'GET /api/admin/teams': { run: adminTeams },
   'GET /api/admin/sms': { run: smsStatus },
-  'POST /api/admin/sms/test': { run: smsTest }
+  'POST /api/admin/sms/test': { run: smsTest },
+  'GET /api/me/texts': { run: teamTexts },
+  'POST /api/me/texts': { run: setTeamTexts }
 };
 
 // POST /api/admin/teams/{teamId}/approve and /remove. Team IDs are 8 hex characters.

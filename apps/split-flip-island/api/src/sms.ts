@@ -4,16 +4,20 @@
 // typed into the app, so nobody can use this to text strangers. No phone number lives in the
 // code: the league's number comes from AWS, and verified phones are shown by last 4 digits.
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
-import { PutCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import {
   DescribeAccountAttributesCommand, DescribePhoneNumbersCommand, DescribeVerifiedDestinationNumbersCommand,
   PinpointSMSVoiceV2Client, SendTextMessageCommand
 } from '@aws-sdk/client-pinpoint-sms-voice-v2';
-import { SMS_SAMPLE, SMS_TEMPLATES, type SmsStatusResponse, type SmsTemplate, type SmsTestRequest, type SmsTestResponse } from '../../shared/sms.js';
+import {
+  SMS_SAMPLE, SMS_TEMPLATES, type SmsStatusResponse, type SmsTemplate, type SmsTestRequest, type SmsTestResponse,
+  type TeamTextsRequest, type TeamTextsResponse
+} from '../../shared/sms.js';
 import { requireAdmin } from './admin.js';
-import { ddb } from './db.js';
+import { requireTeam } from './auth.js';
+import { ddb, keys, leagueId, table } from './db.js';
 import { auditPut } from './handlers.js';
-import { HttpError, parseBody } from './util.js';
+import { HttpError, nowIso, parseBody } from './util.js';
 
 const sms = new PinpointSMSVoiceV2Client({});
 const origination = () => process.env.SMS_ORIGINATION ?? '';
@@ -77,4 +81,36 @@ export async function smsTest(event: APIGatewayProxyEventV2): Promise<SmsTestRes
   const entry = auditPut(`${admin.name} sent a test text (${template.label})`, admin.name);
   await ddb.send(new PutCommand(entry.Put));
   return { sent: phones.length, body: text };
+}
+
+// ---------- A team's own setting: GET / POST /api/me/texts ----------
+// Kept in the team's private item, never in the league log. Turning texts off here stops the
+// league from sending; a STOP reply also stops them at AWS, and only START undoes that.
+
+const privKey = (teamId: string) => ({ PK: keys.league(leagueId()), SK: keys.teamPrivate(teamId) });
+
+export async function teamTexts(event: APIGatewayProxyEventV2): Promise<TeamTextsResponse> {
+  const { teamId } = requireTeam(event);
+  const item = (await ddb.send(new GetCommand({ TableName: table(), Key: privKey(teamId) }))).Item;
+  if (!item) throw new HttpError(401, 'Your team was not found. Log in again.');
+  return { optIn: item.smsOptIn === true };
+}
+
+export async function setTeamTexts(event: APIGatewayProxyEventV2): Promise<TeamTextsResponse> {
+  const { teamId } = requireTeam(event);
+  const body = parseBody<TeamTextsRequest>(event);
+  if (typeof body.optIn !== 'boolean') throw new HttpError(400, 'Say whether you want texts (optIn: true or false).');
+  const at = nowIso();
+  await ddb.send(new UpdateCommand({
+    TableName: table(),
+    Key: privKey(teamId),
+    // The time of the latest yes or no is the consent record.
+    UpdateExpression: body.optIn ? 'SET smsOptIn = :v, smsOptInAt = :at' : 'SET smsOptIn = :v, smsOptOutAt = :at',
+    ConditionExpression: 'attribute_exists(PK)',
+    ExpressionAttributeValues: { ':v': body.optIn, ':at': at }
+  })).catch((e: Error) => {
+    if (e.name === 'ConditionalCheckFailedException') throw new HttpError(401, 'Your team was not found. Log in again.');
+    throw e;
+  });
+  return { optIn: body.optIn };
 }

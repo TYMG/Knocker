@@ -324,7 +324,16 @@ Summarize every plan and wait for a yes before the matching apply.
 - Web: sign-up checkbox (off by default), admin **Texts** page (`/admin/texts`), and the
   sample check-in banner shows the text an opted-in team would get.
 - Verify a test phone: `scripts/sms-verify.sh add` (asks for the number, never stores it).
-- Not built yet: the scheduled sender that texts the reminder 5 minutes before start.
+- Contact card: the league stack saves the number to the parameter store
+  (`/knckr/split-flip-island/sms-number`); the foundation stack reads it and publishes
+  knckr.com/split-flip-island.vcf ("Split Flipper Island", placeholder photo
+  `infra/foundation/site/split-flip-island-contact.jpg`). "Save our number" buttons: sign-up
+  (once the box is ticked), the team page Texts section, and sms.html.
+- Teams switch texts on/off any time (team page, Season tab, Texts; API `GET/POST /api/me/texts`,
+  stores `smsOptInAt` / `smsOptOutAt`). After the finals, teams with texts on get a pop-up:
+  keep them for next season, or stop them. STOP at AWS always wins; START undoes it.
+- Not built yet: the scheduled sender that texts the reminder 5 minutes before start. It must
+  skip teams with `smsOptIn` off and only run on league nights (so nothing goes out off-season).
 
 ## Open decisions (ask before assuming)
 

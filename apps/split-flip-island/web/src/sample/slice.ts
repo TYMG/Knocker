@@ -446,6 +446,18 @@ const slice = createSlice({
       const n = s.noShows?.find((x) => x.id === a.payload);
       if (n) n.seen = true;
     },
+    /** Team: turn the check-in reminder texts on or off. */
+    setSmsOptIn(s, a: PayloadAction<{ teamId: string; optIn: boolean }>) {
+      const t = s.teams.find((x) => x.teamId === a.payload.teamId);
+      if (t) t.smsOptIn = a.payload.optIn;
+    },
+    /** Team: answered the end-of-season question about keeping the texts. */
+    answerSeasonTexts(s, a: PayloadAction<{ teamId: string; keep: boolean }>) {
+      const t = s.teams.find((x) => x.teamId === a.payload.teamId);
+      if (!t) return;
+      t.smsSeasonAsked = true;
+      if (!a.payload.keep) t.smsOptIn = false;
+    },
     eliminatedSeen(s, a: PayloadAction<string>) {
       const t = s.teams.find((x) => x.teamId === a.payload);
       if (t?.eliminated) t.eliminated.seen = true;

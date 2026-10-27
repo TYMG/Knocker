@@ -121,6 +121,14 @@ export class FakeTable {
         this.put(this.applyUpdate(existing, w));
         return {};
       }
+      case 'BatchWriteCommand': {
+        const requests = Object.values(input.RequestItems as Record<string, Array<{ DeleteRequest?: { Key: { PK: string; SK: string } }; PutRequest?: { Item: Item } }>>).flat();
+        for (const r of requests) {
+          if (r.DeleteRequest) this.items.delete(this.id(r.DeleteRequest.Key));
+          if (r.PutRequest) this.put(r.PutRequest.Item);
+        }
+        return {};
+      }
       case 'TransactWriteCommand': {
         const steps = input.TransactItems as Array<{ Put?: Write; Update?: Write; Delete?: Write }>;
         // All conditions are checked before anything is written, like the real thing.

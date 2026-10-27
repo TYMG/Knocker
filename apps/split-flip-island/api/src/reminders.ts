@@ -45,6 +45,7 @@ export async function sendCheckInReminders(now = new Date()): Promise<ReminderRe
   const state = await loadLeagueState();
   if (!state) return none('no league yet');
   const league = state.league;
+  if (league.paused) return none('the league is paused');
   const week = tonight(league, now);
   if (!week) return none('no league night today');
   const minutes = (Date.parse(at(week.date, league.night.opensAt)) - now.getTime()) / 60_000;

@@ -19,6 +19,8 @@ import { env, HttpError, parseBody, text } from './util.js';
 export interface AdminItem {
   type: 'admin'; name: string; passHash: string; tokenVersion: number; createdAt: string;
   failures?: number; lastFailureAt?: number;
+  /** The owner can start the whole league over (set with ./scripts/admin.sh owner "Name"). */
+  owner?: boolean;
 }
 
 const adminKey = (name: string) => ({ PK: keys.admins(leagueId()), SK: keys.admin(name) });

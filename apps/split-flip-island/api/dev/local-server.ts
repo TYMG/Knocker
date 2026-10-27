@@ -27,7 +27,7 @@ for (const [id, name, n] of [['left-and-right', 'Left & Right', '01'], ['tilt-me
   fakeTable.put({ PK: L, SK: 'TEAMNAME#' + name.toLowerCase(), type: 'teamName', teamId: id });
   fakeTable.put({ PK: L, SK: 'TEAM#' + id + '#PRIVATE', type: 'private', pinHash: hashPin('4821'), phone1: '20255501' + n, phone2: '20255502' + n, smsOptIn1: true });
 }
-fakeTable.put({ PK: 'ADMIN#sfi-s1', SK: 'ADMIN#matt', type: 'admin', name: 'Matt', passHash: hashPassword('correct horse battery'), tokenVersion: 1, createdAt: now.toISOString() });
+fakeTable.put({ PK: 'ADMIN#sfi-s1', SK: 'ADMIN#matt', type: 'admin', name: 'Matt', passHash: hashPassword('correct horse battery'), tokenVersion: 1, createdAt: now.toISOString(), owner: true });
 
 const DIST = process.argv[2]!;
 const types: Record<string, string> = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.json': 'application/json' };

@@ -16,7 +16,7 @@ export const ADMIN_ACTIONS: ReadonlySet<LeagueActionName> = new Set<LeagueAction
   'markChecked', 'markAllChecked', 'correctScore', 'voidScore',
   'checkIn', 'declineCheckIn', 'undoCheckIn', 'excuseNoShow', 'recalculateSeason', 'withdrawTeam', 'reinstateTeam',
   'postMessage', 'takeDownMessage', 'addMinutes', 'setNightTimes', 'openNight', 'closeNight', 'reopenNight', 'skipWeek',
-  'setMachineInPlay', 'addMachine', 'removeMachine', 'restoreMachine', 'addLocation'
+  'setMachineInPlay', 'addMachine', 'removeMachine', 'restoreMachine', 'addLocation', 'setPaused'
 ]);
 
 /**

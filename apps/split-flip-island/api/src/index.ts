@@ -3,6 +3,7 @@ import { adminLogin, approveTeam, purgeExpired, removeTeam } from './admin.js';
 import { sameSecret } from './auth.js';
 import { createUpload, login, register, submitScore } from './handlers.js';
 import { getLeague, postAction } from './leagueApi.js';
+import { setupLeague, startOver } from './leagueAdmin.js';
 import { changePin, resetPin } from './pin.js';
 import { openNightIfTime, sendCheckInReminders } from './reminders.js';
 import { setTeamTexts, smsStatus, smsTest, teamTexts } from './sms.js';
@@ -24,7 +25,9 @@ const routes: Record<string, { run: Route; status?: 201 }> = {
   'POST /api/me/texts': { run: setTeamTexts },
   'POST /api/me/pin': { run: changePin },
   'GET /api/league': { run: getLeague },
-  'POST /api/league/action': { run: postAction }
+  'POST /api/league/action': { run: postAction },
+  'POST /api/admin/league/setup': { run: setupLeague, status: 201 },
+  'POST /api/admin/league/start-over': { run: startOver }
 };
 
 

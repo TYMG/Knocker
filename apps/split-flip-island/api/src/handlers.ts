@@ -145,6 +145,7 @@ export async function register(event: APIGatewayProxyEventV2): Promise<AuthRespo
   }
 
   const s = await league();
+  if (s.paused) throw new HttpError(409, 'Sign-ups are closed while the league is paused. Try again later.');
   if (findTeamByName(s, teamName)) throw new HttpError(409, 'That team name is taken. Try another.');
   if (pendingTeams(s).length >= maxPendingTeams()) {
     throw new HttpError(409, 'Sign-ups are paused while the league catches up on approvals. Try again later or tell the organizer.');

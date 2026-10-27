@@ -19,10 +19,10 @@ import { HttpError, nowIso, parseBody, photoUrl } from './util.js';
 const photoSrc = (key: string | undefined) => (key?.startsWith('leagues/') ? photoUrl(key) ?? undefined : key || undefined);
 
 /** Who is asking: an admin (checked against the database), a team, or a visitor. */
-async function viewer(event: APIGatewayProxyEventV2): Promise<Actor | null> {
+async function viewer(event: APIGatewayProxyEventV2): Promise<(Actor & { owner?: boolean }) | null> {
   if (readAdminToken(event)) {
     const admin = await requireAdmin(event);
-    return { kind: 'admin', name: admin.name };
+    return { kind: 'admin', name: admin.name, owner: admin.owner === true };
   }
   const team = readToken(event);
   return team ? { kind: 'team', teamId: team.teamId } : null;
@@ -32,7 +32,7 @@ async function viewer(event: APIGatewayProxyEventV2): Promise<Actor | null> {
  * The league as one viewer may see it. Phone numbers only for admins; each team's text settings
  * and pending sub names only for that team and admins. The viewer fields say who is looking.
  */
-export function viewFor(league: League, who: Actor | null, phones?: Map<string, { phone1: string; phone2: string }>): League {
+export function viewFor(league: League, who: (Actor & { owner?: boolean }) | null, phones?: Map<string, { phone1: string; phone2: string }>): League {
   const admin = who?.kind === 'admin';
   const mine = who?.kind === 'team' ? who.teamId : '';
   return {
@@ -42,6 +42,7 @@ export function viewFor(league: League, who: Actor | null, phones?: Map<string, 
     myTeamId: mine,
     adminName: admin ? who.name : '',
     adminOnTeam: false,
+    adminIsOwner: admin && who.owner === true,
     teams: league.teams.map((t) => {
       const p = admin ? phones?.get(t.teamId) : undefined;
       const seesPrivate = admin || t.teamId === mine;
@@ -57,10 +58,21 @@ async function adminPhones() {
   return new Map([...privates].map(([teamId, p]) => [teamId, { phone1: p.phone1, phone2: p.phone2 }]));
 }
 
-export async function getLeague(event: APIGatewayProxyEventV2): Promise<{ version: number; league: League }> {
+/**
+ * No league yet (or just started over): says so, with who is looking, so an admin's pages can
+ * offer the setup form.
+ */
+export interface NoLeague { version: 0; league: null; viewer: { role: 'visitor' | 'team' | 'admin'; adminName: string; adminIsOwner: boolean } }
+
+export async function getLeague(event: APIGatewayProxyEventV2): Promise<{ version: number; league: League } | NoLeague> {
   const who = await viewer(event);
   const state = await loadLeagueState();
-  if (!state) throw new HttpError(404, 'The league has not been set up yet.');
+  if (!state) {
+    return {
+      version: 0, league: null,
+      viewer: { role: who?.kind === 'admin' ? 'admin' : who?.kind === 'team' ? 'team' : 'visitor', adminName: who?.kind === 'admin' ? who.name : '', adminIsOwner: who?.kind === 'admin' && who.owner === true }
+    };
+  }
   return { version: state.version, league: viewFor(state.league, who, who?.kind === 'admin' ? await adminPhones() : undefined) };
 }
 

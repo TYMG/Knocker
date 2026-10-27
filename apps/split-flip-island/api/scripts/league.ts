@@ -32,8 +32,6 @@ process.env.AWS_REGION ??= 'us-east-1';
 
 const { createLeagueState, loadLeagueState } = await import('../src/leagueStore.js');
 const { newLeague } = await import('../../shared/league/new.js');
-const { ddb, keys, queryAll } = await import('../src/db.js');
-const { BatchWriteCommand } = await import('@aws-sdk/lib-dynamodb');
 
 const slug = (s: string) => s.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 const clockOk = (s: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(s);
@@ -70,18 +68,9 @@ async function clear() {
   const typed = (await rl.question(`This deletes the whole league ${values.league} and every team's sign-up. Type the league id to confirm: `)).trim();
   rl.close();
   if (typed !== values.league) return console.log('Nothing deleted.');
-  const all = async (pk: string) => queryAll<{ PK: string; SK: string; type?: string; date?: string }>({ KeyConditionExpression: 'PK = :pk', ExpressionAttributeValues: { ':pk': pk } });
-  // Everything in the league's own partition (the record, name claims, private items, and any
-  // records left from before Oct 27), its history, the old league log, and old score partitions.
-  // Admin accounts live elsewhere and are kept.
-  const league = await all(keys.league(values.league!));
-  const oldNights = league.filter((i) => i.type === 'night' && i.date).map((i) => `NIGHT#${values.league}#${i.date}`);
-  const doomed = [...league, ...(await all(`HISTORY#${values.league}`)), ...(await all(`AUDIT#${values.league}`))];
-  for (const pk of oldNights) doomed.push(...(await all(pk)));
-  for (let i = 0; i < doomed.length; i += 25) {
-    await ddb.send(new BatchWriteCommand({ RequestItems: { [values.table!]: doomed.slice(i, i + 25).map((k) => ({ DeleteRequest: { Key: { PK: k.PK, SK: k.SK } } })) } }));
-  }
-  console.log(`Deleted ${doomed.length} records. Admin accounts are kept. Run "setup" to start a fresh season.`);
+  const { clearLeague } = await import('../src/leagueAdmin.js');
+  const deleted = await clearLeague(values.league!);
+  console.log(`Deleted ${deleted} records. Admin accounts are kept. Run "setup" to start a fresh season.`);
 }
 
 const command = positionals[0];

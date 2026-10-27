@@ -134,3 +134,57 @@ describe('the league on the server', () => {
     expect(opened.league.weeks[0].state).toBe('open');
   });
 });
+
+describe('league setup, pause and start over', () => {
+  const owner = async () => {
+    fake.table.put({ PK: 'ADMIN#sfi-s1', SK: 'ADMIN#matt', type: 'admin', name: 'Matt', passHash: hashPassword('correct horse battery'), tokenVersion: 1, createdAt: '2026-10-06T00:00:00.000Z', owner: true });
+    return asAdmin();
+  };
+  const setupBody = { firstNight: '2027-01-14', opensAt: '19:00', closesAt: '21:00', machines: ['Godzilla', 'Venom'], teamCap: 10 };
+
+  it('pausing stops the night opening by itself and new sign-ups, and resuming brings them back', async () => {
+    const admin = await asAdmin();
+    expect((await act('setPaused', true, admin)).body.league.paused).toBe(true);
+    await expect(applyAction({ kind: 'league' }, { type: 'openNight' })).rejects.toThrow();
+    expect((await act('setPaused', true, admin)).status).toBe(409); // already paused
+    expect((await act('setPaused', false, asTeam('aaaa1111'))).status).toBe(403);
+    expect((await act('setPaused', false, admin)).status).toBe(200);
+    expect((await applyAction({ kind: 'league' }, { type: 'openNight' })).league.weeks[0]!.state).toBe('open');
+    const log = (await loadLeagueState())!.league.log.map((l) => l.action);
+    expect(log).toEqual(expect.arrayContaining(['Admin paused the league', 'Admin resumed the league']));
+  });
+
+  it('only the owner can start over, with the words, and it keeps the admin accounts', async () => {
+    const notOwner = await asAdmin();
+    expect((await call('POST', '/api/admin/league/start-over', { ...notOwner, body: { confirm: 'START OVER' } })).status).toBe(403);
+    const me = await owner();
+    expect((await call('GET', '/api/league', me)).body.league.adminIsOwner).toBe(true);
+    expect((await call('POST', '/api/admin/league/start-over', { ...me, body: { confirm: 'start' } })).status).toBe(400);
+    const done = await call('POST', '/api/admin/league/start-over', { ...me, body: { confirm: 'start over' } });
+    expect(done.status).toBe(200);
+    expect(done.body.deleted).toBeGreaterThan(0);
+    expect(await loadLeagueState()).toBeNull();
+    expect(fake.table.get(L, 'TEAM#aaaa1111#PRIVATE')).toBeUndefined();
+    expect(fake.table.all('HISTORY#sfi-s1')).toHaveLength(0);
+    expect(fake.table.get('ADMIN#sfi-s1', 'ADMIN#matt')).toBeDefined();
+    const none = await call('GET', '/api/league', me);
+    expect(none.body.league).toBeNull();
+    expect(none.body.viewer).toEqual({ role: 'admin', adminName: 'Matt', adminIsOwner: true });
+  });
+
+  it('sets up a season only when there is none, from the admin page', async () => {
+    const me = await owner();
+    expect((await call('POST', '/api/admin/league/setup', { ...me, body: setupBody })).status).toBe(409); // one exists
+    await call('POST', '/api/admin/league/start-over', { ...me, body: { confirm: 'START OVER' } });
+    expect((await call('POST', '/api/admin/league/setup', { ...me, body: { ...setupBody, machines: [] } })).status).toBe(400);
+    expect((await call('POST', '/api/admin/league/setup', { ...me, body: { ...setupBody, closesAt: '18:00' } })).status).toBe(400);
+    expect((await call('POST', '/api/admin/league/setup', { body: setupBody })).status).toBe(401);
+    expect((await call('POST', '/api/admin/league/setup', { ...me, body: setupBody })).status).toBe(201);
+    const l = (await loadLeagueState())!.league;
+    expect(l.weeks.map((w) => w.date).slice(0, 3)).toEqual(['2027-01-14', '2027-01-21', '2027-01-28']);
+    expect(l.machines.map((m) => m.machineId)).toEqual(['godzilla', 'venom']);
+    expect(l.teamCap).toBe(10);
+    expect(l.night).toEqual({ opensAt: '19:00', closesAt: '21:00', extraMinutes: 0 });
+  });
+});
+

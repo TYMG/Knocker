@@ -1,4 +1,6 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, type ReactNode } from 'react';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
 import { startLiveRefresh } from './live/sync';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router';
 import { useAppDispatch, useAppSelector, useMe } from './hooks';
@@ -24,6 +26,7 @@ import AdminHome from './pages/admin/AdminHome';
 import AdminLines from './pages/admin/AdminLines';
 import RunFinals from './pages/admin/RunFinals';
 import Texts from './pages/admin/Texts';
+import LeagueSetup from './pages/admin/LeagueSetup';
 import Settings from './pages/Settings';
 import CheckInGate from './layout/CheckInGate';
 import AdminLogIn from './pages/admin/AdminLogin';
@@ -82,12 +85,34 @@ function FinishRoleSwitch() {
   return null;
 }
 
+/**
+ * On the live league, the pages wait for the first load from the server. Otherwise a page
+ * opened straight from its address would see the sample league for a moment (and an admin page
+ * would send you to the log-in).
+ */
+function LiveLoading() {
+  const live = useAppSelector((s) => s.live);
+  if (!live.on || live.version > 0 || live.error) return null;
+  return (
+    <Box role="status" sx={{ position: 'fixed', inset: 0, zIndex: 2000, display: 'grid', placeItems: 'center', bgcolor: 'background.default' }}>
+      <Typography sx={{ fontWeight: 700 }}>Loading the live league…</Typography>
+    </Box>
+  );
+}
+
+function LiveReady({ children }: { children: ReactNode }) {
+  const live = useAppSelector((s) => s.live);
+  return !live.on || live.version > 0 || live.error ? <>{children}</> : null;
+}
+
 // Every address in the app. sample/tour.ts describes each page; keep the two in step.
 export default function App() {
   return (
     <BrowserRouter>
       <FinishRoleSwitch />
       <LiveRefresh />
+      <LiveLoading />
+      <LiveReady>
       <Routes>
         <Route element={<PlayerLayout />}>
           <Route path="/" element={<Root />} />
@@ -139,6 +164,7 @@ export default function App() {
             <Route path="/admin/machines" element={<Machines />} />
             <Route path="/admin/finals" element={<RunFinals />} />
             <Route path="/admin/texts" element={<Texts />} />
+            <Route path="/admin/league" element={<LeagueSetup />} />
           </Route>
         </Route>
 
@@ -148,6 +174,7 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </LiveReady>
     </BrowserRouter>
   );
 }

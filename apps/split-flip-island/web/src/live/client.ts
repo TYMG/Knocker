@@ -39,9 +39,11 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
 }
 
 export interface LeagueResponse { version: number; league: SampleState }
+/** What GET /api/league says when there is no league yet. */
+export interface NoLeagueResponse { version: 0; league: null; viewer: { role: 'visitor' | 'team' | 'admin'; adminName: string; adminIsOwner: boolean } }
 
 export const live = {
-  league: () => call<LeagueResponse>('league'),
+  league: () => call<LeagueResponse | NoLeagueResponse>('league'),
   action: (type: string, payload: unknown) => call<LeagueResponse>('league/action', { type, payload }),
 
   async logIn(teamName: string, pin: string) {
@@ -78,7 +80,9 @@ export const live = {
   setTexts: (player: 0 | 1, optIn: boolean) => call<{ texts: [boolean, boolean] }>('me/texts', { player, optIn }),
   approve: (teamId: string) => call<{ ok: true }>(`admin/teams/${teamId}/approve`, {}),
   remove: (teamId: string, reason: string) => call<{ ok: true }>(`admin/teams/${teamId}/remove`, { reason }),
-  resetPin: (teamId: string) => call<{ pin: string }>(`admin/teams/${teamId}/reset-pin`, {})
+  resetPin: (teamId: string) => call<{ pin: string }>(`admin/teams/${teamId}/reset-pin`, {}),
+  setupLeague: (body: { firstNight: string; opensAt: string; closesAt: string; machines: string[]; teamCap: number }) => call<{ ok: true }>('admin/league/setup', body),
+  startOver: (confirm: string) => call<{ deleted: number }>('admin/league/start-over', { confirm })
 };
 
 async function dataUrlToBlob(dataUrl: string): Promise<Blob> {

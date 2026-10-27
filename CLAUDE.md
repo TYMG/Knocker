@@ -200,6 +200,14 @@ The server runs the **same rules code** as the sample league, so the two can nev
   start (rule `openNight`), then the check-in reminder. Closing the night is still the admin's.
 - **Season setup:** `./scripts/league.sh setup --first-night YYYY-MM-DD --opens 19:00 --closes
   21:00 --machines "A,B"`; `show`; `clear` (typed confirmation; for clearing the demo).
+- **Admin League setup page** (`/admin/league`, Oct 27): the season's dates and times; **Pause**
+  (rule `setPaused`; while paused the night doesn't open by itself, no reminder texts, sign-ups
+  closed; banner `layout/PausedNote.tsx`); **Start over** for the owner only
+  (`POST /api/admin/league/start-over {confirm: "START OVER"}`, same delete as `league.sh clear`,
+  admin accounts kept); then **Set up the season** form (`POST /api/admin/league/setup`, any
+  admin, only when there is no league). With no league, `GET /api/league` returns
+  `{league: null, viewer}`. Owner = admin item `owner: true`, set with
+  `./scripts/admin.sh owner "Name"` (`not-owner` removes it).
 - **The web app** stays on the sample league by default. The **Sample | Live** switch in the top
   bar (`web/src/live/`) loads the real league from `GET /api/league` into the same place, every
   10 seconds and after each change, so pages work unchanged. In live mode a page's action goes to

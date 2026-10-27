@@ -38,6 +38,7 @@ import StoryCard from './StoryCard';
 import HowToPlay from './HowToPlay';
 import TurnAlerts from './TurnAlerts';
 import CheckInReminder from './CheckInReminder';
+import PausedNote from './PausedNote';
 
 interface NavItem {
   to: string;
@@ -198,6 +199,7 @@ export default function PlayerLayout() {
           </Toolbar>
         </AppBar>
         <MessageBanner />
+        <PausedNote />
         <CheckInReminder />
       </Box>
 

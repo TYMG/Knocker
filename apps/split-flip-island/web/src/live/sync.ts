@@ -34,10 +34,20 @@ export function refreshLive(): Promise<void> {
     try {
       const r = await live.league();
       const { sample } = await import('../sample/slice');
+      if (!r.league) {
+        // No league on the server: an empty one stands in, so admins get the setup form.
+        const { newLeague } = await import('../../../shared/league/new');
+        const today = new Date().toISOString();
+        const empty = newLeague({ firstNight: today.slice(0, 10), opensAt: '19:00', closesAt: '21:00' }, today);
+        d(sample.loadLeague({ ...empty, log: [], role: r.viewer.role, adminName: r.viewer.adminName, adminIsOwner: r.viewer.adminIsOwner, myTeamId: '' }));
+        d(liveActions.failed({ message: 'The live league has not been set up yet.', missing: true }));
+        return;
+      }
       d(sample.loadLeague(r.league));
       d(liveActions.loaded(r.version));
     } catch (err) {
-      d(liveActions.failed(err instanceof LiveError && err.status === 404 ? 'The live league has not been set up yet.' : "Can't reach the league server. Check your signal."));
+      const missing = err instanceof LiveError && err.status === 404;
+      d(liveActions.failed({ message: missing ? 'The live league has not been set up yet.' : "Can't reach the league server. Check your signal.", missing }));
     } finally {
       inFlight = null;
     }

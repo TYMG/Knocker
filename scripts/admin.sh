@@ -3,6 +3,8 @@
 #   ./scripts/admin.sh add "Name"        asks for a password at a hidden prompt
 #   ./scripts/admin.sh password "Name"   new password; signs that admin out everywhere
 #   ./scripts/admin.sh remove "Name"
+#   ./scripts/admin.sh owner "Name"      can start the whole league over from the app
+#   ./scripts/admin.sh not-owner "Name"
 #   ./scripts/admin.sh list
 set -euo pipefail
 export AWS_PROFILE="${AWS_PROFILE:-knckr}"

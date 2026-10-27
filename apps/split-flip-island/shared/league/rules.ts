@@ -107,6 +107,7 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
   return {
       /** A new team waits for an admin, and is deleted if nobody approves it in 24 hours. */
       signUp(s: SampleState, a: PayloadAction<{ teamName: string; players: [{ name: string; pronouns: string }, { name: string; pronouns: string }]; phone1: string; phone2: string; texts: [boolean, boolean]; photo?: string; pendingHours?: number }>) {
+        if (s.paused) return;
         const teamName = a.payload.teamName.trim().replace(/\s+/g, ' ');
         const teamId = slug(teamName, s.teams.map((t) => t.teamId));
         s.teams.push({
@@ -519,6 +520,7 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
        * opening time; an admin can also do it.
        */
       openNight(s: SampleState) {
+        if (s.paused) return;
         const week = s.weeks.find((w) => w.state === 'upcoming');
         if (!week || s.weeks.some((w) => w.state === 'open')) return;
         if (easternDate(s.now) !== week.date) return;
@@ -526,6 +528,12 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
         week.state = 'open';
         s.night.extraMinutes = 0;
         addLog(s, 'league', `Week ${week.week} opened`);
+      },
+      /** Admin: pause or resume the league (see SampleState.paused). */
+      setPaused(s: SampleState, a: PayloadAction<boolean>) {
+        if (!!s.paused === a.payload) return;
+        s.paused = a.payload;
+        addLog(s, 'admin', a.payload ? 'Admin paused the league' : 'Admin resumed the league');
       },
       /** For a night closed by mistake. Only when no other night is open. */
       reopenNight(s: SampleState, a: PayloadAction<number>) {

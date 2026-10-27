@@ -277,4 +277,11 @@ export interface SampleState {
   seq: number;
   /** Set while the guided "new league" story is running: which step it is on. */
   story?: { step: number };
+  /**
+   * Paused by an admin: nights don't open by themselves, no reminder texts, no new sign-ups.
+   * Everyone can still look at the league, and admins can still change things.
+   */
+  paused?: boolean;
+  /** Viewer field: the admin looking is the league's owner (can start the league over). */
+  adminIsOwner?: boolean;
 }

@@ -54,7 +54,14 @@ export async function clearLeague(league = leagueId()): Promise<number> {
   const doomed = [...mine, ...(await all(`HISTORY#${league}`)), ...(await all(`AUDIT#${league}`))];
   for (const pk of oldNights) doomed.push(...(await all(pk)));
   for (let i = 0; i < doomed.length; i += 25) {
-    await ddb.send(new BatchWriteCommand({ RequestItems: { [table()]: doomed.slice(i, i + 25).map((k) => ({ DeleteRequest: { Key: { PK: k.PK, SK: k.SK } } })) } }));
+    let requests: Record<string, unknown> | undefined = { [table()]: doomed.slice(i, i + 25).map((k) => ({ DeleteRequest: { Key: { PK: k.PK, SK: k.SK } } })) };
+    // When DynamoDB is busy it hands some deletes back undone; send those again until none are left.
+    for (let tries = 0; requests && Object.keys(requests).length > 0; tries++) {
+      if (tries > 0) await new Promise((r) => setTimeout(r, Math.min(1000, 50 * 2 ** tries)));
+      if (tries > 8) throw new Error('Could not finish deleting the league; run Start over again.');
+      const out: { UnprocessedItems?: Record<string, unknown> } = await ddb.send(new BatchWriteCommand({ RequestItems: requests as never }));
+      requests = out.UnprocessedItems;
+    }
   }
   return doomed.length;
 }

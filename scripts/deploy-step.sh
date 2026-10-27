@@ -93,14 +93,14 @@ check_gate() {
   fi
   expect "an app address shows the password page" 200 "$base/standings"
   expect "the app's own page is refused" 403 "$base/index.html"
-  expect "reading standings is refused" 401 "$base/api/standings"
+  expect "reading the league is refused" 401 "$base/api/league"
   expect "signing up a team is refused" 401 -X POST -H 'content-type: application/json' -d '{}' "$base/api/teams"
   expect "admin log in is refused" 401 -X POST -H 'content-type: application/json' -d '{}' "$base/api/admin/login"
   expect "photos are refused" 403 "$base/leagues/sfi-s1/teams/x.jpg"
-  expect "a made-up pass is refused" 401 -H 'cookie: sfi_gate=9999999999.abcdef' "$base/api/standings"
+  expect "a made-up pass is refused" 401 -H 'cookie: sfi_gate=9999999999.abcdef' "$base/api/league"
   expect "a wrong password is refused" "401|503" -H 'x-demo-pass: 0000000000000000000000000000000000000000000000000000000000000000' "$base/gate/enter"
-  expect "going around the site to the API is refused" 403 "$api/api/standings"
-  expect "going around with a guessed key is refused" 403 -H 'x-origin-verify: guess' "$api/api/standings"
+  expect "going around the site to the API is refused" 403 "$api/api/league"
+  expect "going around with a guessed key is refused" 403 -H 'x-origin-verify: guess' "$api/api/league"
   return "$fails"
 }
 

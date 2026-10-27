@@ -344,6 +344,10 @@ The server runs the **same rules code** as the sample league, so the two can nev
 
 ## Deploying
 
+`scripts/release.sh` (Oct 27) runs the usual release in one go: build and test the server, plan
+each stack with a short summary and apply only after a typed yes (anything that deletes or
+replaces needs "replace"; a stack with no changes is skipped), then publish the web app.
+`release.sh server` or `release.sh web` for part of it.
 `scripts/deploy-step.sh <step>` runs the deploy one step at a time and saves the output to
 `.deploy-logs/`. `plan-*` steps change nothing; `apply-*` applies exactly the saved plan.
 Summarize every plan and wait for a yes before the matching apply.

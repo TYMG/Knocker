@@ -1,5 +1,5 @@
 // Movement built with Motion: things slide to their new places, ease in, and give when pressed.
-// Calm mode (the sparkle switch, or the phone's own reduce-motion setting) turns all of it off.
+// Calm mode (Effects off in Settings, or the phone's own reduce-motion setting) turns all of it off.
 
 import type { ReactNode } from 'react';
 import { motion } from 'motion/react';

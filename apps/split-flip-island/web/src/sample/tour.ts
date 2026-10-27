@@ -81,7 +81,7 @@ export const TOUR: TourPage[] = [
       'Scoring: machine points with an example, both season options, challenges, the season-end bonuses and finals.',
       'Only the X closes it. A tap outside does nothing.'
     ],
-    tryIt: 'Scroll slowly: the flippers and pinballs move at a different speed from the text. Turn on calm mode (the sparkle) and they stop.'
+    tryIt: 'Scroll slowly: the flippers and pinballs move at a different speed from the text. Turn Effects off in Settings (the gear) and they stop.'
   },
   {
     path: '/lines', example: '/lines', title: 'Lines', group: 'On league night', role: 'team',

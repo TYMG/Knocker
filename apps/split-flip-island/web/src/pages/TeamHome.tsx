@@ -32,7 +32,6 @@ import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
 import { DrCheckUp, DrNotes, DrWrapped } from './DrParts';
 import { CHALLENGE_CHAMPION_BONUS, challengeRace } from '../sample/league';
 import DrPrescription from './DrPrescription';
-import { TextsSection } from '../ui/TextsParts';
 import LoveDr from './LoveDr';
 import { useAppDispatch, useLeague, useMe } from '../hooks';
 import { sample } from '../sample/slice';
@@ -148,7 +147,6 @@ function SeasonTab({ team }: { team: STeam }) {
       <Section title="Challenge Champion race">
         <ChallengeChampionRace myTeamId={team.teamId} limit={5} />
       </Section>
-      <TextsSection team={team} />
     </Stack>
   );
 }

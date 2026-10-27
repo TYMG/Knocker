@@ -22,6 +22,7 @@ import GroupsIcon from '@mui/icons-material/Groups';
 import HomeIcon from '@mui/icons-material/Home';
 import LeaderboardIcon from '@mui/icons-material/Leaderboard';
 import LogoutIcon from '@mui/icons-material/Logout';
+import SettingsIcon from '@mui/icons-material/Settings';
 import { motion } from 'motion/react';
 import { useAppDispatch, useCalm, useLeague, useMe } from '../hooks';
 import { challenges } from '../sample/league';
@@ -30,10 +31,8 @@ import { colors } from '../theme';
 import PinballBackground from '../ui/PinballBackground';
 import Toaster from '../ui/Toaster';
 import SampleBar from './SampleBar';
-import CalmToggle from './CalmToggle';
 import DoctorsOrdersPopup from './DoctorsOrdersPopup';
 import { ApprovalCheer } from './guards';
-import ThemeToggle from './ThemeToggle';
 import TourDrawer from './TourDrawer';
 import StoryCard from './StoryCard';
 import HowToPlay from './HowToPlay';
@@ -165,8 +164,11 @@ export default function PlayerLayout() {
             )}
             <Box sx={{ flexGrow: 1 }} />
             <ApprovalCheer />
-            <CalmToggle />
-            <ThemeToggle />
+            <Tooltip title="Settings">
+              <IconButton component={RouterLink} to="/settings" color="inherit" aria-label="Settings" aria-current={pathname === '/settings' ? 'page' : undefined}>
+                <SettingsIcon />
+              </IconButton>
+            </Tooltip>
             {tabs ? (
               <Tooltip title={me.isAdmin ? `Log out admin ${adminName}` : `Log out ${me.team.teamName}`}>
                 <IconButton

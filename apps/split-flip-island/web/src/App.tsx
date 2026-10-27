@@ -23,6 +23,7 @@ import AdminHome from './pages/admin/AdminHome';
 import AdminLines from './pages/admin/AdminLines';
 import RunFinals from './pages/admin/RunFinals';
 import Texts from './pages/admin/Texts';
+import Settings from './pages/Settings';
 import CheckInGate from './layout/CheckInGate';
 import AdminLogIn from './pages/admin/AdminLogin';
 import CheckIn from './pages/admin/CheckIn';
@@ -85,6 +86,7 @@ export default function App() {
           <Route path="/join" element={<SignUp />} />
           <Route path="/login" element={<LogIn />} />
           <Route path="/tour" element={<Tour />} />
+          <Route path="/settings" element={<Settings />} />
 
           {/* Open to anyone with the link */}
           <Route path="/standings" element={<StandingsLayout />}>

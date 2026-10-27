@@ -9,9 +9,10 @@ import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import type { LeagueActionName } from '../../shared/league/rules.js';
 import { requireAdmin } from './admin.js';
 import { readAdminToken, readToken } from './auth.js';
-import { loadLeague } from './handlers.js';
+import { teamPhoto } from '../../shared/league/art.js';
+import { loadPrivates } from './handlers.js';
 import { applyAction, loadLeagueState, type Actor, type League } from './leagueStore.js';
-import { HttpError, nowIso, parseBody } from './util.js';
+import { HttpError, nowIso, parseBody, photoUrl } from './util.js';
 
 const TEAM_ACTIONS = new Set<LeagueActionName>([
   'joinLine', 'leaveLine', 'startTurn', 'requestCheckIn', 'cancelCheckInRequest', 'challenge', 'answerChallenge',
@@ -26,6 +27,9 @@ const ADMIN_ACTIONS = new Set<LeagueActionName>([
   'postMessage', 'takeDownMessage', 'addMinutes', 'setNightTimes', 'openNight', 'closeNight', 'reopenNight', 'skipWeek',
   'setMachineInPlay', 'addMachine', 'removeMachine', 'restoreMachine', 'addLocation'
 ]);
+
+/** A saved photo path becomes the address the pages load it from (through the site's front door). */
+const photoSrc = (key: string | undefined) => (key?.startsWith('leagues/') ? photoUrl(key) ?? undefined : key || undefined);
 
 /** Who is asking: an admin (checked against the database), a team, or a visitor. */
 async function viewer(event: APIGatewayProxyEventV2): Promise<Actor | null> {
@@ -54,14 +58,15 @@ export function viewFor(league: League, who: Actor | null, phones?: Map<string, 
     teams: league.teams.map((t) => {
       const p = admin ? phones?.get(t.teamId) : undefined;
       const seesPrivate = admin || t.teamId === mine;
-      return { ...t, phone1: p?.phone1 ?? '', phone2: p?.phone2 ?? '', texts: seesPrivate ? t.texts : undefined };
+      return { ...t, photo: photoSrc(t.photo) || teamPhoto(t.teamName), phone1: p?.phone1 ?? '', phone2: p?.phone2 ?? '', texts: seesPrivate ? t.texts : undefined };
     }),
+    scores: league.scores.map((x) => ({ ...x, photo: photoSrc(x.photo), thumb: photoSrc(x.thumb) })),
     pendingSubs: Object.fromEntries(Object.entries(league.pendingSubs ?? {}).filter(([teamId]) => admin || teamId === mine))
   };
 }
 
 async function adminPhones() {
-  const { privates } = await loadLeague();
+  const privates = await loadPrivates();
   return new Map([...privates].map(([teamId, p]) => [teamId, { phone1: p.phone1, phone2: p.phone2 }]));
 }
 

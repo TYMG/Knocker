@@ -3,12 +3,13 @@
 //   POST /api/admin/teams/{teamId}/reset-pin  an admin sets a temporary PIN, shown once
 import { randomInt } from 'node:crypto';
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
-import { GetCommand, TransactWriteCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { pinProblem, type ChangePinRequest, type ResetPinResponse } from '../../shared/pin.js';
 import { requireAdmin } from './admin.js';
 import { clearLoginStrikes, hashPin, requireTeam, takeLoginStrike, verifyPin } from './auth.js';
 import { ddb, keys, leagueId, table } from './db.js';
-import { auditPut, type PrivateItem, type TeamItem } from './handlers.js';
+import type { PrivateItem } from './handlers.js';
+import { applyAction, loadLeagueState } from './leagueStore.js';
 import { HttpError, nowIso, parseBody, text } from './util.js';
 
 const privKey = (teamId: string) => ({ PK: keys.league(leagueId()), SK: keys.teamPrivate(teamId) });
@@ -49,24 +50,21 @@ export function temporaryPin(): string {
 
 export async function resetPin(event: APIGatewayProxyEventV2, teamId: string): Promise<ResetPinResponse> {
   const admin = await requireAdmin(event);
-  const l = leagueId();
-  const team = (await ddb.send(new GetCommand({ TableName: table(), Key: { PK: keys.league(l), SK: keys.team(teamId) } }))).Item as TeamItem | undefined;
+  const state = await loadLeagueState();
+  const team = state?.league.teams.find((t) => t.teamId === teamId);
   if (!team) throw new HttpError(404, 'That team was not found.');
   const pin = temporaryPin();
-  await ddb.send(new TransactWriteCommand({
-    TransactItems: [
-      {
-        Update: {
-          TableName: table(), Key: privKey(teamId),
-          // A fresh start: the new PIN, and any wrong-guess lockout cleared.
-          UpdateExpression: 'SET pinHash = :h, pinChangedAt = :at REMOVE failures, lastFailureAt',
-          ConditionExpression: 'attribute_exists(PK)',
-          ExpressionAttributeValues: { ':h': hashPin(pin), ':at': nowIso() }
-        }
-      },
-      // Approved teams are named in the public log; a pending sign-up stays anonymous there.
-      auditPut(team.status === 'approved' ? `${admin.name} reset ${team.teamName}'s PIN` : `${admin.name} reset a sign-up's PIN`, admin.name)
-    ]
-  }));
+  // The rule writes the reset to the league log; the new PIN (hashed) is saved in the same write,
+  // and any wrong-guess lockout is cleared for a fresh start.
+  await applyAction({ kind: 'admin', name: admin.name }, { type: 'resetPin', payload: teamId }, {
+    extraWrites: () => [{
+      Update: {
+        TableName: table(), Key: privKey(teamId),
+        UpdateExpression: 'SET pinHash = :h, pinChangedAt = :at REMOVE failures, lastFailureAt',
+        ConditionExpression: 'attribute_exists(PK)',
+        ExpressionAttributeValues: { ':h': hashPin(pin), ':at': nowIso() }
+      }
+    }]
+  });
   return { pin };
 }

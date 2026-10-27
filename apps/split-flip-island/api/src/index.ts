@@ -1,11 +1,10 @@
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from 'aws-lambda';
-import { adminLogin, adminTeams, approveTeam, purgeExpired, removeTeam } from './admin.js';
+import { adminLogin, approveTeam, purgeExpired, removeTeam } from './admin.js';
 import { sameSecret } from './auth.js';
-import { audit, createUpload, login, me, register, standings, submitScore } from './handlers.js';
-import { adminCheckIns, answerCheckIn, checkIn, myCheckIn, setNightStart } from './checkin.js';
+import { createUpload, login, register, submitScore } from './handlers.js';
 import { getLeague, postAction } from './leagueApi.js';
 import { changePin, resetPin } from './pin.js';
-import { sendCheckInReminders } from './reminders.js';
+import { openNightIfTime, sendCheckInReminders } from './reminders.js';
 import { setTeamTexts, smsStatus, smsTest, teamTexts } from './sms.js';
 import { env, HttpError, json } from './util.js';
 
@@ -16,32 +15,22 @@ const routes: Record<string, { run: Route; status?: 201 }> = {
   'POST /api/uploads': { run: createUpload },
   'POST /api/teams': { run: register, status: 201 },
   'POST /api/login': { run: login },
-  'GET /api/me': { run: me },
   'POST /api/scores': { run: submitScore, status: 201 },
-  'GET /api/standings': { run: standings },
-  'GET /api/audit': { run: audit },
   'GET /api/health': { run: async () => ({ ok: true }) },
   'POST /api/admin/login': { run: adminLogin },
-  'GET /api/admin/teams': { run: adminTeams },
   'GET /api/admin/sms': { run: smsStatus },
   'POST /api/admin/sms/test': { run: smsTest },
   'GET /api/me/texts': { run: teamTexts },
   'POST /api/me/texts': { run: setTeamTexts },
-  'GET /api/me/check-in': { run: myCheckIn },
-  'POST /api/me/check-in': { run: checkIn },
-  'GET /api/admin/check-ins': { run: adminCheckIns },
   'POST /api/me/pin': { run: changePin },
   'GET /api/league': { run: getLeague },
   'POST /api/league/action': { run: postAction }
 };
 
-// POST /api/admin/check-ins/{teamId}/confirm and /decline.
-const CHECK_IN_ACTION = /^POST \/api\/admin\/check-ins\/([0-9a-z-]{1,40})\/(confirm|decline)$/;
-// POST /api/admin/nights/{YYYY-MM-DD}/start
-const NIGHT_START = /^POST \/api\/admin\/nights\/(\d{4}-\d{2}-\d{2})\/start$/;
 
-// POST /api/admin/teams/{teamId}/approve and /remove. Team IDs are 8 hex characters.
-const TEAM_ACTION = /^POST \/api\/admin\/teams\/([0-9a-f]{8})\/(approve|remove|reset-pin)$/;
+// POST /api/admin/teams/{teamId}/approve, /remove and /reset-pin. Team IDs are short slugs
+// made from the team name ("left-and-right").
+const TEAM_ACTION = /^POST \/api\/admin\/teams\/([a-z0-9-]{1,40})\/(approve|remove|reset-pin)$/;
 
 /** Schedules invoke the function with one of these instead of a web request (see infra). */
 interface ScheduledTask { task: 'purge' | 'reminders' }
@@ -64,6 +53,8 @@ function cameThroughFrontDoor(event: APIGatewayProxyEventV2): boolean {
 export async function handler(event: APIGatewayProxyEventV2 | ScheduledTask): Promise<APIGatewayProxyStructuredResultV2 | Record<string, unknown>> {
   if (isTask(event)) {
     if (event.task === 'reminders') {
+      // The league clock: open tonight's night when it's time, then the check-in reminder.
+      if (await openNightIfTime()) console.log('Opened tonight\'s league night');
       const sent = await sendCheckInReminders();
       if (!sent.skipped) console.log('Check-in reminders', JSON.stringify(sent));
       return { ...sent };
@@ -79,10 +70,6 @@ export async function handler(event: APIGatewayProxyEventV2 | ScheduledTask): Pr
   try {
     const route = routes[key];
     if (route) return json(route.status ?? 200, await route.run(event));
-    const answer = CHECK_IN_ACTION.exec(key);
-    if (answer) return json(200, await answerCheckIn(event, answer[1], answer[2] as 'confirm' | 'decline'));
-    const start = NIGHT_START.exec(key);
-    if (start) return json(200, await setNightStart(event, start[1]));
     const action = TEAM_ACTION.exec(key);
     if (action) {
       const [, teamId, verb] = action;

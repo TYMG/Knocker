@@ -1,111 +1,71 @@
+// Team endpoints that touch private data, on top of the league record (leagueStore.ts):
+// photo uploads, sign-up, log-in and posting a score. Each saves its private part (PIN hash,
+// phone numbers, the name claim) in its own items and applies the same rule the pages use.
 import { randomUUID } from 'node:crypto';
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
-import { GetCommand, QueryCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand } from '@aws-sdk/lib-dynamodb';
 import { HeadObjectCommand } from '@aws-sdk/client-s3';
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
-import type {
-  AuditEntry, AuditResponse, AuthResponse, LoginRequest, Machine, MeResponse, Night, RegisterRequest,
-  Score, StandingRow, StandingsResponse, SubmitScoreRequest, Team, UploadResponse, PresignedUpload, Player } from '../../shared/types.js';
+import type { AuthResponse, LoginRequest, RegisterRequest, SubmitScoreRequest, Team, UploadResponse, PresignedUpload, Player } from '../../shared/types.js';
 import { PLAYER_NAME_MAX, PRONOUNS_MAX } from '../../shared/types.js';
 import { pinProblem } from '../../shared/pin.js';
+import { canPlayTonight, currentWeek, findTeamByName, pendingTeams } from '../../shared/league/league.js';
+import type { STeam } from '../../shared/league/types.js';
 import { ddb, keys, leagueId, queryAll, s3, table } from './db.js';
 import { clearLoginStrikes, hashPin, issueToken, requireTeam, takeLoginStrike, verifyPin } from './auth.js';
-import { rankChange, rankTotals, runningRanks, scoreNight } from './scoring.js';
+import { applyAction, loadLeagueState, RuleRefused, type League } from './leagueStore.js';
 import { env, HttpError, nowIso, parseBody, photoUrl, text } from './util.js';
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
 /** Hours a new sign-up waits for approval before it is deleted. */
 export const pendingHours = () => Number(process.env.PENDING_TEAM_HOURS) || 24;
-/**
- * Most sign-ups allowed to wait at once, so nobody can flood the approval list. The check is
- * not atomic: a burst of parallel sign-ups can overshoot it by as many as the API's burst limit.
- */
+/** Most sign-ups allowed to wait at once, so nobody can flood the approval list. */
 export const maxPendingTeams = () => Number(process.env.MAX_PENDING_TEAMS) || 25;
 
 const NOT_APPROVED = 'Your team is waiting for the league to approve it. You can play once it is approved.';
 
-// ---------- Stored item shapes ----------
-
-export interface TeamItem {
-  type: 'team'; teamId: string; teamName: string; photoKey: string; createdAt: string; players?: [Player, Player];
-  status: 'pending' | 'approved'; expiresAt?: string; approvedAt?: string; approvedBy?: string;
-}
-interface MachineItem { type: 'machine'; machineId: string; name: string; order?: number }
-export interface NightItem { type: 'night'; date: string; week: number; machineIds: string[]; open: boolean; startsAt?: string }
-export interface CheckInItem { type: 'checkin'; date: string; teamId: string; state: 'requested' | 'confirmed' | 'declined'; at: string; by?: string }
-interface MetaItem { type: 'meta'; activeNight?: string }
+/** A team's private item: never in the league record, never sent to anyone but admins. */
 export interface PrivateItem {
   pinHash: string; phone1: string; phone2: string; failures?: number; lastFailureAt?: number;
-  /** Consent to the check-in reminder text, and when it was given (kept as the opt-in record). */
   /** Reminder texts, one setting per phone (1 = Player 1). The time of each latest yes or no is the consent record. */
   smsOptIn1?: boolean; smsOptIn2?: boolean; smsChangedAt1?: string; smsChangedAt2?: string;
-}
-interface ScoreItem {
-  type: 'score'; scoreId: string; teamId: string; machineId: string; date: string; score: number;
-  submittedAt: string; enteredBy: 'team' | 'admin'; photoKey?: string; thumbKey?: string;
-  photoUnavailable: boolean; status: 'active' | 'voided'; reason?: string;
+  pinChangedAt?: string;
 }
 
-export const toTeam = (t: TeamItem): Team => ({
-  teamId: t.teamId, teamName: t.teamName, photoUrl: photoUrl(t.photoKey), status: t.status,
-  ...(t.players ? { players: t.players } : {}),
-  ...(t.status === 'pending' && t.expiresAt ? { expiresAt: t.expiresAt } : {})
-});
-const toMachine = (m: MachineItem): Machine => ({ machineId: m.machineId, name: m.name });
-const toNight = (n: NightItem): Night => ({ date: n.date, week: n.week, machineIds: n.machineIds, open: n.open, ...(n.startsAt ? { startsAt: n.startsAt } : {}) });
-const toScore = (s: ScoreItem): Score => ({
-  scoreId: s.scoreId, teamId: s.teamId, machineId: s.machineId, date: s.date, score: s.score,
-  submittedAt: s.submittedAt, enteredBy: s.enteredBy, photoUrl: photoUrl(s.photoKey), thumbUrl: photoUrl(s.thumbKey),
-  photoUnavailable: s.photoUnavailable, status: s.status
-});
+export const privateKey = (teamId: string) => ({ PK: keys.league(leagueId()), SK: keys.teamPrivate(teamId) });
 
-// ---------- Shared loaders ----------
-
-export async function loadLeague() {
-  const l = leagueId();
+/** Every team's private item, by team (admin views and the reminder job only). */
+export async function loadPrivates(): Promise<Map<string, PrivateItem>> {
   const items = await queryAll<Record<string, unknown>>({
     KeyConditionExpression: 'PK = :pk',
-    ExpressionAttributeValues: { ':pk': keys.league(l) }
+    ExpressionAttributeValues: { ':pk': keys.league(leagueId()) }
   });
-  const meta = (items.find((i) => i.type === 'meta') ?? { type: 'meta' }) as unknown as MetaItem;
-  const allTeams = items.filter((i) => i.type === 'team') as unknown as TeamItem[];
-  // Only approved teams play, score and appear in the standings.
-  const teams = allTeams.filter((t) => t.status === 'approved');
-  // Phone numbers and PIN hashes, by team. Only the admin pages read these.
-  const privates = new Map<string, PrivateItem>();
+  const out = new Map<string, PrivateItem>();
   for (const i of items) {
     const match = i.type === 'private' && /^TEAM#(.+)#PRIVATE$/.exec(String(i.SK));
-    if (match) privates.set(match[1], i as unknown as PrivateItem);
+    if (match) out.set(match[1], i as unknown as PrivateItem);
   }
-  const machines = (items.filter((i) => i.type === 'machine') as unknown as MachineItem[])
-    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name));
-  const nights = (items.filter((i) => i.type === 'night') as unknown as NightItem[]).sort((a, b) => a.date.localeCompare(b.date));
-  const activeNight = nights.find((n) => n.date === meta.activeNight) ?? null;
-  const checkIns = items.filter((i) => i.type === 'checkin') as unknown as CheckInItem[];
-  return { meta, allTeams, teams, privates, machines, nights, activeNight, checkIns };
+  return out;
 }
 
-async function loadNightScores(date: string): Promise<ScoreItem[]> {
-  const items = await queryAll<ScoreItem>({
-    KeyConditionExpression: 'PK = :pk',
-    ExpressionAttributeValues: { ':pk': keys.nightPartition(leagueId(), date) }
-  });
-  return items.filter((s) => s.status === 'active');
+/** A team as the sign-up and log-in answers show it. */
+export const toTeam = (t: STeam): Team => ({
+  teamId: t.teamId, teamName: t.teamName, photoUrl: photoUrl(t.photo.startsWith('leagues/') ? t.photo : null),
+  status: t.status === 'withdrawn' ? 'approved' : t.status,
+  players: [{ name: t.players[0], ...(t.pronouns?.[0] ? { pronouns: t.pronouns[0] } : {}) }, { name: t.players[1], ...(t.pronouns?.[1] ? { pronouns: t.pronouns[1] } : {}) }],
+  ...(t.status === 'pending' && t.expiresAt ? { expiresAt: t.expiresAt } : {})
+});
+
+async function league(): Promise<League> {
+  const state = await loadLeagueState();
+  if (!state) throw new HttpError(409, 'The league has not been set up yet.');
+  return state.league;
 }
 
-export function auditPut(action: string, actor: string, reason?: string) {
-  const at = nowIso();
-  const id = randomUUID();
-  return {
-    Put: {
-      TableName: table(),
-      Item: { PK: keys.audit(leagueId()), SK: `${at}#${id}`, type: 'audit', id, at, actor, action, reason }
-    }
-  };
-}
+// ---------- Photos ----------
 
-async function photoExists(key: string) {
+export async function photoExists(key: string) {
   try {
     const head = await s3.send(new HeadObjectCommand({ Bucket: env('PHOTOS_BUCKET'), Key: key }));
     return (head.ContentLength ?? 0) > 0;
@@ -137,12 +97,12 @@ export async function createUpload(event: APIGatewayProxyEventV2): Promise<Uploa
   }
   if (purpose === 'score') {
     const { teamId } = requireTeam(event);
-    const { allTeams, activeNight } = await loadLeague();
-    const team = allTeams.find((t) => t.teamId === teamId);
+    const s = await league();
+    const team = s.teams.find((t) => t.teamId === teamId);
     if (!team) throw new HttpError(401, 'Your team was not found. Log in again.');
     if (team.status !== 'approved') throw new HttpError(403, NOT_APPROVED);
-    if (!activeNight?.open) throw new HttpError(409, "There's no league night open right now.");
-    const base = `leagues/${l}/scores/${activeNight.date}/${teamId}-${randomUUID()}`;
+    if (currentWeek(s).state !== 'open') throw new HttpError(409, "There's no league night open right now.");
+    const base = `leagues/${l}/scores/${currentWeek(s).date}/${teamId}-${randomUUID()}`;
     return { photo: await presign(`${base}.jpg`), thumb: await presign(`${base}-thumb.jpg`) };
   }
   throw new HttpError(400, 'purpose must be "team" or "score".');
@@ -184,33 +144,36 @@ export async function register(event: APIGatewayProxyEventV2): Promise<AuthRespo
     throw new HttpError(400, 'Add a team photo before signing up.');
   }
 
-  const { allTeams } = await loadLeague();
-  if (allTeams.filter((t) => t.status === 'pending').length >= maxPendingTeams()) {
+  const s = await league();
+  if (findTeamByName(s, teamName)) throw new HttpError(409, 'That team name is taken. Try another.');
+  if (pendingTeams(s).length >= maxPendingTeams()) {
     throw new HttpError(409, 'Sign-ups are paused while the league catches up on approvals. Try again later or tell the organizer.');
   }
 
-  const teamId = randomUUID().slice(0, 8);
-  const createdAt = nowIso();
-  const expiresAt = new Date(Date.parse(createdAt) + pendingHours() * 3_600_000).toISOString();
-  const team: TeamItem = { type: 'team', teamId, teamName, players, photoKey, createdAt, status: 'pending', expiresAt };
-
+  const at = nowIso();
+  let teamId = '';
   try {
-    await ddb.send(new TransactWriteCommand({
-      TransactItems: [
-        // Claims the name so no two teams share it. Also used for login.
-        { Put: { TableName: table(), Item: { PK: keys.league(l), SK: keys.teamName(teamName), type: 'teamName', teamId }, ConditionExpression: 'attribute_not_exists(PK)' } },
-        // The conditions guard against the (very unlikely) case of two teams drawing the same ID.
-        { Put: { TableName: table(), Item: { PK: keys.league(l), SK: keys.team(teamId), ...team }, ConditionExpression: 'attribute_not_exists(PK)' } },
-        { Put: { TableName: table(), Item: { PK: keys.league(l), SK: keys.teamPrivate(teamId), type: 'private', pinHash: hashPin(pin), phone1, phone2, smsOptIn1: texts[0], smsOptIn2: texts[1], smsChangedAt1: createdAt, smsChangedAt2: createdAt }, ConditionExpression: 'attribute_not_exists(PK)' } },
-        // The league log is public inside the app, so a team's name stays out of it until an admin approves the team.
-        auditPut('A new team signed up and is waiting for approval', 'League')
-      ]
-    }));
+    const saved = await applyAction(
+      { kind: 'league' },
+      { type: 'signUp', payload: { teamName, players: players.map((p) => ({ name: p.name, pronouns: p.pronouns ?? '' })), phone1: '', phone2: '', texts, photo: photoKey, pendingHours: pendingHours() } },
+      {
+        extraWrites: (next) => {
+          // The rule picks the team's id; the private parts are saved with it, in the same write.
+          teamId = next.teams[next.teams.length - 1]!.teamId;
+          return [
+            // Claims the name so no two teams share it. Also used for log-in.
+            { Put: { TableName: table(), Item: { PK: keys.league(l), SK: keys.teamName(teamName), type: 'teamName', teamId }, ConditionExpression: 'attribute_not_exists(PK)' } },
+            { Put: { TableName: table(), Item: { ...privateKey(teamId), type: 'private', pinHash: hashPin(pin), phone1, phone2, smsOptIn1: texts[0], smsOptIn2: texts[1], smsChangedAt1: at, smsChangedAt2: at }, ConditionExpression: 'attribute_not_exists(PK)' } }
+          ];
+        }
+      }
+    );
+    const team = saved.league.teams.find((t) => t.teamId === teamId)!;
+    return { token: issueToken(teamId, l), team: toTeam(team) };
   } catch (err) {
-    if ((err as Error).name === 'TransactionCanceledException') throw new HttpError(409, 'That team name is taken. Try another.');
+    if (err instanceof RuleRefused) throw new HttpError(409, 'That team name is taken. Try another.');
     throw err;
   }
-  return { token: issueToken(teamId, l), team: toTeam(team) };
 }
 
 // ---------- POST /api/login ----------
@@ -226,180 +189,45 @@ export async function login(event: APIGatewayProxyEventV2): Promise<AuthResponse
   const teamId = claim.Item?.teamId as string | undefined;
   if (!teamId) throw wrong;
 
-  const privKey = { PK: keys.league(l), SK: keys.teamPrivate(teamId) };
-  const priv = (await ddb.send(new GetCommand({ TableName: table(), Key: privKey }))).Item as PrivateItem | undefined;
+  const key = privateKey(teamId);
+  const priv = (await ddb.send(new GetCommand({ TableName: table(), Key: key }))).Item as PrivateItem | undefined;
   if (!priv) throw wrong;
 
   // Every attempt is counted before the PIN is checked; a correct PIN clears the count.
-  if (!(await takeLoginStrike(privKey))) throw new HttpError(429, 'Too many wrong PINs. Wait 15 minutes or ask the league admin.');
+  if (!(await takeLoginStrike(key))) throw new HttpError(429, 'Too many wrong PINs. Wait 15 minutes or ask the league admin.');
   if (!verifyPin(pin, priv.pinHash)) throw wrong;
-  await clearLoginStrikes(privKey);
+  await clearLoginStrikes(key);
 
-  const team = (await ddb.send(new GetCommand({ TableName: table(), Key: { PK: keys.league(l), SK: keys.team(teamId) } }))).Item as TeamItem | undefined;
+  const team = (await league()).teams.find((t) => t.teamId === teamId);
   if (!team) throw wrong;
   return { token: issueToken(teamId, l), team: toTeam(team) };
 }
 
-// ---------- GET /api/me (team home) ----------
-
-export async function me(event: APIGatewayProxyEventV2): Promise<MeResponse> {
-  const { teamId } = requireTeam(event);
-  const { allTeams, machines, activeNight } = await loadLeague();
-  const team = allTeams.find((t) => t.teamId === teamId);
-  if (!team) throw new HttpError(401, 'Your team was not found. Log in again.');
-
-  const scores = activeNight ? (await loadNightScores(activeNight.date)).filter((s) => s.teamId === teamId) : [];
-  const inPlay = activeNight ? machines.filter((m) => activeNight.machineIds.includes(m.machineId)) : [];
-  return {
-    team: toTeam(team),
-    night: activeNight ? toNight(activeNight) : null,
-    machines: inPlay.map((m) => {
-      const mine = scores.filter((s) => s.machineId === m.machineId);
-      return { machine: toMachine(m), attempts: mine.length, best: mine.length ? Math.max(...mine.map((s) => s.score)) : null };
-    }),
-    recentScores: scores.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt)).map(toScore)
-  };
-}
-
 // ---------- POST /api/scores ----------
 
-export async function submitScore(event: APIGatewayProxyEventV2): Promise<Score> {
+export async function submitScore(event: APIGatewayProxyEventV2): Promise<{ version: number }> {
   const { teamId } = requireTeam(event);
   const body = parseBody<SubmitScoreRequest>(event);
-  const l = leagueId();
-  const { allTeams, machines, activeNight } = await loadLeague();
-  const team = allTeams.find((t) => t.teamId === teamId);
+  const s = await league();
+  const team = s.teams.find((t) => t.teamId === teamId);
   if (!team) throw new HttpError(401, 'Your team was not found. Log in again.');
   if (team.status !== 'approved') throw new HttpError(403, NOT_APPROVED);
-  if (!activeNight?.open) throw new HttpError(409, "There's no league night open right now.");
-
-  const machine = machines.find((m) => m.machineId === body.machineId);
-  if (!machine || !activeNight.machineIds.includes(machine.machineId)) throw new HttpError(400, "That machine isn't in play tonight.");
+  const week = currentWeek(s);
+  if (week.state !== 'open') throw new HttpError(409, "There's no league night open right now.");
+  if (!canPlayTonight(s, teamId)) throw new HttpError(409, "Check in first: the admin confirms you're here, then you can post scores.");
+  if (!week.machineIds.includes(text(body.machineId)) || week.out[text(body.machineId)]) throw new HttpError(400, "That machine isn't in play tonight.");
 
   const score = Number(body.score);
   if (!Number.isSafeInteger(score) || score <= 0) throw new HttpError(400, 'Enter the score as a whole number.');
 
-  const prefix = `leagues/${l}/scores/${activeNight.date}/${teamId}-`;
-  const photoKey = body.photoKey ?? '';
-  const thumbKey = body.thumbKey ?? '';
+  const prefix = `leagues/${leagueId()}/scores/${week.date}/${teamId}-`;
+  const photoKey = text(body.photoKey);
+  const thumbKey = text(body.thumbKey);
   if (!photoKey.startsWith(prefix) || !thumbKey.startsWith(prefix) || !(await photoExists(photoKey))) {
     throw new HttpError(400, 'Every score needs a photo of the score display.');
   }
-
-  const scoreId = randomUUID();
-  const submittedAt = nowIso();
-  const item: ScoreItem = {
-    type: 'score', scoreId, teamId, machineId: machine.machineId, date: activeNight.date, score, submittedAt,
-    enteredBy: 'team', photoKey, thumbKey, photoUnavailable: false, status: 'active'
-  };
-  await ddb.send(new TransactWriteCommand({
-    TransactItems: [
-      {
-        Put: {
-          TableName: table(),
-          Item: {
-            PK: keys.nightPartition(l, activeNight.date),
-            SK: keys.score(teamId, machine.machineId, submittedAt, scoreId),
-            GSI1PK: keys.teamScores(l, teamId),
-            GSI1SK: `${activeNight.date}#${submittedAt}`,
-            ...item
-          }
-        }
-      },
-      auditPut(`${team.teamName} submitted a score on ${machine.name}`, team.teamName)
-    ]
-  }));
-  return toScore(item);
-}
-
-// ---------- GET /api/standings ----------
-
-export async function standings(): Promise<StandingsResponse> {
-  const { teams, machines, nights, activeNight } = await loadLeague();
-  const teamIds = teams.map((t) => t.teamId);
-  const teamCount = teams.length;
-  const teamById = new Map(teams.map((t) => [t.teamId, toTeam(t)]));
-  const machineById = new Map(machines.map((m) => [m.machineId, toMachine(m)]));
-  const toRows = (totals: Map<string, number>): StandingRow[] =>
-    rankTotals(totals, teamIds).map((r) => ({ team: teamById.get(r.teamId)!, points: r.points, rank: r.rank }));
-
-  const played = nights.filter((n) => !activeNight || n.date <= activeNight.date);
-  const option1 = new Map<string, number>();
-  const option2 = new Map<string, number>();
-  let tonight: StandingsResponse['tonight'] = { boards: [], machinePoints: [] };
-  const byNight: StandingsResponse['season']['byNight'] = [];
-  const nightly1: Map<string, number>[] = [];
-  const nightly2: Map<string, number>[] = [];
-
-  for (const night of played) {
-    const scores = await loadNightScores(night.date);
-    const result = scoreNight(scores, night.machineIds, teamCount);
-    for (const [id, pts] of result.machinePoints) option1.set(id, (option1.get(id) ?? 0) + pts);
-    for (const [id, pts] of result.nightPoints) option2.set(id, (option2.get(id) ?? 0) + pts);
-    nightly1.push(result.machinePoints);
-    nightly2.push(result.nightPoints);
-    byNight.push({
-      date: night.date,
-      week: night.week,
-      option1: Object.fromEntries(result.machinePoints),
-      option2: Object.fromEntries(result.nightPoints),
-      ranks: { option1: {}, option2: {} } // filled in below, once every night is totalled
-    });
-
-    if (night.date === activeNight?.date) {
-      tonight = {
-        boards: night.machineIds.filter((id) => machineById.has(id)).map((id) => ({
-          machine: machineById.get(id)!,
-          rows: (result.boards.get(id) ?? []).map((r) => ({
-            team: teamById.get(r.teamId)!,
-            best: r.best,
-            attempts: r.attempts,
-            points: r.points,
-            thumbUrl: photoUrl(r.bestScore.thumbKey),
-            photoUrl: photoUrl(r.bestScore.photoKey),
-            photoUnavailable: r.bestScore.photoUnavailable
-          }))
-        })),
-        machinePoints: toRows(result.machinePoints)
-      };
-    }
-  }
-
-  // Rank after each night, plus how far each team moved since the night before.
-  const ranks1 = runningRanks(nightly1, teamIds);
-  const ranks2 = runningRanks(nightly2, teamIds);
-  byNight.forEach((n, i) => {
-    n.ranks = { option1: Object.fromEntries(ranks1[i]), option2: Object.fromEntries(ranks2[i]) };
+  const saved = await applyAction({ kind: 'team', teamId }, {
+    type: 'submitScore', payload: { machineId: body.machineId, score, photoSource: 'camera', photo: photoKey, thumb: thumbKey }
   });
-  const withChange = (rows: StandingRow[], ranks: Map<string, number>[]): StandingRow[] =>
-    rows.map((r) => {
-      const change = rankChange(ranks[ranks.length - 2], r.team.teamId, r.rank);
-      return change === undefined ? r : { ...r, change };
-    });
-
-  return {
-    night: activeNight ? toNight(activeNight) : null,
-    teamCount,
-    tonight,
-    season: {
-      option1: withChange(toRows(option1), ranks1),
-      option2: withChange(toRows(option2), ranks2),
-      nightsPlayed: played.length,
-      byNight
-    }
-  };
-}
-
-// ---------- GET /api/audit ----------
-
-export async function audit(): Promise<AuditResponse> {
-  const out = await ddb.send(new QueryCommand({
-    TableName: table(),
-    KeyConditionExpression: 'PK = :pk',
-    ExpressionAttributeValues: { ':pk': keys.audit(leagueId()) },
-    ScanIndexForward: false,
-    Limit: 200
-  }));
-  const entries = (out.Items ?? []).map((i) => ({ id: i.id, at: i.at, actor: i.actor, action: i.action, reason: i.reason }) as AuditEntry);
-  return { entries };
+  return { version: saved.version };
 }

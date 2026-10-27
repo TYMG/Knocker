@@ -4,7 +4,7 @@
 // typed into the app, so nobody can use this to text strangers. No phone number lives in the
 // code: the league's number comes from AWS, and verified phones are shown by last 4 digits.
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
-import { GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import {
   DescribeAccountAttributesCommand, DescribePhoneNumbersCommand, DescribeVerifiedDestinationNumbersCommand,
   PinpointSMSVoiceV2Client, SendTextMessageCommand
@@ -16,7 +16,7 @@ import {
 import { requireAdmin } from './admin.js';
 import { requireTeam } from './auth.js';
 import { ddb, keys, leagueId, table } from './db.js';
-import { auditPut } from './handlers.js';
+import { applyAction, RuleRefused } from './leagueStore.js';
 import { HttpError, nowIso, parseBody } from './util.js';
 
 const sms = new PinpointSMSVoiceV2Client({});
@@ -78,8 +78,8 @@ export async function smsTest(event: APIGatewayProxyEventV2): Promise<SmsTestRes
       MessageBody: text
     }));
   }
-  const entry = auditPut(`${admin.name} sent a test text (${template.label})`, admin.name);
-  await ddb.send(new PutCommand(entry.Put));
+  // A test is the admin's own business, so it goes in the server log, not the league log.
+  console.log('Test text sent', JSON.stringify({ by: admin.name, template: body.template, phones: phones.length }));
   return { sent: phones.length, body: text };
 }
 
@@ -102,15 +102,24 @@ export async function setTeamTexts(event: APIGatewayProxyEventV2): Promise<TeamT
   if (body.player !== 0 && body.player !== 1) throw new HttpError(400, 'Say which player: 0 for Player 1, 1 for Player 2.');
   if (typeof body.optIn !== 'boolean') throw new HttpError(400, 'Say whether they want texts (optIn: true or false).');
   const n = body.player + 1;
-  await ddb.send(new UpdateCommand({
+  const update = {
     TableName: table(),
     Key: privKey(teamId),
     UpdateExpression: `SET smsOptIn${n} = :v, smsChangedAt${n} = :at`,
     ConditionExpression: 'attribute_exists(PK)',
     ExpressionAttributeValues: { ':v': body.optIn, ':at': nowIso() }
-  })).catch((e: Error) => {
-    if (e.name === 'ConditionalCheckFailedException') throw new HttpError(401, 'Your team was not found. Log in again.');
+  };
+  const notFound = (e: Error) => {
+    if (e.name === 'ConditionalCheckFailedException' || e.name === 'TransactionCanceledException') throw new HttpError(401, 'Your team was not found. Log in again.');
     throw e;
-  });
+  };
+  // The private item is the consent record; the league shows the same setting on the pages.
+  // Both change in one write. If the league already shows it, only the record is touched.
+  try {
+    await applyAction({ kind: 'league' }, { type: 'setSmsOptIn', payload: { teamId, player: body.player, optIn: body.optIn } }, { extraWrites: () => [{ Update: update }] });
+  } catch (e) {
+    if (!(e instanceof RuleRefused)) notFound(e as Error);
+    await ddb.send(new UpdateCommand(update)).catch(notFound);
+  }
   return teamTexts(event);
 }

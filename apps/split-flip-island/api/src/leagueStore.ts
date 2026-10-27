@@ -77,7 +77,7 @@ export class RuleRefused extends HttpError {
 export async function applyAction(
   actor: Actor,
   action: LeagueAction,
-  options: { refusal?: string; extraWrites?: (league: League) => unknown[]; tries?: number } = {}
+  options: { refusal?: string; extraWrites?: (league: League) => unknown[]; after?: (draft: League) => void; tries?: number } = {}
 ): Promise<{ version: number; league: League }> {
   const rule = rules[action.type] as ((s: League, a: { payload: unknown }) => League | void) | undefined;
   if (!rule) throw new HttpError(400, 'Unknown action.');
@@ -86,9 +86,10 @@ export async function applyAction(
     if (!loaded) throw new HttpError(409, 'The league has not been set up yet.');
     const now = nowIso();
     const base = withActor(loaded.league, actor, now);
-    const next = produce(base, (draft) => rule(draft as League, { payload: action.payload }));
+    const ruled = produce(base, (draft) => rule(draft as League, { payload: action.payload }));
     // A rule that changes nothing was refused (not allowed now, or already done).
-    if (next === base) throw new RuleRefused(options.refusal);
+    if (ruled === base) throw new RuleRefused(options.refusal);
+    const next = options.after ? produce(ruled, (draft) => { options.after!(draft as League); }) : ruled;
     const version = loaded.version + 1;
     try {
       await ddb.send(new TransactWriteCommand({

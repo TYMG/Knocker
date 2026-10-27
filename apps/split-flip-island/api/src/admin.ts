@@ -3,17 +3,18 @@
 // Each admin has their own name and password (created with scripts/admin.ts, never through
 // the website), so the league log shows who approved or removed a team. New teams wait as
 // "pending"; an admin approves or removes them, and sign-ups nobody approves in time are
-// deleted by purgeExpired, which a schedule runs every 15 minutes.
+// deleted by purgeExpired, which a schedule runs every 15 minutes. The teams themselves live in
+// the league record (leagueStore.ts); their name claim and private item are deleted with them.
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
-import { GetCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand } from '@aws-sdk/lib-dynamodb';
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
-import type {
-  AdminAuthResponse, AdminLoginRequest, AdminTeam, AdminTeamsResponse, RemoveTeamRequest
-} from '../../shared/types.js';
+import type { AdminAuthResponse, AdminLoginRequest, RemoveTeamRequest } from '../../shared/types.js';
+import type { STeam } from '../../shared/league/types.js';
 import { clearLoginStrikes, hashPassword, issueAdminToken, readAdminToken, takeLoginStrike, verifyPassword } from './auth.js';
 import { ddb, keys, leagueId, s3, table } from './db.js';
-import { auditPut, loadLeague, pendingHours, toTeam, type PrivateItem, type TeamItem } from './handlers.js';
-import { env, HttpError, nowIso, parseBody, text } from './util.js';
+import { privateKey } from './handlers.js';
+import { applyAction, loadLeagueState, RuleRefused } from './leagueStore.js';
+import { env, HttpError, parseBody, text } from './util.js';
 
 export interface AdminItem {
   type: 'admin'; name: string; passHash: string; tokenVersion: number; createdAt: string;
@@ -64,29 +65,10 @@ export async function adminLogin(event: APIGatewayProxyEventV2): Promise<AdminAu
   return { token: issueAdminToken(admin.name, leagueId(), admin.tokenVersion), admin: { name: admin.name } };
 }
 
-// ---------- GET /api/admin/teams ----------
-
-const toAdminTeam = (t: TeamItem, priv: PrivateItem | undefined): AdminTeam => ({
-  ...toTeam(t), createdAt: t.createdAt, phone1: priv?.phone1 ?? '', phone2: priv?.phone2 ?? ''
-});
-
-export async function adminTeams(event: APIGatewayProxyEventV2): Promise<AdminTeamsResponse> {
-  await requireAdmin(event);
-  const { allTeams, privates } = await loadLeague();
-  const rows = allTeams
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((t) => toAdminTeam(t, privates.get(t.teamId)));
-  return {
-    pending: rows.filter((t) => t.status === 'pending'),
-    approved: rows.filter((t) => t.status === 'approved'),
-    pendingHours: pendingHours()
-  };
-}
-
 // ---------- Photos ----------
 
 async function deletePhoto(key: string) {
-  if (!key) return;
+  if (!key || !key.startsWith('leagues/')) return;
   try {
     await s3.send(new DeleteObjectCommand({ Bucket: env('PHOTOS_BUCKET'), Key: key }));
   } catch (err) {
@@ -102,22 +84,23 @@ const keptPhotoKey = (teamId: string) => `leagues/${leagueId()}/teams/${teamId}.
  * Returns '' when the photo no longer exists (the team is approved without one). Any other
  * failure stops the approval, so a passing error never costs a team its photo.
  */
-async function keepPhoto(team: TeamItem): Promise<string> {
+async function keepPhoto(team: STeam): Promise<string> {
   const Bucket = env('PHOTOS_BUCKET');
+  if (!team.photo.startsWith('leagues/')) return '';
   let bytes: Uint8Array;
   try {
-    const original = await s3.send(new GetObjectCommand({ Bucket, Key: team.photoKey }));
+    const original = await s3.send(new GetObjectCommand({ Bucket, Key: team.photo }));
     bytes = await original.Body!.transformToByteArray();
   } catch (err) {
     const name = (err as Error).name;
     if (name === 'NoSuchKey' || name === 'NotFound') return '';
-    console.error('Could not read team photo', team.photoKey, err);
+    console.error('Could not read team photo', team.photo, err);
     throw new HttpError(503, "Couldn't save the team's photo just now. Nothing changed; try again.");
   }
   try {
     await s3.send(new PutObjectCommand({ Bucket, Key: keptPhotoKey(team.teamId), Body: bytes, ContentType: 'image/jpeg' }));
   } catch (err) {
-    console.error('Could not keep team photo', team.photoKey, err);
+    console.error('Could not keep team photo', team.photo, err);
     throw new HttpError(503, "Couldn't save the team's photo just now. Nothing changed; try again.");
   }
   return keptPhotoKey(team.teamId);
@@ -128,75 +111,45 @@ async function keepPhoto(team: TeamItem): Promise<string> {
 const HANDLED = new HttpError(409, 'Someone already handled that sign-up. Refresh the list.');
 const GONE = new HttpError(404, 'That sign-up is gone. It may have expired or been removed.');
 
-async function findTeam(teamId: string): Promise<TeamItem> {
-  const { allTeams } = await loadLeague();
-  const team = allTeams.find((t) => t.teamId === teamId);
+async function pendingTeam(teamId: string): Promise<STeam> {
+  const state = await loadLeagueState();
+  const team = state?.league.teams.find((t) => t.teamId === teamId);
   if (!team) throw GONE;
+  if (team.status !== 'pending') throw HANDLED;
   return team;
 }
 
+const isApproved = async (teamId: string) =>
+  (await loadLeagueState())?.league.teams.some((t) => t.teamId === teamId && t.status === 'approved') ?? false;
+
+/** Safe to press twice: approving a team that is already approved just says OK. */
 export async function approveTeam(event: APIGatewayProxyEventV2, teamId: string): Promise<{ ok: true }> {
   const admin = await requireAdmin(event);
-  const team = await findTeam(teamId);
-  if (team.status === 'approved') return { ok: true };
-
-  const photoKey = await keepPhoto(team);
+  if (await isApproved(teamId)) return { ok: true };
+  const team = await pendingTeam(teamId);
+  const kept = await keepPhoto(team);
   try {
-    await ddb.send(new TransactWriteCommand({
-      TransactItems: [
-        {
-          Update: {
-            TableName: table(),
-            Key: { PK: keys.league(leagueId()), SK: keys.team(teamId) },
-            UpdateExpression: 'SET #status = :approved, photoKey = :photo, approvedAt = :at, approvedBy = :by REMOVE expiresAt',
-            ConditionExpression: '#status = :pending',
-            ExpressionAttributeNames: { '#status': 'status' },
-            ExpressionAttributeValues: { ':approved': 'approved', ':pending': 'pending', ':photo': photoKey, ':at': nowIso(), ':by': admin.name }
-          }
-        },
-        auditPut(`${admin.name} approved ${team.teamName}`, admin.name)
-      ]
-    }));
+    await applyAction({ kind: 'admin', name: admin.name }, { type: 'approveTeam', payload: teamId }, {
+      // The approved team's photo is the kept copy (or none, if it had already gone).
+      after: (draft) => { const t = draft.teams.find((x) => x.teamId === teamId); if (t) t.photo = kept; }
+    });
   } catch (err) {
-    if ((err as Error).name !== 'TransactionCanceledException') throw err;
-    // Someone got there first. If they approved it, the copy we just made is the team's photo,
-    // so leave it. If the team was removed or expired, clean the copy up.
-    const { allTeams } = await loadLeague();
-    const current = allTeams.find((t) => t.teamId === teamId);
-    if (current?.status === 'approved') return { ok: true };
-    await deletePhoto(photoKey);
-    throw HANDLED;
+    // Another admin approved it in the same moment: that's fine.
+    if (err instanceof RuleRefused && (await isApproved(teamId))) return { ok: true };
+    if (err instanceof RuleRefused) throw HANDLED;
+    throw err;
   }
-  // The pending original is only deleted once the kept copy exists.
-  if (photoKey) await deletePhoto(team.photoKey);
+  await deletePhoto(team.photo);
   return { ok: true };
 }
 
-// ---------- Removing a sign-up ----------
-
-/** Deletes a pending team completely: its record, private info, name claim and photo. */
-async function deletePendingTeam(team: TeamItem, audit: ReturnType<typeof auditPut>) {
-  const PK = keys.league(leagueId());
-  await ddb.send(new TransactWriteCommand({
-    TransactItems: [
-      {
-        Delete: {
-          TableName: table(), Key: { PK, SK: keys.team(team.teamId) },
-          // Never delete a team that was approved a moment ago.
-          ConditionExpression: '#status = :pending',
-          ExpressionAttributeNames: { '#status': 'status' },
-          ExpressionAttributeValues: { ':pending': 'pending' }
-        }
-      },
-      { Delete: { TableName: table(), Key: { PK, SK: keys.teamPrivate(team.teamId) } } },
-      { Delete: { TableName: table(), Key: { PK, SK: keys.teamName(team.teamName) } } },
-      audit
-    ]
-  }));
-  await deletePhoto(team.photoKey);
-}
-
 // ---------- POST /api/admin/teams/{teamId}/remove ----------
+
+/** The name claim and private item go with the team, in the same write. */
+const deleteTeamItems = (team: STeam) => [
+  { Delete: { TableName: table(), Key: { PK: keys.league(leagueId()), SK: keys.teamName(team.teamName) } } },
+  { Delete: { TableName: table(), Key: privateKey(team.teamId) } }
+];
 
 export async function removeTeam(event: APIGatewayProxyEventV2, teamId: string): Promise<{ ok: true }> {
   const admin = await requireAdmin(event);
@@ -205,31 +158,33 @@ export async function removeTeam(event: APIGatewayProxyEventV2, teamId: string):
   if (reason.length < 3 || reason.length > 200) {
     throw new HttpError(400, 'Say why in a few words. The reason goes in the league log.');
   }
-  const team = await findTeam(teamId);
-  if (team.status !== 'pending') throw new HttpError(409, "That team is already approved. Approved teams can't be removed here.");
+  const team = await pendingTeam(teamId);
   try {
     // The team was never approved, so its name stays out of the public log.
-    await deletePendingTeam(team, auditPut(`${admin.name} removed a sign-up`, admin.name, reason));
+    await applyAction({ kind: 'admin', name: admin.name }, { type: 'removeSignUp', payload: { teamId, reason } }, { extraWrites: () => deleteTeamItems(team) });
   } catch (err) {
-    if ((err as Error).name === 'TransactionCanceledException') throw HANDLED;
+    if (err instanceof RuleRefused) throw HANDLED;
     throw err;
   }
+  await deletePhoto(team.photo);
   return { ok: true };
 }
 
 // ---------- Scheduled: delete sign-ups nobody approved in time ----------
 
-export function expiredSignUps(teams: TeamItem[], now: number): TeamItem[] {
+export function expiredSignUps(teams: STeam[], now: number): STeam[] {
   return teams.filter((t) => t.status === 'pending' && typeof t.expiresAt === 'string' && Date.parse(t.expiresAt) <= now);
 }
 
 export async function purgeExpired(now = Date.now()): Promise<{ purged: number; failed: number }> {
-  const { allTeams } = await loadLeague();
+  const state = await loadLeagueState();
+  if (!state) return { purged: 0, failed: 0 };
   let purged = 0;
   let failed = 0;
-  for (const team of expiredSignUps(allTeams, now)) {
+  for (const team of expiredSignUps(state.league.teams, now)) {
     try {
-      await deletePendingTeam(team, auditPut('A sign-up expired without approval', 'League'));
+      await applyAction({ kind: 'league' }, { type: 'expireSignUp', payload: team.teamId }, { extraWrites: () => deleteTeamItems(team) });
+      await deletePhoto(team.photo);
       purged += 1;
     } catch (err) {
       // Approved in the same instant, or a passing error. The next run tries again.

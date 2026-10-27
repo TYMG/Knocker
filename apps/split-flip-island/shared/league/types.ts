@@ -69,6 +69,8 @@ export interface SScore {
   photoSource: 'camera' | 'library' | 'none';
   /** A photo taken in this browser while trying the app. Seeded scores have none and get a drawn stand-in. */
   photo?: string;
+  /** A small copy of the photo for lists (server photos only). */
+  thumb?: string;
   /** When the photo itself was taken, if the phone recorded it. */
   photoTakenAt?: string;
   check: CheckState;

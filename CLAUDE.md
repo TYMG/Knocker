@@ -181,11 +181,25 @@ The server runs the **same rules code** as the sample league, so the two can nev
   you are, the guided story, the sample clock).
 - Who is acting comes from the league itself (`myTeamId`, `adminName`, `role`, `now`); the
   server sets them per request, applies the action, and saves it.
-- **Server plan (in progress):** every change is an entry in the league's history, numbered in
-  order with a conditional write, so two phones can't both win the last spot in a line; the
-  current league is a saved snapshot plus the entries after it. An action that changes nothing
-  broke a rule and is refused. Private data (phones, PIN hash, text settings) never goes in the
-  league state; it stays in the `#PRIVATE` items.
+- **On the server (built Oct 27, `api/src/leagueStore.ts`):** the whole league is one record,
+  `LEAGUE#<id>` / `STATE` (gzipped JSON, ~25 KB for a full season, with a `version`). Every change
+  writes the new record only if the version hasn't moved (else it reloads and retries), plus a
+  numbered history entry `HISTORY#<id>` / `<version, 10 digits>` {actor, action, at}. A rule that
+  changes nothing broke a rule and is refused (409). Viewer fields are never saved.
+- **Endpoints:** `GET /api/league` (the league as the caller may see it: phones only for admins,
+  text settings and pending sub names only for that team), `POST /api/league/action` {type,
+  payload} for team and admin rules (`leagueApi.ts` lists which). Rules that touch private data
+  have their own endpoints that save the private part in the same write: sign-up, log-in, posting
+  a score with a photo, approve, remove, purge, PIN change/reset, text settings.
+- **Still separate items:** the name claim `TEAMNAME#…` (unique names, log-in), the team's
+  `#PRIVATE` item (PIN hash, phones, text consent), admin accounts, `REMINDERS#<date>`.
+  Teams, scores, nights, check-ins and the league log now live only in the league record; the
+  old TEAM/NIGHT/SCORE/CHECKIN/AUDIT items and `/api/me`, `/api/standings`, `/api/audit`,
+  `/api/admin/teams` are gone. Team ids are slugs from the name ("left-and-right").
+- **The league clock** (every 5 minutes): opens tonight's night from 30 minutes before its
+  start (rule `openNight`), then the check-in reminder. Closing the night is still the admin's.
+- **Season setup:** `./scripts/league.sh setup --first-night YYYY-MM-DD --opens 19:00 --closes
+  21:00 --machines "A,B"`; `show`; `clear` (typed confirmation; for clearing the demo).
 - **The web app** stays on the sample league by default; a "Live league" switch loads the real
   league from the server into the same place, so pages work unchanged. Flip the default to live
   before the Dec 14 demo.

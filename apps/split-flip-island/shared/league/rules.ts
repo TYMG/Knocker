@@ -106,12 +106,12 @@ export const fmt = (n: number) => n.toLocaleString('en-US');
 export function makeLeagueRules(current: Current, fallbackTeamId = '') {
   return {
       /** A new team waits for an admin, and is deleted if nobody approves it in 24 hours. */
-      signUp(s: SampleState, a: PayloadAction<{ teamName: string; players: [{ name: string; pronouns: string }, { name: string; pronouns: string }]; phone1: string; phone2: string; texts: [boolean, boolean] }>) {
+      signUp(s: SampleState, a: PayloadAction<{ teamName: string; players: [{ name: string; pronouns: string }, { name: string; pronouns: string }]; phone1: string; phone2: string; texts: [boolean, boolean]; photo?: string; pendingHours?: number }>) {
         const teamName = a.payload.teamName.trim().replace(/\s+/g, ' ');
         const teamId = slug(teamName, s.teams.map((t) => t.teamId));
         s.teams.push({
-          teamId, teamName, players: [a.payload.players[0].name, a.payload.players[1].name], pronouns: [a.payload.players[0].pronouns, a.payload.players[1].pronouns], phone1: a.payload.phone1, phone2: a.payload.phone2, photo: teamPhoto(teamName), texts: a.payload.texts,
-          status: 'pending', createdAt: s.now, expiresAt: plusMinutes(s.now, 24 * 60), firstWeek: startWeek(s)
+          teamId, teamName, players: [a.payload.players[0].name, a.payload.players[1].name], pronouns: [a.payload.players[0].pronouns, a.payload.players[1].pronouns], phone1: a.payload.phone1, phone2: a.payload.phone2, photo: a.payload.photo ?? teamPhoto(teamName), texts: a.payload.texts,
+          status: 'pending', createdAt: s.now, expiresAt: plusMinutes(s.now, (a.payload.pendingHours ?? 24) * 60), firstWeek: startWeek(s)
         });
         s.myTeamId = teamId;
         s.role = 'team';
@@ -269,11 +269,11 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
       // ---- Scores ----
 
       /** A team posts a score. It counts right away and waits for an admin to check it. */
-      submitScore(s: SampleState, a: PayloadAction<{ machineId: string; score: number; photoSource: 'camera' | 'library'; photo?: string }>) {
+      submitScore(s: SampleState, a: PayloadAction<{ machineId: string; score: number; photoSource: 'camera' | 'library'; photo?: string; thumb?: string }>) {
         const week = currentWeek(s);
         const teamId = s.myTeamId;
         if (!canPlayTonight(current(s), teamId)) return;
-        const { machineId, score, photoSource, photo } = a.payload;
+        const { machineId, score, photoSource, photo, thumb } = a.payload;
         const { who, what } = names(s, { teamId, machineId });
         const before = tonightRows(current(s)).find((r) => r.team.teamId === teamId)?.rank;
         const high = seasonHigh(current(s), machineId)?.score;
@@ -281,7 +281,7 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
         const history = [{ at: s.now, text: `${who} submitted ${fmt(score)}` }];
         if (flag) history.push({ at: s.now, text: `Flagged on its own: ${flag.charAt(0).toLowerCase()}${flag.slice(1)}` });
         s.scores.push({
-          scoreId: nextId(s, 's'), week: week.week, teamId, machineId, score, at: s.now, enteredBy: 'team', photoSource, photo,
+          scoreId: nextId(s, 's'), week: week.week, teamId, machineId, score, at: s.now, enteredBy: 'team', photoSource, photo, thumb,
           check: flag ? 'flagged' : 'unchecked', flag, status: 'active', history
         });
         leaveLines(s, teamId, machineId);
@@ -636,6 +636,17 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
         });
         s.waitlist = s.waitlist.filter((w) => w.id !== one.id && w.id !== two.id);
         addLog(s, 'admin', `Admin paired two solo players into a new team: ${teamName}`);
+      },
+      /** The server's own note in the league log (for example, reminder texts sent). Not for pages. */
+      leagueNote(s: SampleState, a: PayloadAction<string>) {
+        addLog(s, 'league', a.payload);
+      },
+      /** A sign-up nobody approved in time. Same as removing it, with the reason the league gives. */
+      expireSignUp(s: SampleState, a: PayloadAction<string>) {
+        const t = s.teams.find((x) => x.teamId === a.payload);
+        if (!t || t.status !== 'pending') return;
+        s.teams = s.teams.filter((x) => x.teamId !== t.teamId);
+        addLog(s, 'league', 'A sign-up expired without approval');
       },
       resetPin(s: SampleState, a: PayloadAction<string>) {
         addLog(s, 'admin', `Admin reset ${team(s, a.payload).teamName}'s PIN`);

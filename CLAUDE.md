@@ -361,9 +361,17 @@ Summarize every plan and wait for a yes before the matching apply.
   {state, at, by}. Subs are not on the server yet. The web app still runs on the sample league,
   so these endpoints are not wired to the pages yet (part of the real-server wiring).
 
+## Decided: team PINs (Oct 27)
+
+- The team picks a 4-digit PIN at sign-up (number pad), types it twice; both partners share it.
+- Phones stay logged in 60 days; 15-minute lockout after too many wrong tries (built).
+- Obvious PINs are refused (1234, 0000, 1111 and the like). To build.
+- "Change PIN" in Settings: current PIN, then the new one twice. To build.
+- Forgot it: the admin taps Reset PIN, the app shows a temporary PIN once, the admin tells the
+  team in person, the team changes it in Settings. No texting for PINs. To build.
+
 ## Open decisions (ask before assuming)
 
-- How teams get their PIN (choose at sign-up, shown on screen, or texted)
 - Season scoring option (1 or 2)
 - Lyman's machine lineup
 - The penalty for 3 forfeited turns in a season

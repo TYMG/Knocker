@@ -4,6 +4,8 @@
 #   ./scripts/sms-verify.sh add      asks for your number, texts it a code, then asks for the code
 #   ./scripts/sms-verify.sh list     shows verified test phones (last 4 digits only)
 #   ./scripts/sms-verify.sh status   shows the league number's status and the account tier
+#   ./scripts/sms-verify.sh log [hours]  shows what happened to recent texts (default: last 24
+#                                     hours): delivered, failed, blocked. Last 4 digits only.
 #
 # The number is typed in at the prompt and only ever sent to AWS. Never put it in the repo.
 # Sending the code needs the league's toll-free number to be ACTIVE, which happens once its
@@ -29,6 +31,29 @@ status() {
 list() {
   $SMS describe-verified-destination-numbers --query 'VerifiedDestinationNumbers[].[DestinationPhoneNumber,Status]' --output text |
     awk '{ printf "  ...%s  %s\n", substr($1, length($1)-3), $2 }'
+}
+
+log() {
+  local hours="${1:-24}"
+  local group; group="$(terraform -chdir="$ROOT/apps/split-flip-island/infra" output -raw sms_log_group 2>/dev/null || true)"
+  if [ -z "$group" ] || [ "$group" = "null" ]; then echo "No delivery log yet (apply the league stack first)."; return; fi
+  local since=$(( ($(date +%s) - hours * 3600) * 1000 ))
+  echo "Texts in the last $hours hours (newest last):"
+  aws logs filter-log-events --log-group-name "$group" --start-time "$since" --query 'events[].message' --output json |
+    python3 -c '
+import json, sys, datetime
+rows = json.load(sys.stdin) or []
+if not rows: print("  (none)")
+for raw in rows:
+    try: e = json.loads(raw)
+    except ValueError: continue
+    to = str(e.get("destinationPhoneNumber", ""))
+    t = e.get("eventTimestamp") or e.get("timestamp") or 0
+    when = datetime.datetime.fromtimestamp(int(t) / 1000).strftime("%b %d %I:%M %p") if str(t).isdigit() else str(t)
+    status = e.get("messageStatus") or e.get("eventType", "")
+    why = e.get("messageStatusDescription", "")
+    print(f"  {when}  ...{to[-4:]}  {status}" + (f"  ({why})" if why else ""))
+'
 }
 
 add() {
@@ -57,5 +82,6 @@ case "${1:-}" in
   add) add ;;
   list) list ;;
   status) status ;;
-  *) sed -n '2,10p' "$0"; exit 1 ;;
+  log) log "${2:-24}" ;;
+  *) sed -n '2,12p' "$0"; exit 1 ;;
 esac

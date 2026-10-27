@@ -341,6 +341,10 @@ Summarize every plan and wait for a yes before the matching apply.
 - **Settings page** (`/settings`, the gear in the top bar; open to everyone): Look (Dark / Light /
   Auto), Motion (Effects = calm mode), Alerts (reminder texts + Save our number, Doc's pop-ups,
   admin started-a-turn notes), Account (log out). The old sparkle and moon header buttons are gone.
+- **Delivery log (Oct 27):** the configuration set sends every text event (`TEXT_ALL`) to the
+  CloudWatch log group `/knckr/split-flip-island/texts` (30-day retention, since records hold
+  phone numbers), through the role `split-flip-island-text-delivery-log`. Read it with
+  `scripts/sms-verify.sh log [hours]` (last 4 digits only).
 - **Toll-free registration** submitted Oct 27, 2026: `registration-ccd58d645c9e4b92816f169520505cb2`
   (us-east-1; set as the default of `sms_registration_id`). Review takes about 2–3 weeks; the
   number stays PENDING until approved.

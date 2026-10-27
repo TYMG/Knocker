@@ -89,6 +89,71 @@ resource "aws_iam_role_policy" "sms" {
   policy = data.aws_iam_policy_document.sms[0].json
 }
 
+# Delivery log: AWS writes a record for every text (sent, delivered, failed, blocked by a STOP)
+# to this log group. The records include the phone number, so they're kept 30 days only and are
+# read with scripts/sms-verify.sh log, which shows the last 4 digits.
+resource "aws_cloudwatch_log_group" "sms" {
+  count             = local.sms
+  name              = "/knckr/${local.name}/texts"
+  retention_in_days = 30
+}
+
+data "aws_caller_identity" "current" {}
+
+data "aws_iam_policy_document" "sms_logs_assume" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["sms-voice.amazonaws.com"]
+    }
+    # Only for this account, so no one else's texting can use the role.
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+  }
+}
+
+resource "aws_iam_role" "sms_logs" {
+  count              = local.sms
+  name               = "${local.name}-text-delivery-log"
+  assume_role_policy = data.aws_iam_policy_document.sms_logs_assume.json
+}
+
+resource "aws_iam_role_policy" "sms_logs" {
+  count = local.sms
+  name  = "write-text-delivery-log"
+  role  = aws_iam_role.sms_logs[0].id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["logs:CreateLogStream", "logs:PutLogEvents", "logs:DescribeLogStreams"]
+      Resource = ["${aws_cloudwatch_log_group.sms[0].arn}", "${aws_cloudwatch_log_group.sms[0].arn}:*"]
+    }]
+  })
+}
+
+resource "aws_pinpointsmsvoicev2_event_destination" "sms_logs" {
+  count                  = local.sms
+  configuration_set_name = aws_pinpointsmsvoicev2_configuration_set.sms[0].name
+  event_destination_name = "delivery-log"
+  matching_event_types   = ["TEXT_ALL"]
+
+  cloudwatch_logs_destination {
+    iam_role_arn  = aws_iam_role.sms_logs[0].arn
+    log_group_arn = aws_cloudwatch_log_group.sms[0].arn
+  }
+
+  depends_on = [aws_iam_role_policy.sms_logs]
+}
+
+output "sms_log_group" {
+  value = var.sms_enabled ? aws_cloudwatch_log_group.sms[0].name : null
+}
+
 # The check-in reminder: runs the API function every 5 minutes with {"task": "reminders"}. The
 # function does nothing unless tonight's league night starts within the next few minutes; then it
 # texts opted-in phones on teams that haven't checked in, once per night (api/src/reminders.ts).

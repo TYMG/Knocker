@@ -19,9 +19,10 @@ variable "sms_enabled" {
 }
 
 variable "sms_registration_id" {
-  description = "The toll-free registration ID from AWS, once the carrier registration is submitted. Leave null until then."
+  description = "The toll-free registration for the league number, filed by hand in the AWS console (no Terraform resource exists for registrations). Recorded here so the link is on file; changing it never replaces the number."
   type        = string
-  default     = null
+  # Submitted Oct 27, 2026 (us-east-1). Not a secret.
+  default     = "registration-ccd58d645c9e4b92816f169520505cb2"
 }
 
 locals {

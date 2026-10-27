@@ -341,6 +341,9 @@ Summarize every plan and wait for a yes before the matching apply.
 - **Settings page** (`/settings`, the gear in the top bar; open to everyone): Look (Dark / Light /
   Auto), Motion (Effects = calm mode), Alerts (reminder texts + Save our number, Doc's pop-ups,
   admin started-a-turn notes), Account (log out). The old sparkle and moon header buttons are gone.
+- **Toll-free registration** submitted Oct 27, 2026: `registration-ccd58d645c9e4b92816f169520505cb2`
+  (us-east-1; set as the default of `sms_registration_id`). Review takes about 2–3 weeks; the
+  number stays PENDING until approved.
 - **Reminder sender (built Oct 27):** `api/src/reminders.ts`, run every 5 minutes by
   `aws_cloudwatch_event_rule.reminders` (infra/sms.tf) with `{"task": "reminders"}`. It acts only
   when today's league night (league time, Eastern) has a `startsAt` 0–6 minutes away. It claims

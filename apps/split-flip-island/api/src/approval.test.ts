@@ -175,6 +175,14 @@ describe('signing up', () => {
     expect((await signUp('No Names', { players: [{ name: 'Riley', pronouns: 'x'.repeat(21) }, { name: 'Sam' }] })).status).toBe(400);
   });
 
+  it('says the name is taken when an old sign-up still holds it', async () => {
+    fake.table.put({ PK: L, SK: 'TEAMNAME#left & right', type: 'teamName', teamId: 'old-left-and-right' });
+    const res = await signUp('Left & Right');
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('That team name is taken. Try another.');
+    expect((await league()).teams).toHaveLength(0);
+  });
+
   it('stops taking sign-ups when too many are waiting', async () => {
     process.env.MAX_PENDING_TEAMS = '2';
     expect((await signUp('One')).status).toBe(201);

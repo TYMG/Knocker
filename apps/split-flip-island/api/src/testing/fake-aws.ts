@@ -18,6 +18,8 @@ interface Write {
 
 class Cancelled extends Error {
   name = 'TransactionCanceledException';
+  /** Like the real error: one reason per step, 'ConditionalCheckFailed' where a condition failed. */
+  constructor(message: string, readonly CancellationReasons: { Code: string }[] = []) { super(message); }
 }
 class ConditionFailed extends Error {
   name = 'ConditionalCheckFailedException';
@@ -122,11 +124,12 @@ export class FakeTable {
       case 'TransactWriteCommand': {
         const steps = input.TransactItems as Array<{ Put?: Write; Update?: Write; Delete?: Write }>;
         // All conditions are checked before anything is written, like the real thing.
-        for (const step of steps) {
+        const reasons = steps.map((step) => {
           const w = (step.Put ?? step.Update ?? step.Delete)!;
           const key = step.Put ? (w.Item as { PK: string; SK: string }) : w.Key!;
-          if (!this.passes(this.items.get(this.id(key)), w)) throw new Cancelled('Transaction cancelled');
-        }
+          return { Code: this.passes(this.items.get(this.id(key)), w) ? 'None' : 'ConditionalCheckFailed' };
+        });
+        if (reasons.some((r) => r.Code !== 'None')) throw new Cancelled('Transaction cancelled', reasons);
         for (const step of steps) {
           if (step.Put) this.put(step.Put.Item!);
           else if (step.Update) this.put(this.applyUpdate(this.items.get(this.id(step.Update.Key!)), step.Update));

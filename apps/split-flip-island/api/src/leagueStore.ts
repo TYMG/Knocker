@@ -114,8 +114,13 @@ export async function applyAction(
       }));
       return { version, league: neutral(next) };
     } catch (err) {
-      // Someone else saved first: start again from their version.
-      if ((err as Error).name === 'TransactionCanceledException') continue;
+      if ((err as Error).name === 'TransactionCanceledException') {
+        const reasons = (err as { CancellationReasons?: { Code?: string }[] }).CancellationReasons ?? [];
+        // Someone else saved the league first: start again from their version.
+        if (reasons[0]?.Code === 'ConditionalCheckFailed' || reasons.length === 0) continue;
+        // One of the extra writes was refused (a name already claimed, a record that's gone).
+        if (reasons.some((r) => r.Code === 'ConditionalCheckFailed')) throw new RuleRefused(options.refusal);
+      }
       throw err;
     }
   }

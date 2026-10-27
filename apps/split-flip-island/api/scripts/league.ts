@@ -8,8 +8,9 @@
 //        Prints the league's version, weeks, teams and whether a night is open.
 //   clear
 //        Deletes the league record, its history and every team's sign-up details (name claims,
-//        PINs, phones). For clearing the demo before real sign-ups open. Asks you to type the
-//        league id to confirm. Photos are left for the bucket's own cleanup.
+//        PINs, phones), plus anything left from before Oct 27. Admin accounts are kept. For
+//        clearing the demo before real sign-ups open. Asks you to type the league id to confirm.
+//        Photos are left for the bucket's own cleanup.
 import { createInterface } from 'node:readline/promises';
 import { parseArgs } from 'node:util';
 
@@ -69,14 +70,18 @@ async function clear() {
   const typed = (await rl.question(`This deletes the whole league ${values.league} and every team's sign-up. Type the league id to confirm: `)).trim();
   rl.close();
   if (typed !== values.league) return console.log('Nothing deleted.');
-  const league = (await queryAll<{ PK: string; SK: string; type?: string }>({ KeyConditionExpression: 'PK = :pk', ExpressionAttributeValues: { ':pk': keys.league(values.league!) } }))
-    .filter((i) => ['state', 'teamName', 'private', 'reminders'].includes(i.type ?? ''));
-  const history = await queryAll<{ PK: string; SK: string }>({ KeyConditionExpression: 'PK = :pk', ExpressionAttributeValues: { ':pk': `HISTORY#${values.league}` } });
-  const all = [...league, ...history];
-  for (let i = 0; i < all.length; i += 25) {
-    await ddb.send(new BatchWriteCommand({ RequestItems: { [values.table!]: all.slice(i, i + 25).map((k) => ({ DeleteRequest: { Key: { PK: k.PK, SK: k.SK } } })) } }));
+  const all = async (pk: string) => queryAll<{ PK: string; SK: string; type?: string; date?: string }>({ KeyConditionExpression: 'PK = :pk', ExpressionAttributeValues: { ':pk': pk } });
+  // Everything in the league's own partition (the record, name claims, private items, and any
+  // records left from before Oct 27), its history, the old league log, and old score partitions.
+  // Admin accounts live elsewhere and are kept.
+  const league = await all(keys.league(values.league!));
+  const oldNights = league.filter((i) => i.type === 'night' && i.date).map((i) => `NIGHT#${values.league}#${i.date}`);
+  const doomed = [...league, ...(await all(`HISTORY#${values.league}`)), ...(await all(`AUDIT#${values.league}`))];
+  for (const pk of oldNights) doomed.push(...(await all(pk)));
+  for (let i = 0; i < doomed.length; i += 25) {
+    await ddb.send(new BatchWriteCommand({ RequestItems: { [values.table!]: doomed.slice(i, i + 25).map((k) => ({ DeleteRequest: { Key: { PK: k.PK, SK: k.SK } } })) } }));
   }
-  console.log(`Deleted ${all.length} records. Run "setup" to start a fresh season.`);
+  console.log(`Deleted ${doomed.length} records. Admin accounts are kept. Run "setup" to start a fresh season.`);
 }
 
 const command = positionals[0];

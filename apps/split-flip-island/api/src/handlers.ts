@@ -7,6 +7,7 @@ import type {
   AuditEntry, AuditResponse, AuthResponse, LoginRequest, Machine, MeResponse, Night, RegisterRequest,
   Score, StandingRow, StandingsResponse, SubmitScoreRequest, Team, UploadResponse, PresignedUpload, Player } from '../../shared/types.js';
 import { PLAYER_NAME_MAX, PRONOUNS_MAX } from '../../shared/types.js';
+import { pinProblem } from '../../shared/pin.js';
 import { ddb, keys, leagueId, queryAll, s3, table } from './db.js';
 import { clearLoginStrikes, hashPin, issueToken, requireTeam, takeLoginStrike, verifyPin } from './auth.js';
 import { rankChange, rankTotals, runningRanks, scoreNight } from './scoring.js';
@@ -177,7 +178,8 @@ export async function register(event: APIGatewayProxyEventV2): Promise<AuthRespo
   if (teamName.length < 2 || teamName.length > 30) throw new HttpError(400, 'Team name must be 2 to 30 characters.');
   if (phone1.length < 10 || phone2.length < 10) throw new HttpError(400, 'Enter a 10-digit phone number for both players.');
   if (phone1 === phone2) throw new HttpError(400, 'Each player needs their own phone number.');
-  if (!/^\d{4}$/.test(pin)) throw new HttpError(400, 'PIN must be exactly 4 digits.');
+  const badPin = pinProblem(pin);
+  if (badPin) throw new HttpError(400, badPin);
   if (!/^leagues\/[a-z0-9-]+\/pending\/[0-9a-f-]{36}\.jpg$/.test(photoKey) || !photoKey.startsWith(`leagues/${l}/pending/`) || !(await photoExists(photoKey))) {
     throw new HttpError(400, 'Add a team photo before signing up.');
   }

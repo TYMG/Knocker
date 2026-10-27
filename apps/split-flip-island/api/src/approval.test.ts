@@ -455,3 +455,41 @@ describe('sign-ups nobody approves', () => {
     expect(fake.table.get(L, 'TEAMNAME#old sign-up')).toBeDefined();
   });
 });
+
+describe('PINs', () => {
+  it('refuses obvious PINs at sign-up', async () => {
+    for (const pin of ['1234', '0000', '9876', '2580', '12a4']) expect((await signUp(`Easy ${pin}`, { pin })).status).toBe(400);
+    expect((await signUp('Fine Pin', { pin: '4821' })).status).toBe(201);
+  });
+
+  it('lets a team change its PIN with the current one', async () => {
+    const a = await signUp('Left & Right');
+    const token = a.body.token as string;
+    const change = (body: Record<string, string>) => call('POST', '/api/me/pin', { ...asTeam(token), body });
+    expect((await change({ currentPin: '1111', newPin: '7391' })).status).toBe(401);
+    expect((await change({ currentPin: '4821', newPin: '4444' })).status).toBe(400);
+    expect((await change({ currentPin: '4821', newPin: '4821' })).status).toBe(400);
+    expect((await change({ currentPin: '4821', newPin: '7391' })).status).toBe(200);
+    expect((await call('POST', '/api/login', { body: { teamName: 'Left & Right', pin: '4821' } })).status).toBe(401);
+    expect((await call('POST', '/api/login', { body: { teamName: 'Left & Right', pin: '7391' } })).status).toBe(200);
+    expect((await call('POST', '/api/me/pin', { body: { currentPin: '7391', newPin: '5730' } })).status).toBe(401);
+  });
+
+  it('lets an admin set a temporary PIN, shown once, which clears a lockout', async () => {
+    const a = await signUp('Left & Right');
+    const teamId = a.body.team.teamId as string;
+    for (let i = 0; i < 10; i++) await call('POST', '/api/login', { body: { teamName: 'Left & Right', pin: '0101' } });
+    expect((await call('POST', '/api/login', { body: { teamName: 'Left & Right', pin: '4821' } })).status).toBe(429);
+
+    const token = await adminToken();
+    const res = await call('POST', `/api/admin/teams/${teamId}/reset-pin`, asAdmin(token));
+    expect(res.status).toBe(200);
+    expect(res.body.pin).toMatch(/^\d{4}$/);
+    expect(JSON.stringify(fake.table.all(L))).not.toContain(`"${res.body.pin}"`);
+    expect((await call('POST', '/api/login', { body: { teamName: 'Left & Right', pin: res.body.pin } })).status).toBe(200);
+    expect(auditActions()).toContain("Matt reset a sign-up's PIN");
+    expect((await call('POST', `/api/admin/teams/${teamId}/reset-pin`)).status).toBe(401);
+    expect((await call('POST', '/api/admin/teams/abcdef12/reset-pin', asAdmin(token))).status).toBe(404);
+  });
+});
+

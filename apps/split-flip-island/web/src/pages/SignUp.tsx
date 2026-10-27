@@ -30,6 +30,7 @@ import { approvedTeams, findTeamByName, pendingTeams } from '../sample/league';
 import { sample } from '../sample/slice';
 import { showToast } from '../store';
 import { PLAYER_NAME_MAX, PRONOUN_CHOICES, PRONOUNS_MAX } from '../../../shared/types';
+import { pinProblem } from '../../../shared/pin';
 import Page from '../ui/Page';
 import PhotoPicker, { type PickedPhoto } from '../ui/PhotoPicker';
 import TeamAvatar from '../ui/TeamAvatar';
@@ -137,7 +138,7 @@ function PairForm() {
     name2: nameError(name2, 2),
     pronouns2: pronounsError(pronouns2),
     phone2: phoneError(phone2) || (digitsIn(phone2).length === 10 && digitsIn(phone2) === digitsIn(phone1) ? 'Each player needs their own phone number.' : ''),
-    pin: /^\d{4}$/.test(pin) ? '' : 'A PIN is 4 digits.',
+    pin: pinProblem(pin),
     pinAgain: !pinAgain ? 'Type the PIN again.' : pinAgain !== pin ? 'The two PINs do not match.' : '',
     photo: photo ? '' : 'Add a team photo.'
   };

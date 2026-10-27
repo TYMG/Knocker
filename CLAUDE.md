@@ -365,10 +365,12 @@ Summarize every plan and wait for a yes before the matching apply.
 
 - The team picks a 4-digit PIN at sign-up (number pad), types it twice; both partners share it.
 - Phones stay logged in 60 days; 15-minute lockout after too many wrong tries (built).
-- Obvious PINs are refused (1234, 0000, 1111 and the like). To build.
-- "Change PIN" in Settings: current PIN, then the new one twice. To build.
+- Obvious PINs are refused (1234, 0000, 1111, runs, 2580…): `shared/pin.ts`, at sign-up and on change.
+- "Change PIN" in Settings: current PIN, then the new one twice (`POST /api/me/pin`; wrong current
+  PINs count toward the lockout).
 - Forgot it: the admin taps Reset PIN, the app shows a temporary PIN once, the admin tells the
-  team in person, the team changes it in Settings. No texting for PINs. To build.
+  team in person, the team changes it in Settings. No texting for PINs.
+  (`POST /api/admin/teams/{teamId}/reset-pin`, returns `{pin}` once, clears the lockout, logged.)
 
 ## Open decisions (ask before assuming)
 

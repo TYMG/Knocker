@@ -3,6 +3,7 @@ import { adminLogin, adminTeams, approveTeam, purgeExpired, removeTeam } from '.
 import { sameSecret } from './auth.js';
 import { audit, createUpload, login, me, register, standings, submitScore } from './handlers.js';
 import { adminCheckIns, answerCheckIn, checkIn, myCheckIn, setNightStart } from './checkin.js';
+import { changePin, resetPin } from './pin.js';
 import { sendCheckInReminders } from './reminders.js';
 import { setTeamTexts, smsStatus, smsTest, teamTexts } from './sms.js';
 import { env, HttpError, json } from './util.js';
@@ -27,7 +28,8 @@ const routes: Record<string, { run: Route; status?: 201 }> = {
   'POST /api/me/texts': { run: setTeamTexts },
   'GET /api/me/check-in': { run: myCheckIn },
   'POST /api/me/check-in': { run: checkIn },
-  'GET /api/admin/check-ins': { run: adminCheckIns }
+  'GET /api/admin/check-ins': { run: adminCheckIns },
+  'POST /api/me/pin': { run: changePin }
 };
 
 // POST /api/admin/check-ins/{teamId}/confirm and /decline.
@@ -36,7 +38,7 @@ const CHECK_IN_ACTION = /^POST \/api\/admin\/check-ins\/([0-9a-z-]{1,40})\/(conf
 const NIGHT_START = /^POST \/api\/admin\/nights\/(\d{4}-\d{2}-\d{2})\/start$/;
 
 // POST /api/admin/teams/{teamId}/approve and /remove. Team IDs are 8 hex characters.
-const TEAM_ACTION = /^POST \/api\/admin\/teams\/([0-9a-f]{8})\/(approve|remove)$/;
+const TEAM_ACTION = /^POST \/api\/admin\/teams\/([0-9a-f]{8})\/(approve|remove|reset-pin)$/;
 
 /** Schedules invoke the function with one of these instead of a web request (see infra). */
 interface ScheduledTask { task: 'purge' | 'reminders' }
@@ -81,6 +83,7 @@ export async function handler(event: APIGatewayProxyEventV2 | ScheduledTask): Pr
     const action = TEAM_ACTION.exec(key);
     if (action) {
       const [, teamId, verb] = action;
+      if (verb === 'reset-pin') return json(200, await resetPin(event, teamId));
       return json(200, verb === 'approve' ? await approveTeam(event, teamId) : await removeTeam(event, teamId));
     }
     return json(404, { error: 'Not found.' });

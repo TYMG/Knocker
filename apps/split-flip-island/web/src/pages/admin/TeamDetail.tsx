@@ -4,6 +4,7 @@
 // approve / remove card instead, because it has no scores yet.
 
 import { useState } from 'react';
+import { pinProblem } from '../../../../shared/pin';
 import { playersLine } from '../../ui/players';
 import { Link as RouterLink, useNavigate, useParams, useSearchParams } from 'react-router';
 import Box from '@mui/material/Box';
@@ -67,7 +68,8 @@ export default function TeamDetail() {
   const [search, setSearch] = useSearchParams();
   const [phonesShown, setPhonesShown] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
-  const [pinWasReset, setPinWasReset] = useState(false);
+  // The temporary PIN, shown once in the dialog right after the reset.
+  const [tempPin, setTempPin] = useState('');
 
   const team = findTeam(league, teamId);
   if (!team) {
@@ -103,10 +105,13 @@ export default function TeamDetail() {
   const players = team.players.filter(Boolean);
 
   const resetPin = () => {
-    setResetOpen(false);
-    setPinWasReset(true);
+    setTempPin(temporaryPin());
     dispatch(sample.resetPin(team.teamId));
-    dispatch(showToast(`${team.teamName}'s PIN is reset. The reset is in the league log.`));
+  };
+  const closeReset = () => {
+    setResetOpen(false);
+    if (tempPin) dispatch(showToast(`${team.teamName}'s PIN is reset. The reset is in the league log.`));
+    setTempPin('');
   };
 
   const markAll = () => {
@@ -137,11 +142,6 @@ export default function TeamDetail() {
           <NoShows teamId={team.teamId} />
           <Subs league={league} teamId={team.teamId} />
           <Withdraw teamId={team.teamId} />
-          {pinWasReset && (
-            <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-              Sample: how the team gets its new PIN is not decided yet.
-            </Typography>
-          )}
           <Link component={RouterLink} to={`/teams/${team.teamId}`} sx={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, mt: 0.5, fontWeight: 700 }}>
             See the public team page
           </Link>
@@ -196,20 +196,35 @@ export default function TeamDetail() {
         </Box>
       </Stack>
 
-      <Dialog open={resetOpen} onClose={() => setResetOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle>Reset {team.teamName}'s PIN?</DialogTitle>
-        <DialogContent>
-          <Typography>The PIN is reset and the reset is written to the league log.</Typography>
-          <Typography variant="body2" color="textSecondary" sx={{ mt: 1.5 }}>
-            Sample: how the team gets its new PIN is not decided yet.
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setResetOpen(false)}>Cancel</Button>
-          <Button variant="contained" color="secondary" onClick={resetPin}>
-            Reset PIN
-          </Button>
-        </DialogActions>
+      <Dialog open={resetOpen} onClose={tempPin ? undefined : closeReset} fullWidth maxWidth="xs">
+        {!tempPin ? (
+          <>
+            <DialogTitle>Reset {team.teamName}'s PIN?</DialogTitle>
+            <DialogContent>
+              <Typography>You'll get a temporary PIN to tell the team in person. Their old PIN stops working, and the reset goes in the league log.</Typography>
+            </DialogContent>
+            <DialogActions sx={{ px: 3, pb: 2 }}>
+              <Button onClick={closeReset}>Cancel</Button>
+              <Button variant="contained" color="secondary" onClick={resetPin}>
+                Reset PIN
+              </Button>
+            </DialogActions>
+          </>
+        ) : (
+          <>
+            <DialogTitle>{team.teamName}'s temporary PIN</DialogTitle>
+            <DialogContent>
+              <Typography aria-label={`Temporary PIN ${tempPin.split('').join(' ')}`} sx={{ fontFamily: 'monospace', fontSize: '3rem', fontWeight: 700, letterSpacing: '0.3em', textAlign: 'center', my: 1 }}>
+                {tempPin}
+              </Typography>
+              <Typography>Tell the team in person. They log in with it, then pick their own in Settings (the gear), under Change PIN.</Typography>
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1.5 }}>It won't be shown again. If it's lost, reset it again.</Typography>
+            </DialogContent>
+            <DialogActions sx={{ px: 3, pb: 2 }}>
+              <Button variant="contained" onClick={closeReset}>Done</Button>
+            </DialogActions>
+          </>
+        )}
       </Dialog>
     </Page>
   );
@@ -305,4 +320,12 @@ function NoShows({ teamId }: { teamId: string }) {
       )}
     </Box>
   );
+}
+
+/** A random 4-digit PIN that isn't one of the easy ones (the server makes its own the same way). */
+function temporaryPin(): string {
+  for (;;) {
+    const pin = String(Math.floor(Math.random() * 10_000)).padStart(4, '0');
+    if (!pinProblem(pin)) return pin;
+  }
 }

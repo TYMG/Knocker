@@ -25,6 +25,9 @@ import { setBlipsMuted, useBlipsMuted } from '../ui/turnClock';
 import Page from '../ui/Page';
 import Section from '../ui/Section';
 import { TextsSetting } from '../ui/TextsParts';
+import TextField from '@mui/material/TextField';
+import { useState } from 'react';
+import { pinProblem } from '../../../shared/pin';
 
 export default function Settings() {
   const me = useMe();
@@ -43,6 +46,7 @@ export default function Settings() {
             </Stack>
           </Section>
         )}
+        {me.isTeam && <ChangePinSection />}
         <AccountSection loggedIn={me.isTeam || me.isAdmin} who={me.isAdmin ? `admin ${league.adminName}` : me.isTeam ? me.team.teamName : ''} />
       </Stack>
     </Page>
@@ -145,3 +149,44 @@ function AccountSection({ loggedIn, who }: { loggedIn: boolean; who: string }) {
     </Section>
   );
 }
+
+const pinInput = { htmlInput: { inputMode: 'numeric', pattern: '[0-9]*', maxLength: 4, autoComplete: 'off' } } as const;
+const digits = (v: string) => v.replace(/\D/g, '').slice(0, 4);
+
+/** Team: change the shared PIN. Needs the current one; the admin's temporary PIN counts. */
+function ChangePinSection() {
+  const dispatch = useAppDispatch();
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [again, setAgain] = useState('');
+  const [tried, setTried] = useState(false);
+  const errors = {
+    current: /^\d{4}$/.test(current) ? '' : 'Your current 4-digit PIN.',
+    next: pinProblem(next),
+    again: !again ? 'Type the new PIN again.' : again !== next ? 'The two PINs do not match.' : next === current ? "That's the PIN you have now." : ''
+  };
+  const save = () => {
+    setTried(true);
+    if (errors.current || errors.next || errors.again) return;
+    // The sample league keeps no PINs; on the real server this checks the current PIN first.
+    dispatch(showToast('PIN changed. Both of you use the new one next time you log in.'));
+    setCurrent(''); setNext(''); setAgain(''); setTried(false);
+  };
+  const err = (k: keyof typeof errors) => (tried && errors[k] ? { error: true, helperText: errors[k] } : {});
+  return (
+    <Section title="Change PIN">
+      <Card variant="outlined" sx={{ p: 2 }}>
+        <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+          You both share one PIN. Got a temporary PIN from the admin? Type it as the current one.
+        </Typography>
+        <Stack spacing={2}>
+          <TextField label="Current PIN" type="password" value={current} onChange={(e) => setCurrent(digits(e.target.value))} slotProps={pinInput} {...err('current')} />
+          <TextField label="New PIN" type="password" value={next} onChange={(e) => setNext(digits(e.target.value))} slotProps={pinInput} {...err('next')} />
+          <TextField label="New PIN again" type="password" value={again} onChange={(e) => setAgain(digits(e.target.value))} slotProps={pinInput} {...err('again')} />
+          <Button variant="contained" onClick={save} sx={{ minHeight: 44 }}>Change PIN</Button>
+        </Stack>
+      </Card>
+    </Section>
+  );
+}
+

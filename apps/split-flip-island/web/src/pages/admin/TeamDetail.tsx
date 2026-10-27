@@ -4,6 +4,7 @@
 // approve / remove card instead, because it has no scores yet.
 
 import { useState } from 'react';
+import { playersLine } from '../../ui/players';
 import { Link as RouterLink, useNavigate, useParams, useSearchParams } from 'react-router';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -117,7 +118,7 @@ export default function TeamDetail() {
     <Page title={title} subtitle={seasonLine(league, team.teamId)} back={BACK}>
       <Stack spacing={3}>
         <Box>
-          {players.length > 0 && <Typography sx={{ mb: 1.5 }}>{listOf(players)}</Typography>}
+          {players.length > 0 && <Typography sx={{ mb: 1.5 }}>{playersLine(team)}</Typography>}
           <Stack direction="row" spacing={1.5}>
             {/* Hidden until asked for, so the numbers are not on screen at the bar by accident. */}
             <Button variant="outlined" onClick={() => setPhonesShown((shown) => !shown)} aria-expanded={phonesShown} sx={{ minHeight: 44, flex: '1 1 auto', whiteSpace: 'nowrap' }}>

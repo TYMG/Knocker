@@ -5,9 +5,22 @@ export interface Machine {
   name: string;
 }
 
+/** A player's first name and, if they gave them, their pronouns. Shown wherever names show. */
+export interface Player {
+  name: string;
+  pronouns?: string;
+}
+
+/** The pronoun choices at sign-up. Players can also type their own (up to 20 characters). */
+export const PRONOUN_CHOICES = ['she/her', 'he/him', 'they/them', 'she/they', 'he/they', 'any pronouns'] as const;
+export const PRONOUNS_MAX = 20;
+export const PLAYER_NAME_MAX = 20;
+
 export interface Team {
   teamId: string;
   teamName: string;
+  /** The two players, in sign-up order (Player 1 first). Missing on teams from before Oct 27. */
+  players?: [Player, Player];
   photoUrl: string | null;
   /** New teams wait for an admin. Only approved teams play, score and appear in standings. */
   status: 'pending' | 'approved';
@@ -59,12 +72,13 @@ export interface UploadResponse {
 
 export interface RegisterRequest {
   teamName: string;
+  players: [Player, Player];
   phone1: string;
   phone2: string;
   pin: string;
   photoKey: string;
-  /** Ticked "text me league-night reminders" at sign-up (Player 1's phone). Off if missing. */
-  smsOptIn?: boolean;
+  /** Each player ticked "text me a league-night reminder" for their own phone. Off if missing. */
+  texts?: [boolean, boolean];
 }
 
 export interface LoginRequest {

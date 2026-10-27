@@ -10,8 +10,10 @@ export interface STeam {
   players: [string, string];
   phone1: string;
   phone2: string;
-  /** Agreed at sign-up to a check-in reminder text on league nights (Player 1's phone). */
-  smsOptIn?: boolean;
+  /** Each player's pronouns, as given at sign-up ('' when they skipped it). */
+  pronouns?: [string, string];
+  /** Each player's own phone gets the check-in reminder text (Player 1 first). */
+  texts?: [boolean, boolean];
   /** Answered the end-of-season "keep the reminder texts?" question. */
   smsSeasonAsked?: boolean;
   photo: string; // image address (a drawn placeholder)

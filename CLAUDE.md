@@ -302,7 +302,8 @@ Summarize every plan and wait for a yes before the matching apply.
 ## Texting (decided Oct 19)
 
 - **AWS End User Messaging**, toll-free number, set up in Terraform. Not Twilio.
-- Texts only for the **check-in reminder**, one phone per team, **opt-in at sign-up**, every
+- Texts only for the **check-in reminder** (decided again Oct 27), **each player opts in for their
+  own phone** at sign-up or in Settings (so up to 2 phones a team, about $15 a season), every
   text ends "Reply STOP to stop". Turn alerts use free web push from the app, not texts.
   Budget: under $10–20 a season (about $8 expected).
 - Until the January launch: a proof of concept that texts only Matt's own verified number,
@@ -332,6 +333,11 @@ Summarize every plan and wait for a yes before the matching apply.
 - Teams switch texts on/off any time in **Settings** (API `GET/POST /api/me/texts`, stores
   `smsOptInAt` / `smsOptOutAt`). After the finals, teams with texts on get a pop-up saying texts
   are still on, with "Open Settings" / "Keep them on". STOP at AWS always wins; START undoes it.
+- **Sign-up** asks each player for a first name (up to 20), pronouns (she/her, he/him, they/them,
+  she/they, he/they, any pronouns, Prefer not to say, or Type my own, up to 20), phone and their own
+  texts checkbox. Pronouns show next to names everywhere names show (team pages, admin, check-in).
+  API: `RegisterRequest.players` + `texts: [boolean, boolean]`; public `Team.players`; private item
+  `smsOptIn1/2`, `smsChangedAt1/2`; `POST /api/me/texts {player, optIn}`.
 - **Settings page** (`/settings`, the gear in the top bar; open to everyone): Look (Dark / Light /
   Auto), Motion (Effects = calm mode), Alerts (reminder texts + Save our number, Doc's pop-ups,
   admin started-a-turn notes), Account (log out). The old sparkle and moon header buttons are gone.

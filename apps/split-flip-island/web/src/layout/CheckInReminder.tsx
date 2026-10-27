@@ -8,6 +8,7 @@ import { useLeague, useMe } from '../hooks';
 import { canPlayTonight, checkInWindow, subsUsed } from '../sample/league';
 import { colors } from '../theme';
 import { SMS_TEMPLATES } from '../../../shared/sms';
+import { anyTexts, textedNames } from '../ui/players';
 
 export default function CheckInReminder() {
   const league = useLeague();
@@ -48,9 +49,9 @@ export default function CheckInReminder() {
         <Typography sx={{ fontWeight: 700 }}>{title}</Typography>
         {(win.minutesToOpen <= 1 || !opening) && <Typography variant="body2">{subLine}</Typography>}
         {/* Demo of the real text: teams that opted in get it on Player 1's phone 5 minutes before start. */}
-        {opening && t.smsOptIn && (
+        {opening && anyTexts(t) && (
           <Typography variant="body2" sx={{ mt: 0.5, fontStyle: 'italic' }}>
-            Texted to {t.players[0] || 'Player 1'}'s phone: "{SMS_TEMPLATES.checkInReminder.body({ teamName: t.teamName, machineName: '', minutes: 5, week: 0, noShows: 0 })}"
+            Texted to {textedNames(t)}: "{SMS_TEMPLATES.checkInReminder.body({ teamName: t.teamName, machineName: '', minutes: 5, week: 0, noShows: 0 })}"
           </Typography>
         )}
       </Box>

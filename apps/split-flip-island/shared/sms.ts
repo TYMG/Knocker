@@ -67,7 +67,7 @@ export interface SmsStatusResponse {
 
 export interface SmsTestRequest { template: SmsTemplate }
 
-/** A team's own reminder-text setting (Player 1's phone). Teams can switch it any time. */
-export interface TeamTextsResponse { optIn: boolean }
-export interface TeamTextsRequest { optIn: boolean }
+/** Each player's reminder-text setting for their own phone (Player 1 first). Switchable any time. */
+export interface TeamTextsResponse { texts: [boolean, boolean] }
+export interface TeamTextsRequest { player: 0 | 1; optIn: boolean }
 export interface SmsTestResponse { sent: number; body: string }

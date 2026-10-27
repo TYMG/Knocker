@@ -93,24 +93,24 @@ export async function teamTexts(event: APIGatewayProxyEventV2): Promise<TeamText
   const { teamId } = requireTeam(event);
   const item = (await ddb.send(new GetCommand({ TableName: table(), Key: privKey(teamId) }))).Item;
   if (!item) throw new HttpError(401, 'Your team was not found. Log in again.');
-  return { optIn: item.smsOptIn === true };
+  return { texts: [item.smsOptIn1 === true, item.smsOptIn2 === true] };
 }
 
 export async function setTeamTexts(event: APIGatewayProxyEventV2): Promise<TeamTextsResponse> {
   const { teamId } = requireTeam(event);
   const body = parseBody<TeamTextsRequest>(event);
-  if (typeof body.optIn !== 'boolean') throw new HttpError(400, 'Say whether you want texts (optIn: true or false).');
-  const at = nowIso();
+  if (body.player !== 0 && body.player !== 1) throw new HttpError(400, 'Say which player: 0 for Player 1, 1 for Player 2.');
+  if (typeof body.optIn !== 'boolean') throw new HttpError(400, 'Say whether they want texts (optIn: true or false).');
+  const n = body.player + 1;
   await ddb.send(new UpdateCommand({
     TableName: table(),
     Key: privKey(teamId),
-    // The time of the latest yes or no is the consent record.
-    UpdateExpression: body.optIn ? 'SET smsOptIn = :v, smsOptInAt = :at' : 'SET smsOptIn = :v, smsOptOutAt = :at',
+    UpdateExpression: `SET smsOptIn${n} = :v, smsChangedAt${n} = :at`,
     ConditionExpression: 'attribute_exists(PK)',
-    ExpressionAttributeValues: { ':v': body.optIn, ':at': at }
+    ExpressionAttributeValues: { ':v': body.optIn, ':at': nowIso() }
   })).catch((e: Error) => {
     if (e.name === 'ConditionalCheckFailedException') throw new HttpError(401, 'Your team was not found. Log in again.');
     throw e;
   });
-  return { optIn: body.optIn };
+  return teamTexts(event);
 }

@@ -64,7 +64,7 @@ export function buildFreshLeague(): SampleState {
 export function helperTeam([teamId, teamName, players]: (typeof HELPERS)[number], now: string, firstWeek: number, i: number): STeam {
   return {
     teamId, teamName, players, phone1: `(202) 555-02${10 + i * 2}`, phone2: `(202) 555-02${11 + i * 2}`,
-    photo: teamPhoto(teamName), status: 'pending', createdAt: now, firstWeek, smsOptIn: i % 2 === 0
+    photo: teamPhoto(teamName), status: 'pending', createdAt: now, firstWeek, texts: [i % 2 === 0, false], pronouns: ['', '']
   };
 }
 

@@ -18,6 +18,7 @@ import { checkInWindow, inTheRunning, nightStatus } from '../../sample/league';
 import Page from '../../ui/Page';
 import Section from '../../ui/Section';
 import { ADMIN_HOME } from './nightShared';
+import { anyTexts, textPhones } from '../../ui/players';
 import {
   SMS_SAMPLE, SMS_TEMPLATES, smsFitsOneSegment,
   type SmsStatusResponse, type SmsTemplate, type SmsTestResponse
@@ -88,7 +89,8 @@ function Tonight() {
   const night = nightStatus(league);
   const win = checkInWindow(league);
   const teams = league.teams.filter(inTheRunning);
-  const optedIn = teams.filter((t) => t.smsOptIn);
+  const optedIn = teams.filter(anyTexts);
+  const phones = teams.reduce((n, t) => n + textPhones(t), 0);
   const waiting = optedIn.filter((t) => !league.checkIns[t.teamId]);
   const when = night.open
     ? 'The night is open, so the reminder has gone out.'
@@ -98,7 +100,7 @@ function Tonight() {
   return (
     <Section title="In this sample league">
       <Card variant="outlined" sx={{ p: 2 }}>
-        <Typography sx={{ fontWeight: 700 }}>{optedIn.length} of {teams.length} teams get texts</Typography>
+        <Typography sx={{ fontWeight: 700 }}>{phones} phones on {optedIn.length} of {teams.length} teams get texts</Typography>
         <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>{when} It only goes to teams that haven't checked in yet.</Typography>
         {waiting.length > 0 ? (
           <Typography variant="body2">Would get it now: {waiting.map((t) => t.teamName).join(', ')}.</Typography>

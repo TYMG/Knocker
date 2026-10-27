@@ -3,6 +3,7 @@
 // A logged-in team can call the other team out from here.
 
 import { Link as RouterLink, useParams } from 'react-router';
+import { playersLine } from '../ui/players';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -78,8 +79,10 @@ export default function TeamPage() {
       </Box>
     </Box>
   );
+  const who = playersLine(team, ' · ');
   const subtitle = (
     <Box component="span" sx={{ display: 'block', mt: 1 }}>
+      {who && <Box component="span" sx={{ display: 'block', fontWeight: 700, mb: 0.5 }}>{who}</Box>}
       {line}
     </Box>
   );

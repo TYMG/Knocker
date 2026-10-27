@@ -3,6 +3,7 @@
 // below with the time and an Undo for a tap on the wrong row.
 
 import Button from '@mui/material/Button';
+import { playersLine } from '../../ui/players';
 import Stack from '@mui/material/Stack';
 import { useAppDispatch, useLeague } from '../../hooks';
 import { nightStatus, teamsIn } from '../../sample/league';
@@ -19,7 +20,7 @@ import { ADMIN_HOME, NightClosed } from './nightShared';
 import { checkInWindow } from '../../sample/league';
 
 /** First names help the admin match a face to a team at the door. */
-const players = (team: STeam) => team.players.filter(Boolean).join(' and ');
+const players = (team: STeam) => playersLine(team);
 
 export default function CheckIn() {
   const league = useLeague();

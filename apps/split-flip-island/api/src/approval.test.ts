@@ -55,7 +55,7 @@ function uploadedPhoto(folder = 'pending') {
 async function signUp(teamName: string, extra: Record<string, unknown> = {}) {
   const n = String(photoCount).padStart(3, '0');
   return call('POST', '/api/teams', {
-    body: { teamName, phone1: `2025550${n}`, phone2: `2025551${n}`, pin: '4821', photoKey: uploadedPhoto(), ...extra }
+    body: { teamName, players: [{ name: 'Riley', pronouns: 'she/her' }, { name: 'Sam' }], phone1: `2025550${n}`, phone2: `2025551${n}`, pin: '4821', photoKey: uploadedPhoto(), ...extra }
   });
 }
 
@@ -129,6 +129,30 @@ describe('signing up', () => {
     expect((await signUp('Sneaky', { photoKey: kept })).status).toBe(400);
     expect((await signUp('Sneaky', { photoKey: 'leagues/sfi-s1/pending/../teams/x.jpg' })).status).toBe(400);
     expect((await signUp('Sneaky', { photoKey: 'leagues/sfi-s1/pending/00000000-0000-4000-8000-999999999999.jpg' })).status).toBe(400);
+  });
+
+  it('saves both players with their pronouns, and each phone\'s own text choice', async () => {
+    const res = await signUp('Pair Up', { players: [{ name: ' Riley ', pronouns: 'she/her' }, { name: 'Sam', pronouns: '' }], texts: [true, false] });
+    expect(res.status).toBe(201);
+    expect(res.body.team.players).toEqual([{ name: 'Riley', pronouns: 'she/her' }, { name: 'Sam' }]);
+    const priv = fake.table.get(L, `TEAM#${res.body.team.teamId}#PRIVATE`)!;
+    expect([priv.smsOptIn1, priv.smsOptIn2]).toEqual([true, false]);
+    expect(priv.smsChangedAt1).toBeTruthy();
+
+    const token = res.body.token as string;
+    expect((await call('GET', '/api/me/texts', asTeam(token))).body.texts).toEqual([true, false]);
+    const on = await call('POST', '/api/me/texts', { ...asTeam(token), body: { player: 1, optIn: true } });
+    expect(on.body.texts).toEqual([true, true]);
+    const off = await call('POST', '/api/me/texts', { ...asTeam(token), body: { player: 0, optIn: false } });
+    expect(off.body.texts).toEqual([false, true]);
+    expect((await call('POST', '/api/me/texts', { ...asTeam(token), body: { player: 2, optIn: true } })).status).toBe(400);
+    expect((await call('GET', '/api/me/texts')).status).toBe(401);
+  });
+
+  it('needs a name for each player, and keeps pronouns short', async () => {
+    expect((await signUp('No Names', { players: undefined })).status).toBe(400);
+    expect((await signUp('No Names', { players: [{ name: '' }, { name: 'Sam' }] })).status).toBe(400);
+    expect((await signUp('No Names', { players: [{ name: 'Riley', pronouns: 'x'.repeat(21) }, { name: 'Sam' }] })).status).toBe(400);
   });
 
   it('stops taking sign-ups when too many are waiting', async () => {

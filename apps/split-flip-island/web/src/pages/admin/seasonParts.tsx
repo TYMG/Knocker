@@ -5,6 +5,7 @@
 // that works. color="text.secondary" is ignored without any warning. Inside sx, 'text.secondary' is right.
 
 import { useState, type ReactNode } from 'react';
+import { playersLine } from '../../ui/players';
 import { Link as RouterLink } from 'react-router';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -167,7 +168,7 @@ export function ApprovalCard({ team, onRemoved }: { team: STeam; onRemoved?: () 
           <Typography variant="h4" component="h4" sx={{ overflowWrap: 'anywhere' }}>
             {team.teamName}
           </Typography>
-          <Typography color="textSecondary">{listOf(team.players.filter(Boolean))}</Typography>
+          <Typography color="textSecondary">{playersLine(team)}</Typography>
           <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
             Signed up
           </Typography>

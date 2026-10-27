@@ -19,6 +19,9 @@ export const MY_TEAM = 'left-and-right';
 export const TONIGHT = '2026-11-11';
 
 // id, name, players, how strong they are (1 is average)
+/** Sample pronouns ('' = left blank). */
+const PRONOUN_MIX = ['she/her', 'he/him', 'they/them', '', 'she/they', 'he/they', ''];
+
 const TEAMS: [string, string, [string, string], number][] = [
   ['tilt-me-tender', 'Tilt Me Tender', ['Ava', 'Jonah'], 1.28],
   ['nudge-nudge', 'Nudge Nudge', ['Priya', 'Sam'], 1.2],
@@ -69,7 +72,8 @@ export function buildSeed(seed = SEED): SampleState {
     players,
     phone1: `(202) 555-01${pad(10 + i * 2)}`,
     phone2: `(202) 555-01${pad(11 + i * 2)}`,
-    smsOptIn: i % 3 !== 2, // most teams ticked "text me reminders" at sign-up
+    pronouns: [PRONOUN_MIX[i % 7], PRONOUN_MIX[(i + 3) % 7]] as [string, string],
+    texts: [i % 3 !== 2, i % 2 === 0] as [boolean, boolean], // most players ticked "text me a reminder"
     photo: teamPhoto(teamName),
     status: 'approved',
     createdAt: at('2026-10-01', `${10 + i}:15`),

@@ -16,6 +16,7 @@ import { SaveNumberButton } from '../ui/TextsParts';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import Button from '@mui/material/Button';
 import Link from '@mui/material/Link';
+import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import ToggleButton from '@mui/material/ToggleButton';
@@ -28,6 +29,7 @@ import { teamPhoto } from '../sample/art';
 import { approvedTeams, findTeamByName, pendingTeams } from '../sample/league';
 import { sample } from '../sample/slice';
 import { showToast } from '../store';
+import { PLAYER_NAME_MAX, PRONOUN_CHOICES, PRONOUNS_MAX } from '../../../shared/types';
 import Page from '../ui/Page';
 import PhotoPicker, { type PickedPhoto } from '../ui/PhotoPicker';
 import TeamAvatar from '../ui/TeamAvatar';
@@ -35,6 +37,50 @@ import TeamAvatar from '../ui/TeamAvatar';
 type Mode = 'pair' | 'solo';
 
 const digitsIn = (text: string) => text.replace(/\D/g, '');
+const nameError = (name: string, n: number) => (tidy(name).length >= 1 ? '' : `Enter Player ${n}'s first name.`);
+const pronounsError = (p: string) => (tidy(p).length <= PRONOUNS_MAX ? '' : `Up to ${PRONOUNS_MAX} characters.`);
+
+const OTHER = 'other';
+/** Pronouns: a short list, "Prefer not to say", or "Type my own" for anything else. */
+function PronounPicker({ value, onChange, field }: { value: string; onChange: (v: string) => void; field: { id: string; error: boolean; helperText?: string; onBlur: () => void } }) {
+  const listed = value === '' || (PRONOUN_CHOICES as readonly string[]).includes(value);
+  const [custom, setCustom] = useState(!listed);
+  const choice = custom ? OTHER : value;
+  return (
+    <Box sx={{ flex: '1 1 150px', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+      <TextField
+        select
+        label="Pronouns"
+        value={choice}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v === OTHER) { setCustom(true); onChange(''); } else { setCustom(false); onChange(v); }
+        }}
+        id={`${field.id}-pick`}
+        helperText={custom ? undefined : field.helperText}
+        slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
+      >
+        <MenuItem value="">Prefer not to say</MenuItem>
+        {PRONOUN_CHOICES.map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+        <MenuItem value={OTHER}>Type my own</MenuItem>
+      </TextField>
+      {custom && (
+        <TextField
+          label="Your pronouns"
+          value={value}
+          onChange={(e) => onChange(e.target.value.slice(0, PRONOUNS_MAX))}
+          autoFocus
+          autoComplete="off"
+          id={field.id}
+          error={field.error}
+          helperText={field.helperText}
+          onBlur={field.onBlur}
+        />
+      )}
+    </Box>
+  );
+}
+
 const phoneError = (phone: string) => (digitsIn(phone).length === 10 ? '' : 'Enter all 10 digits of the phone number.');
 const tidy = (text: string) => text.trim().replace(/\s+/g, ' ');
 
@@ -64,8 +110,12 @@ function PairForm() {
   const [name, setName] = useState('');
   const [phone1, setPhone1] = useState('');
   const [phone2, setPhone2] = useState('');
-  // Texts are opt-in: off until the team ticks it (needed for the carrier registration too).
-  const [smsOptIn, setSmsOptIn] = useState(false);
+  const [name1, setName1] = useState('');
+  const [name2, setName2] = useState('');
+  const [pronouns1, setPronouns1] = useState('');
+  const [pronouns2, setPronouns2] = useState('');
+  // Texts are opt-in, per phone: off until that player ticks it (the carriers require this too).
+  const [texts, setTexts] = useState<[boolean, boolean]>([false, false]);
   const [pin, setPin] = useState('');
   const [pinAgain, setPinAgain] = useState('');
   const [photo, setPhoto] = useState<PickedPhoto | null>(null);
@@ -81,8 +131,12 @@ function PairForm() {
         : findTeamByName(league, teamName)
           ? 'That name is taken. Pick another one.'
           : '',
+    name1: nameError(name1, 1),
+    pronouns1: pronounsError(pronouns1),
     phone1: phoneError(phone1),
-    phone2: phoneError(phone2),
+    name2: nameError(name2, 2),
+    pronouns2: pronounsError(pronouns2),
+    phone2: phoneError(phone2) || (digitsIn(phone2).length === 10 && digitsIn(phone2) === digitsIn(phone1) ? 'Each player needs their own phone number.' : ''),
     pin: /^\d{4}$/.test(pin) ? '' : 'A PIN is 4 digits.',
     pinAgain: !pinAgain ? 'Type the PIN again.' : pinAgain !== pin ? 'The two PINs do not match.' : '',
     photo: photo ? '' : 'Add a team photo.'
@@ -104,8 +158,12 @@ function PairForm() {
       focusFirst(wrong.map((key) => `join-${key}`));
       return;
     }
-    // The PIN stops here on purpose. Only the name and the two phone numbers go to the league.
-    dispatch(sample.signUp({ teamName, phone1, phone2, smsOptIn }));
+    // The PIN stops here on purpose. Only the names, pronouns, phones and text choices go to the league.
+    const players: [{ name: string; pronouns: string }, { name: string; pronouns: string }] = [
+      { name: tidy(name1), pronouns: tidy(pronouns1) },
+      { name: tidy(name2), pronouns: tidy(pronouns2) }
+    ];
+    dispatch(sample.signUp({ teamName, players, phone1, phone2, texts }));
     dispatch(showToast(`${teamName} is signed up and waiting for approval`));
     navigate('/');
   };
@@ -114,22 +172,47 @@ function PairForm() {
     <Box component="form" noValidate onSubmit={submit}>
       <Stack spacing={2}>
         <TextField label="Team name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" slotProps={{ htmlInput: { maxLength: 30 } }} {...field('name', '2 to 30 characters.')} />
-        <TextField label="Player 1 phone" type="tel" value={phone1} onChange={(e) => setPhone1(formatPhoneInput(e.target.value))} slotProps={phoneInput} {...field('phone1')} />
-        <TextField label="Player 2 phone" type="tel" value={phone2} onChange={(e) => setPhone2(formatPhoneInput(e.target.value))} slotProps={phoneInput} {...field('phone2')} />
+        {([1, 2] as const).map((n) => {
+          const i = n - 1;
+          const k = (f: 'name' | 'pronouns' | 'phone') => `${f}${n}` as Field;
+          return (
+            <Box key={n} component="fieldset" sx={{ border: 1, borderColor: 'divider', borderRadius: 2, m: 0, px: 2, pt: 1, pb: 1.5 }}>
+              <Box component="legend" sx={{ px: 0.5, fontWeight: 700 }}>Player {n}</Box>
+              <Stack spacing={2}>
+                <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                  <TextField
+                    label="First name"
+                    value={n === 1 ? name1 : name2}
+                    onChange={(e) => (n === 1 ? setName1 : setName2)(e.target.value.slice(0, PLAYER_NAME_MAX))}
+                    autoComplete="off"
+                    sx={{ flex: '1 1 150px' }}
+                    {...field(k('name'))}
+                  />
+                  <PronounPicker
+                    value={n === 1 ? pronouns1 : pronouns2}
+                    onChange={n === 1 ? setPronouns1 : setPronouns2}
+                    field={field(k('pronouns'), 'Optional')}
+                  />
+                </Box>
+                <TextField label="Phone" type="tel" value={n === 1 ? phone1 : phone2} onChange={(e) => (n === 1 ? setPhone1 : setPhone2)(formatPhoneInput(e.target.value))} slotProps={phoneInput} {...field(k('phone'))} />
+                <FormControlLabel
+                  control={<Checkbox checked={texts[i]} onChange={(e) => setTexts((t) => (i === 0 ? [e.target.checked, t[1]] : [t[0], e.target.checked]))} />}
+                  label={
+                    <Typography variant="body2">
+                      Text this phone a reminder to check in on league nights (about 1 text a league night). Msg &amp; data rates may apply. Reply STOP to stop, HELP for help.
+                    </Typography>
+                  }
+                  sx={{ alignItems: 'flex-start', mx: 0, '& .MuiCheckbox-root': { pt: 0.25 } }}
+                />
+              </Stack>
+            </Box>
+          );
+        })}
         <Typography variant="body2" sx={{ color: 'text.secondary', mt: '8px !important' }}>
-          Phone numbers stay private. They never appear in the standings or the league log.
+          Phone numbers stay private. They never appear in the standings or the league log. Names and pronouns show with your team.{' '}
+          <Link href="https://knckr.com/sms.html" target="_blank" rel="noopener">Text terms and privacy</Link>
         </Typography>
-        <FormControlLabel
-          control={<Checkbox checked={smsOptIn} onChange={(e) => setSmsOptIn(e.target.checked)} />}
-          label={
-            <Typography variant="body2">
-              Text Player 1's phone a reminder to check in on league nights (about 1 text a league night). Msg &amp; data rates may apply. Reply STOP to stop, HELP for help.{' '}
-              <Link href="https://knckr.com/sms.html" target="_blank" rel="noopener">Text terms and privacy</Link>
-            </Typography>
-          }
-          sx={{ alignItems: 'flex-start', mx: 0, '& .MuiCheckbox-root': { pt: 0.25 } }}
-        />
-        {smsOptIn && <SaveNumberButton />}
+        {(texts[0] || texts[1]) && <SaveNumberButton />}
         <TextField
           label="4-digit PIN"
           type="password"

@@ -32,6 +32,7 @@ import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
 import { DrCheckUp, DrNotes, DrWrapped } from './DrParts';
 import { CHALLENGE_CHAMPION_BONUS, challengeRace } from '../sample/league';
 import DrPrescription from './DrPrescription';
+import { playersLine } from '../ui/players';
 import LoveDr from './LoveDr';
 import { useAppDispatch, useLeague, useMe } from '../hooks';
 import { sample } from '../sample/slice';
@@ -64,6 +65,7 @@ function Header({ team, children }: { team: STeam; children?: ReactNode }) {
         <Typography variant="h2" component="h1" sx={{ overflowWrap: 'anywhere' }}>
           {team.teamName}
         </Typography>
+        {playersLine(team, ' · ') && <Typography color="textSecondary" sx={{ fontWeight: 700 }}>{playersLine(team, ' · ')}</Typography>}
         {children}
       </Box>
     </Box>

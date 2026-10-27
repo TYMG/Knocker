@@ -151,11 +151,11 @@ const slice = createSlice({
       s.role = 'visitor';
     },
     /** A new team waits for an admin, and is deleted if nobody approves it in 24 hours. */
-    signUp(s, a: PayloadAction<{ teamName: string; phone1: string; phone2: string; smsOptIn?: boolean }>) {
+    signUp(s, a: PayloadAction<{ teamName: string; players: [{ name: string; pronouns: string }, { name: string; pronouns: string }]; phone1: string; phone2: string; texts: [boolean, boolean] }>) {
       const teamName = a.payload.teamName.trim().replace(/\s+/g, ' ');
       const teamId = slug(teamName, s.teams.map((t) => t.teamId));
       s.teams.push({
-        teamId, teamName, players: ['Player 1', 'Player 2'], phone1: a.payload.phone1, phone2: a.payload.phone2, photo: teamPhoto(teamName), smsOptIn: !!a.payload.smsOptIn,
+        teamId, teamName, players: [a.payload.players[0].name, a.payload.players[1].name], pronouns: [a.payload.players[0].pronouns, a.payload.players[1].pronouns], phone1: a.payload.phone1, phone2: a.payload.phone2, photo: teamPhoto(teamName), texts: a.payload.texts,
         status: 'pending', createdAt: s.now, expiresAt: plusMinutes(s.now, 24 * 60), firstWeek: startWeek(s)
       });
       s.myTeamId = teamId;
@@ -446,17 +446,20 @@ const slice = createSlice({
       const n = s.noShows?.find((x) => x.id === a.payload);
       if (n) n.seen = true;
     },
-    /** Team: turn the check-in reminder texts on or off. */
-    setSmsOptIn(s, a: PayloadAction<{ teamId: string; optIn: boolean }>) {
+    /** Team: turn one player's check-in reminder texts on or off. */
+    setSmsOptIn(s, a: PayloadAction<{ teamId: string; player: 0 | 1; optIn: boolean }>) {
       const t = s.teams.find((x) => x.teamId === a.payload.teamId);
-      if (t) t.smsOptIn = a.payload.optIn;
+      if (!t) return;
+      const texts: [boolean, boolean] = [...(t.texts ?? [false, false])] as [boolean, boolean];
+      texts[a.payload.player] = a.payload.optIn;
+      t.texts = texts;
     },
     /** Team: answered the end-of-season question about keeping the texts. */
     answerSeasonTexts(s, a: PayloadAction<{ teamId: string; keep: boolean }>) {
       const t = s.teams.find((x) => x.teamId === a.payload.teamId);
       if (!t) return;
       t.smsSeasonAsked = true;
-      if (!a.payload.keep) t.smsOptIn = false;
+      if (!a.payload.keep) t.texts = [false, false];
     },
     eliminatedSeen(s, a: PayloadAction<string>) {
       const t = s.teams.find((x) => x.teamId === a.payload);

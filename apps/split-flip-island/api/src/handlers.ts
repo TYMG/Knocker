@@ -5,8 +5,8 @@ import { HeadObjectCommand } from '@aws-sdk/client-s3';
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import type {
   AuditEntry, AuditResponse, AuthResponse, LoginRequest, Machine, MeResponse, Night, RegisterRequest,
-  Score, StandingRow, StandingsResponse, SubmitScoreRequest, Team, UploadResponse, PresignedUpload
-} from '../../shared/types.js';
+  Score, StandingRow, StandingsResponse, SubmitScoreRequest, Team, UploadResponse, PresignedUpload, Player } from '../../shared/types.js';
+import { PLAYER_NAME_MAX, PRONOUNS_MAX } from '../../shared/types.js';
 import { ddb, keys, leagueId, queryAll, s3, table } from './db.js';
 import { clearLoginStrikes, hashPin, issueToken, requireTeam, takeLoginStrike, verifyPin } from './auth.js';
 import { rankChange, rankTotals, runningRanks, scoreNight } from './scoring.js';
@@ -27,7 +27,7 @@ const NOT_APPROVED = 'Your team is waiting for the league to approve it. You can
 // ---------- Stored item shapes ----------
 
 export interface TeamItem {
-  type: 'team'; teamId: string; teamName: string; photoKey: string; createdAt: string;
+  type: 'team'; teamId: string; teamName: string; photoKey: string; createdAt: string; players?: [Player, Player];
   status: 'pending' | 'approved'; expiresAt?: string; approvedAt?: string; approvedBy?: string;
 }
 interface MachineItem { type: 'machine'; machineId: string; name: string; order?: number }
@@ -36,7 +36,8 @@ interface MetaItem { type: 'meta'; activeNight?: string }
 export interface PrivateItem {
   pinHash: string; phone1: string; phone2: string; failures?: number; lastFailureAt?: number;
   /** Consent to the check-in reminder text, and when it was given (kept as the opt-in record). */
-  smsOptIn?: boolean; smsOptInAt?: string; smsOptOutAt?: string;
+  /** Reminder texts, one setting per phone (1 = Player 1). The time of each latest yes or no is the consent record. */
+  smsOptIn1?: boolean; smsOptIn2?: boolean; smsChangedAt1?: string; smsChangedAt2?: string;
 }
 interface ScoreItem {
   type: 'score'; scoreId: string; teamId: string; machineId: string; date: string; score: number;
@@ -46,6 +47,7 @@ interface ScoreItem {
 
 export const toTeam = (t: TeamItem): Team => ({
   teamId: t.teamId, teamName: t.teamName, photoUrl: photoUrl(t.photoKey), status: t.status,
+  ...(t.players ? { players: t.players } : {}),
   ...(t.status === 'pending' && t.expiresAt ? { expiresAt: t.expiresAt } : {})
 });
 const toMachine = (m: MachineItem): Machine => ({ machineId: m.machineId, name: m.name });
@@ -145,6 +147,20 @@ export async function createUpload(event: APIGatewayProxyEventV2): Promise<Uploa
 
 // ---------- POST /api/teams (sign up) ----------
 
+/** Two players, each a first name (1 to 20 characters) and optional pronouns (up to 20). */
+function cleanPlayers(raw: unknown): [Player, Player] {
+  const list = Array.isArray(raw) ? raw : [];
+  const one = (p: unknown, n: number): Player => {
+    const o = (p && typeof p === 'object' ? p : {}) as Record<string, unknown>;
+    const name = text(o.name).trim().replace(/\s+/g, ' ');
+    const pronouns = text(o.pronouns).trim().replace(/\s+/g, ' ');
+    if (name.length < 1 || name.length > PLAYER_NAME_MAX) throw new HttpError(400, `Enter Player ${n}'s name (up to ${PLAYER_NAME_MAX} characters).`);
+    if (pronouns.length > PRONOUNS_MAX) throw new HttpError(400, `Player ${n}'s pronouns can be up to ${PRONOUNS_MAX} characters.`);
+    return pronouns ? { name, pronouns } : { name };
+  };
+  return [one(list[0], 1), one(list[1], 2)];
+}
+
 export async function register(event: APIGatewayProxyEventV2): Promise<AuthResponse> {
   const body = parseBody<RegisterRequest>(event);
   const l = leagueId();
@@ -153,6 +169,8 @@ export async function register(event: APIGatewayProxyEventV2): Promise<AuthRespo
   const phone2 = text(body.phone2).replace(/\D/g, '');
   const pin = text(body.pin);
   const photoKey = text(body.photoKey);
+  const players = cleanPlayers(body.players);
+  const texts: [boolean, boolean] = [body.texts?.[0] === true, body.texts?.[1] === true];
 
   if (teamName.length < 2 || teamName.length > 30) throw new HttpError(400, 'Team name must be 2 to 30 characters.');
   if (phone1.length < 10 || phone2.length < 10) throw new HttpError(400, 'Enter a 10-digit phone number for both players.');
@@ -170,7 +188,7 @@ export async function register(event: APIGatewayProxyEventV2): Promise<AuthRespo
   const teamId = randomUUID().slice(0, 8);
   const createdAt = nowIso();
   const expiresAt = new Date(Date.parse(createdAt) + pendingHours() * 3_600_000).toISOString();
-  const team: TeamItem = { type: 'team', teamId, teamName, photoKey, createdAt, status: 'pending', expiresAt };
+  const team: TeamItem = { type: 'team', teamId, teamName, players, photoKey, createdAt, status: 'pending', expiresAt };
 
   try {
     await ddb.send(new TransactWriteCommand({
@@ -179,7 +197,7 @@ export async function register(event: APIGatewayProxyEventV2): Promise<AuthRespo
         { Put: { TableName: table(), Item: { PK: keys.league(l), SK: keys.teamName(teamName), type: 'teamName', teamId }, ConditionExpression: 'attribute_not_exists(PK)' } },
         // The conditions guard against the (very unlikely) case of two teams drawing the same ID.
         { Put: { TableName: table(), Item: { PK: keys.league(l), SK: keys.team(teamId), ...team }, ConditionExpression: 'attribute_not_exists(PK)' } },
-        { Put: { TableName: table(), Item: { PK: keys.league(l), SK: keys.teamPrivate(teamId), type: 'private', pinHash: hashPin(pin), phone1, phone2, smsOptIn: body.smsOptIn === true, smsOptInAt: body.smsOptIn === true ? nowIso() : undefined }, ConditionExpression: 'attribute_not_exists(PK)' } },
+        { Put: { TableName: table(), Item: { PK: keys.league(l), SK: keys.teamPrivate(teamId), type: 'private', pinHash: hashPin(pin), phone1, phone2, smsOptIn1: texts[0], smsOptIn2: texts[1], smsChangedAt1: createdAt, smsChangedAt2: createdAt }, ConditionExpression: 'attribute_not_exists(PK)' } },
         // The league log is public inside the app, so a team's name stays out of it until an admin approves the team.
         auditPut('A new team signed up and is waiting for approval', 'League')
       ]

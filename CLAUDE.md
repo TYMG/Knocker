@@ -170,6 +170,26 @@ created only with `scripts/admin.sh` from the organizer's computer, never throug
 Admin tokens (`x-admin-token`, 12 hours) are signed with a different prefix than team tokens,
 and every admin request re-reads the account, so removal or a password reset is immediate.
 
+## One rule book (decided Oct 27)
+
+The server runs the **same rules code** as the sample league, so the two can never disagree.
+
+- `shared/league/` holds the league: `types.ts` (the league's shape), `rules.ts` (every action,
+  one function each, via Immer), `league.ts` (standings, seasons, finals and other views),
+  `time.ts`, `loveDr.ts`, `wrapped.ts`, `art.ts`. `web/src/sample/*.ts` re-export them.
+- `web/src/sample/slice.ts` = `makeLeagueRules(...)` plus sample-only controls (switching who
+  you are, the guided story, the sample clock).
+- Who is acting comes from the league itself (`myTeamId`, `adminName`, `role`, `now`); the
+  server sets them per request, applies the action, and saves it.
+- **Server plan (in progress):** every change is an entry in the league's history, numbered in
+  order with a conditional write, so two phones can't both win the last spot in a line; the
+  current league is a saved snapshot plus the entries after it. An action that changes nothing
+  broke a rule and is refused. Private data (phones, PIN hash, text settings) never goes in the
+  league state; it stays in the `#PRIVATE` items.
+- **The web app** stays on the sample league by default; a "Live league" switch loads the real
+  league from the server into the same place, so pages work unchanged. Flip the default to live
+  before the Dec 14 demo.
+
 ## League rules the code must enforce
 
 - Every score from a team **requires a photo**. Admin-entered scores may set

@@ -57,6 +57,36 @@ export function requireTeam(event: APIGatewayProxyEventV2): TokenPayload {
   return token;
 }
 
+// ---------- Solo player tokens ----------
+// A solo player on the waitlist, logged in with their phone number and PIN. Signed with its own
+// prefix, so it can never pass as a team or admin token.
+
+export interface SoloTokenPayload { kind: 'solo'; soloId: string; leagueId: string; exp: number }
+
+const signSolo = (body: string) => sign(`solo:${body}`);
+
+export function issueSoloToken(soloId: string, leagueId: string): string {
+  const payload: SoloTokenPayload = { kind: 'solo', soloId, leagueId, exp: Date.now() + TOKEN_DAYS * 86_400_000 };
+  const body = b64url(JSON.stringify(payload));
+  return `${body}.${signSolo(body)}`;
+}
+
+export function readSoloToken(event: APIGatewayProxyEventV2): SoloTokenPayload | null {
+  const header = event.headers['x-solo-token'];
+  if (!header) return null;
+  const [body, sig] = header.split('.');
+  if (!body || !sig || !BASE64URL.test(body)) return null;
+  const expected = Buffer.from(signSolo(body));
+  const given = Buffer.from(sig);
+  if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
+  const payload = parsePayload<SoloTokenPayload>(body);
+  if (!payload || payload.kind !== 'solo' || typeof payload.soloId !== 'string' || payload.leagueId !== env('LEAGUE_ID') || !(payload.exp > Date.now())) return null;
+  return payload;
+}
+
+/** A phone number as a lookup key: scrambled with the server's secret, so the key never shows it. */
+export const phoneLookup = (phone: string) => createHmac('sha256', env('TOKEN_SECRET')).update(`phone:${phone}`).digest('base64url');
+
 // ---------- Admin tokens ----------
 // Signed with a different prefix than team tokens, so one can never pass as the other.
 

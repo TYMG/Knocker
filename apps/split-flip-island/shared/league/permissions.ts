@@ -26,5 +26,5 @@ export const ADMIN_ACTIONS: ReadonlySet<LeagueActionName> = new Set<LeagueAction
  */
 export const SERVER_ONLY: ReadonlySet<LeagueActionName> = new Set<LeagueActionName>([
   'signUp', 'joinWaitlist', 'submitScore', 'adminEnterScore', 'approveTeam', 'removeSignUp', 'pairWaitlist',
-  'resetPin', 'setSmsOptIn', 'leagueNote', 'expireSignUp'
+  'resetPin', 'setSmsOptIn', 'leagueNote', 'expireSignUp', 'pickPartner', 'leaveWaitlist', 'teamPinSet'
 ]);

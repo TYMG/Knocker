@@ -16,6 +16,8 @@ export interface STeam {
   texts?: [boolean, boolean];
   /** Answered the end-of-season "keep the reminder texts?" question. */
   smsSeasonAsked?: boolean;
+  /** Matched from the waitlist and hasn't picked its team PIN yet. */
+  needsPin?: boolean;
   photo: string; // image address (a drawn placeholder)
   /** New teams wait for an admin. Only approved teams play and appear in standings. */
   status: 'pending' | 'approved' | 'withdrawn';
@@ -200,6 +202,14 @@ export interface SWaitlistEntry {
   /** As given when they joined ('' or missing when they skipped it). */
   pronouns?: string;
   at: string;
+  /** The matchmaker answers (missing for players who joined before it existed). */
+  traits?: import('./match.js').SoloTraits;
+  /** Who they want to play with. Private: only the server and the sample league read it. */
+  wants?: import('./match.js').Wants;
+  /** Who they would team up with. Private: only that player sees their own picks. */
+  picks?: string[];
+  /** Sent to admins only: the other waiting players this one fits (both ways). */
+  fitsWith?: string[];
 }
 
 export interface SNightSettings {
@@ -243,6 +253,8 @@ export interface SampleState {
   role: Role;
   /** The team you are when viewing as a team. */
   myTeamId: string;
+  /** The solo player you are, when logged in as one (on the waitlist, looking for a partner). */
+  mySoloId?: string;
   /**
    * An admin is a player with extra powers, and may or may not be on a team. When this is true
    * and you are viewing as an admin, you are also the team above.

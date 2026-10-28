@@ -361,7 +361,7 @@ export default function FrontDoor() {
 
           <Section title="Grab a partner">
             <Typography sx={{ mb: 2, maxWidth: 560 }}>
-              Couples get first pick of the {league.teamCap} spots. Flying solo? Join the waitlist and we will pair you up.
+              Couples get first pick of the {league.teamCap} spots. Flying solo? Join the waitlist and find a partner who plays like you.
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' } }}>{signUp}</Box>
           </Section>

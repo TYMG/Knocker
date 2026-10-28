@@ -7,6 +7,7 @@ import { resizeImage } from '../lib/photos';
 
 const TEAM_KEY = 'sfi-live-team';
 const ADMIN_KEY = 'sfi-live-admin';
+const SOLO_KEY = 'sfi-live-solo';
 
 const read = (store: Storage, key: string) => { try { return store.getItem(key) ?? ''; } catch { return ''; } };
 const write = (store: Storage, key: string, value: string) => { try { if (value) store.setItem(key, value); else store.removeItem(key); } catch { /* private window */ } };
@@ -16,7 +17,10 @@ export const tokens = {
   admin: () => read(sessionStorage, ADMIN_KEY),
   setTeam: (t: string) => write(localStorage, TEAM_KEY, t),
   setAdmin: (t: string) => write(sessionStorage, ADMIN_KEY, t),
-  clear: () => { write(localStorage, TEAM_KEY, ''); write(sessionStorage, ADMIN_KEY, ''); }
+  /** A solo player on the waitlist (kept 60 days, like a team's). */
+  solo: () => read(localStorage, SOLO_KEY),
+  setSolo: (t: string) => write(localStorage, SOLO_KEY, t),
+  clear: () => { write(localStorage, TEAM_KEY, ''); write(sessionStorage, ADMIN_KEY, ''); write(localStorage, SOLO_KEY, ''); }
 };
 
 export class LiveError extends Error {
@@ -28,17 +32,19 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
   // An admin who is also signed in as a team acts as the admin.
   if (tokens.admin()) headers['x-admin-token'] = tokens.admin();
   else if (tokens.team()) headers['x-team-token'] = tokens.team();
+  else if (tokens.solo()) headers['x-solo-token'] = tokens.solo();
   const res = await fetch(`/api/${path}`, { method: body === undefined ? 'GET' : 'POST', headers, body: body === undefined ? undefined : JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     // A token the server no longer accepts: forget it, so the next call goes as a visitor.
-    if (res.status === 401 && (tokens.admin() || tokens.team()) && !path.includes('login')) tokens.clear();
+    if (res.status === 401 && (tokens.admin() || tokens.team() || tokens.solo()) && !path.includes('login')) tokens.clear();
     throw new LiveError((data as { error?: string }).error ?? `The league server said ${res.status}.`, res.status);
   }
   return data as T;
 }
 
-export interface LeagueResponse { version: number; league: SampleState }
+/** teamToken: a solo player whose phone is now on a team. soloGone: they left the waitlist. */
+export interface LeagueResponse { version: number; league: SampleState; teamToken?: string; soloGone?: boolean }
 /** What GET /api/league says when there is no league yet. */
 export interface NoLeagueResponse { version: 0; league: null; viewer: { role: 'visitor' | 'team' | 'admin'; adminName: string; adminIsOwner: boolean } }
 
@@ -89,7 +95,21 @@ export const live = {
     return call<{ version: number }>('admin/scores', { ...p, ...keys });
   },
 
-  joinWaitlist: (body: { name: string; pronouns: string; phone: string; texts: boolean }) => call<{ ok: true; waiting: number }>('waitlist', body),
+  async joinWaitlist(body: { name: string; pronouns: string; phone: string; texts: boolean; pin: string; traits: unknown; wants: string }) {
+    const r = await call<{ ok: true; waiting: number; soloId: string; token: string }>('waitlist', body);
+    tokens.clear();
+    tokens.setSolo(r.token);
+    return r;
+  },
+  async soloLogIn(phone: string, pin: string) {
+    const r = await call<{ soloId: string; token: string }>('solo/login', { phone, pin });
+    tokens.clear();
+    tokens.setSolo(r.token);
+    return r;
+  },
+  pickPartner: (toId: string, picked: boolean) => call<{ teamId?: string; teamName?: string }>('solo/pick', { toId, picked }),
+  leaveWaitlist: () => call<{ ok: true }>('solo/leave', {}),
+  removeSolo: (id: string) => call<{ ok: true }>('admin/waitlist/remove', { id }),
   pairWaitlist: (ids: [string, string]) => call<{ teamId: string; teamName: string; pin: string }>('admin/waitlist/pair', { ids }),
 
   changePin: (currentPin: string, newPin: string) => call<{ ok: true }>('me/pin', { currentPin, newPin }),

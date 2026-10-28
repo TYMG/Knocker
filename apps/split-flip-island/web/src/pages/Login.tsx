@@ -143,6 +143,12 @@ export default function LogIn() {
             Sign up
           </Link>
         </Typography>
+        <Typography>
+          Solo player on the waitlist?{' '}
+          <Link component={RouterLink} to="/solo" sx={linkSx}>
+            Log in with your phone
+          </Link>
+        </Typography>
         <Box>
           <Link component={RouterLink} to="/admin/login" underline="hover" sx={{ color: 'text.secondary', ...linkSx, fontWeight: 400 }}>
             League admin log in

@@ -2,29 +2,19 @@
 //   1. Approve or remove new sign-ups. A sign-up nobody approves is deleted after 24 hours, so
 //      these come first whenever there are any, soonest to run out at the top.
 //   2. Find a team and open it.
-//   3. Pair up solo players from the waitlist into a new team.
+//   3. The way to the solo players' waitlist (its own page, Waitlist.tsx).
 
 import { useState } from 'react';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import InputAdornment from '@mui/material/InputAdornment';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import SearchIcon from '@mui/icons-material/Search';
-import { useAppDispatch, useLeague, useLiveOn } from '../../hooks';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogTitle from '@mui/material/DialogTitle';
-import { live } from '../../live/client';
-import { refreshLive } from '../../live/sync';
+import { useLeague } from '../../hooks';
 import { approvedTeams, currentWeek, nightStatus, pendingTeams, scoreCounts, FORFEIT_LIMIT, forfeitCounts, NO_SHOW_LIMIT, noShowCount, withdrawnTeams } from '../../sample/league';
-import { sample } from '../../sample/slice';
-import { ago } from '../../sample/time';
 import type { SampleState, STeam } from '../../sample/types';
-import { showToast } from '../../store';
 import EmptyNote from '../../ui/EmptyNote';
 import Page from '../../ui/Page';
 import { Row, RowCard, RowText } from '../../ui/Rows';
@@ -51,7 +41,6 @@ function teamNotes(league: SampleState, team: STeam): { text: string; alert?: bo
 
 export default function Teams() {
   const league = useLeague();
-  const dispatch = useAppDispatch();
   const [find, setFind] = useState('');
 
   const approved = approvedTeams(league);
@@ -68,24 +57,6 @@ export default function Teams() {
     pending.length > 0 ? `${pending.length} waiting for approval.` : '',
     waitlist.length > 0 ? `${waitlist.length} on the waitlist.` : ''
   ].filter(Boolean).join(' ');
-
-  const liveOn = useLiveOn();
-  const [paired, setPaired] = useState<{ teamName: string; pin: string } | null>(null);
-
-  const pairUp = () => {
-    const [one, two] = waitlist;
-    if (!one || !two) return;
-    if (liveOn) {
-      // The live league: the server makes the team and a temporary PIN, shown here once.
-      live.pairWaitlist([one.id, two.id])
-        .then(async (r) => { setPaired(r); await refreshLive(); })
-        .catch((err: Error) => dispatch(showToast(err.message)));
-      return;
-    }
-    dispatch(sample.pairWaitlist([one.id, two.id]));
-    // The action names the new team after its two players, the same way as here.
-    dispatch(showToast(`Paired ${one.name} and ${two.name}. The new team is ${one.name} & ${two.name} and starts next week.`));
-  };
 
   return (
     <Page title="Teams" subtitle={summary} back={{ to: '/admin', label: 'Admin home' }}>
@@ -166,53 +137,14 @@ export default function Teams() {
         )}
 
         <Section title="Waitlist" aside={waitlist.length > 0 ? waitlist.length : undefined}>
-          {waitlist.length === 0 ? (
-            <EmptyNote>Nobody on the waitlist.</EmptyNote>
-          ) : (
-            <>
-              <Typography color="textSecondary" sx={{ mb: 1.5 }}>
-                Solo players waiting for a partner, first to sign up at the top.
-              </Typography>
-              <RowCard>
-                {waitlist.map((person, i) => (
-                  <Row key={person.id} sx={{ minHeight: 60 }}>
-                    <RowText primary={person.name} secondary={`Signed up ${ago(person.at, league.now)}`} />
-                    {i === 0 &&
-                      (waitlist.length > 1 ? (
-                        <Button variant="outlined" onClick={pairUp} aria-label={`Pair up ${person.name} and ${waitlist[1]!.name}`} sx={{ minHeight: 44, flexShrink: 0 }}>
-                          Pair up
-                        </Button>
-                      ) : (
-                        <Typography variant="body2" color="textSecondary" sx={{ maxWidth: 150, textAlign: 'right' }}>
-                          Waiting for another solo player
-                        </Typography>
-                      ))}
-                  </Row>
-                ))}
-              </RowCard>
-              {waitlist.length > 1 && (
-                <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                  Pair up makes one team from {waitlist[0]!.name} and {waitlist[1]!.name}. It starts next week.
-                </Typography>
-              )}
-            </>
-          )}
+          <RowCard>
+            <Row to="/admin/waitlist" sx={{ minHeight: 60 }}>
+              <RowText primary="Solo players" secondary={waitlist.length === 0 ? 'Nobody waiting' : `${waitlist.length} waiting for a partner. Suggested pairs, answers and Pair up.`} />
+              <ChevronRightIcon sx={{ color: 'text.secondary' }} />
+            </Row>
+          </RowCard>
         </Section>
       </Stack>
-      <Dialog open={!!paired} fullWidth maxWidth="xs">
-        <DialogTitle>{paired?.teamName} is a team</DialogTitle>
-        <DialogContent>
-          <Typography>Their temporary PIN:</Typography>
-          <Typography aria-label={`Temporary PIN ${paired?.pin.split('').join(' ')}`} sx={{ fontFamily: 'monospace', fontSize: '3rem', fontWeight: 700, letterSpacing: '0.3em', textAlign: 'center', my: 1 }}>
-            {paired?.pin}
-          </Typography>
-          <Typography>Tell them in person. They log in with their team name and this PIN, then pick their own in Settings, under Change PIN.</Typography>
-          <Typography variant="body2" color="textSecondary" sx={{ mt: 1.5 }}>It won't be shown again. If it's lost, reset it from the team's page.</Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button variant="contained" onClick={() => { dispatch(showToast(`${paired?.teamName} is in. They start next week.`)); setPaired(null); }}>Done</Button>
-        </DialogActions>
-      </Dialog>
     </Page>
   );
 }

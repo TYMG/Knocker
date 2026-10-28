@@ -44,7 +44,7 @@ export const TOUR: TourPage[] = [
     path: '/join', example: '/join', title: 'Sign up your team', group: 'Getting in', role: 'visitor',
     who: 'A couple signing up, or a solo player joining the waitlist.',
     when: 'Once, before the season.',
-    does: ['Pick a team name and a 4-digit PIN.', 'Give both phone numbers (private) and a team photo.', 'A solo player leaves a name and joins the waitlist instead.'],
+    does: ['Pick a team name and a 4-digit PIN.', 'Give both phone numbers (private) and a team photo.', 'A solo player joins the waitlist instead, answers four questions about how they play, and says who they would like to play with.'],
     tryIt: 'Sign up a team. You land on a home page that says you are waiting for approval, and the team shows up for the admin under Teams.'
   },
   {
@@ -52,6 +52,13 @@ export const TOUR: TourPage[] = [
     who: 'A team that already signed up.',
     when: 'On a new phone, or after logging out.',
     does: ['Type the team name and PIN.', 'Forgot the PIN? An admin resets it at the bar.', 'The league admin log-in is linked at the bottom.']
+  },
+  {
+    path: '/solo', example: '/solo', title: 'Find a partner', group: 'Getting in', role: 'visitor',
+    who: 'A solo player on the waitlist (they log in with their phone number and PIN).',
+    when: 'Any time before they have a partner.',
+    does: ['See the other solo players who fit what you asked for, as nameless cards: how each one plays and what you have in common, best match first.', 'Pick "I\'d team up". When two players pick each other, they are a team straight away.', 'Nobody sees who did not pick them.'],
+    tryIt: 'Join the waitlist as a solo player first, then pick the suggested match.'
   },
 
   // ---- On league night ----
@@ -273,8 +280,15 @@ export const TOUR: TourPage[] = [
     path: '/admin/teams', example: '/admin/teams', title: 'Teams', group: 'Running the season', role: 'admin',
     who: 'A league admin.',
     when: 'While sign-ups are open, and when looking for one team.',
-    does: ['Approve or remove new sign-ups. One that nobody approves is deleted after 24 hours.', 'Find a team and open it.', 'Pair up solo players from the waitlist.'],
+    does: ['Approve or remove new sign-ups. One that nobody approves is deleted after 24 hours.', 'Find a team and open it.', 'Open the solo players\' waitlist: suggested pairs, everyone\'s answers, Pair up and Remove.'],
     tryIt: 'Approve Shoot Again before its time runs out. It joins the league starting next week.'
+  },
+  {
+    path: '/admin/waitlist', example: '/admin/waitlist', title: 'Waitlist', group: 'Running the season', role: 'admin',
+    who: 'A league admin.',
+    when: 'While solo players are waiting for a partner.',
+    does: ['Suggested pairs: players who fit each other, with their match score out of 10.', 'Everyone waiting, with their answers and best match. Pair anyone by hand, or take someone off.', 'Who each player asked for and who they picked stay private.'],
+    tryIt: 'Pair up the top suggestion.'
   },
   {
     path: '/admin/finals', example: '/admin/finals', title: 'Run the finals', group: 'Running the season', role: 'admin',

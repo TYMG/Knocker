@@ -16,7 +16,7 @@ import { addLog, fmt, leaveLines, lineEvent, lineOf, makeLeagueRules, names, typ
 export { startWeek, TURN_MS };
 
 /** Bump this when the shape of the sample data changes, so old saved copies are ignored. */
-const SAVED_KEY = 'sfi-sample-v2';
+const SAVED_KEY = 'sfi-sample-v3';
 
 /** The sample league as last saved in this tab (or the story's start). */
 export function loadSavedSample(): SampleState {
@@ -66,6 +66,7 @@ const slice = createSlice({
     /** The switcher in the sample bar. */
     setRole(s: SampleState, a: PayloadAction<Role>) {
       s.role = a.payload;
+      s.mySoloId = undefined;
     },
     /** Sample strip: is the admin you are viewing as also on a team (Left & Right)? */
     setAdminOnTeam(s: SampleState, a: PayloadAction<boolean>) {
@@ -80,6 +81,7 @@ const slice = createSlice({
     },
     logOut(s: SampleState) {
       s.role = 'visitor';
+      s.mySoloId = undefined;
     },
     /** Sample only: wind the turn clock forward so the demo does not have to wait. */
     sampleSkipTurnClock(s: SampleState, a: PayloadAction<{ machineId: string; ms: number }>) {

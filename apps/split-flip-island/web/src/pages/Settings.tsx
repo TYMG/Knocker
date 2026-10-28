@@ -29,6 +29,7 @@ import TextField from '@mui/material/TextField';
 import { useState } from 'react';
 import { pinProblem } from '../../../shared/pin';
 import { live } from '../live/client';
+import { refreshLive } from '../live/sync';
 
 export default function Settings() {
   const me = useMe();
@@ -47,7 +48,7 @@ export default function Settings() {
             </Stack>
           </Section>
         )}
-        {me.isTeam && <ChangePinSection />}
+        {me.isTeam && <ChangePinSection first={!!me.team.needsPin} />}
         <AccountSection loggedIn={me.isTeam || me.isAdmin} who={me.isAdmin ? `admin ${league.adminName}` : me.isTeam ? me.team.teamName : ''} />
       </Stack>
     </Page>
@@ -155,7 +156,8 @@ const pinInput = { htmlInput: { inputMode: 'numeric', pattern: '[0-9]*', maxLeng
 const digits = (v: string) => v.replace(/\D/g, '').slice(0, 4);
 
 /** Team: change the shared PIN. Needs the current one; the admin's temporary PIN counts. */
-function ChangePinSection() {
+/** first: a team matched from the waitlist picks its first PIN, with no current one to give. */
+function ChangePinSection({ first }: { first: boolean }) {
   const dispatch = useAppDispatch();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -164,7 +166,7 @@ function ChangePinSection() {
   const liveOn = useAppSelector((x) => x.live.on);
   const [failed, setFailed] = useState('');
   const errors = {
-    current: /^\d{4}$/.test(current) ? '' : 'Your current 4-digit PIN.',
+    current: first || /^\d{4}$/.test(current) ? '' : 'Your current 4-digit PIN.',
     next: pinProblem(next),
     again: !again ? 'Type the new PIN again.' : again !== next ? 'The two PINs do not match.' : next === current ? "That's the PIN you have now." : ''
   };
@@ -172,26 +174,29 @@ function ChangePinSection() {
     setTried(true);
     if (errors.current || errors.next || errors.again) return;
     const done = () => {
-      dispatch(showToast('PIN changed. Both of you use the new one next time you log in.'));
+      if (!liveOn && first) dispatch(sample.teamPinSet(undefined));
+      dispatch(showToast(first ? 'PIN set. Both of you use it to log in on another phone.' : 'PIN changed. Both of you use the new one next time you log in.'));
       setCurrent(''); setNext(''); setAgain(''); setTried(false); setFailed('');
     };
     // The sample league keeps no PINs; the live league checks the current PIN first.
-    if (liveOn) live.changePin(current, next).then(done).catch((err: Error) => setFailed(err.message));
+    if (liveOn) live.changePin(first ? '' : current, next).then(async () => { done(); await refreshLive(); }).catch((err: Error) => setFailed(err.message));
     else done();
   };
   const err = (k: keyof typeof errors) => (tried && errors[k] ? { error: true, helperText: errors[k] } : {});
   return (
-    <Section title="Change PIN">
-      <Card variant="outlined" sx={{ p: 2 }}>
+    <Section title={first ? 'Pick your team PIN' : 'Change PIN'}>
+      <Card variant="outlined" sx={{ p: 2 }} id="team-pin">
         <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-          You both share one PIN. Got a temporary PIN from the admin? Type it as the current one.
+          {first
+            ? 'Pick it together: you both share one PIN, to log in on another phone. This phone stays logged in.'
+            : 'You both share one PIN. Got a temporary PIN from the admin? Type it as the current one.'}
         </Typography>
         <Stack spacing={2}>
-          <TextField label="Current PIN" type="password" value={current} onChange={(e) => setCurrent(digits(e.target.value))} slotProps={pinInput} {...err('current')} />
+          {!first && <TextField label="Current PIN" type="password" value={current} onChange={(e) => setCurrent(digits(e.target.value))} slotProps={pinInput} {...err('current')} />}
           <TextField label="New PIN" type="password" value={next} onChange={(e) => setNext(digits(e.target.value))} slotProps={pinInput} {...err('next')} />
           <TextField label="New PIN again" type="password" value={again} onChange={(e) => setAgain(digits(e.target.value))} slotProps={pinInput} {...err('again')} />
           {failed && <Typography role="alert" sx={{ color: 'secondary.main', fontWeight: 700 }}>{failed}</Typography>}
-          <Button variant="contained" onClick={save} sx={{ minHeight: 44 }}>Change PIN</Button>
+          <Button variant="contained" onClick={save} sx={{ minHeight: 44 }}>{first ? 'Save our PIN' : 'Change PIN'}</Button>
         </Stack>
       </Card>
     </Section>

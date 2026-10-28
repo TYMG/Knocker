@@ -36,6 +36,8 @@ import { refreshLive } from '../live/sync';
 import Page from '../ui/Page';
 import PhotoPicker, { type PickedPhoto } from '../ui/PhotoPicker';
 import TeamAvatar from '../ui/TeamAvatar';
+import { SoloQuestions, WantsPicker, type Answers } from '../ui/SoloQuestions';
+import type { SoloTraits, Wants } from '../../../shared/league/match';
 
 type Mode = 'pair' | 'solo';
 
@@ -261,42 +263,37 @@ function PairForm() {
   );
 }
 
-/** The solo player's form: first name, pronouns, phone and texts, then a confirmation in its place. */
+/**
+ * The solo player's form: first name, pronouns, phone, texts, a PIN and the matchmaker's questions.
+ * Then they go to their partner page (/solo) to see who else is waiting.
+ */
 function SoloForm() {
-  const league = useLeague();
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [pronouns, setPronouns] = useState('');
   const [texts, setTexts] = useState(false);
+  const [pin, setPin] = useState('');
+  const [pinAgain, setPinAgain] = useState('');
+  const [answers, setAnswers] = useState<Answers>({});
+  const [wants, setWants] = useState<Wants>('anyone');
   const liveOn = useAppSelector((x) => x.live.on);
   const [failed, setFailed] = useState('');
   const [sending, setSending] = useState(false);
   const [left, setLeft] = useState<Record<string, boolean>>({});
   const [tried, setTried] = useState(false);
-  const [joinedAs, setJoinedAs] = useState<string | null>(null);
-
-  if (joinedAs) {
-    const others = league.waitlist.length - 1;
-    return (
-      <Alert severity="success" role="status">
-        <Typography sx={{ fontWeight: 700 }}>You are on the waitlist, {joinedAs}.</Typography>
-        If spots are left, the league admin will pair you with another solo player and get in touch.{' '}
-        {others > 0 ? `${others} other solo ${others === 1 ? 'player is' : 'players are'} waiting too.` : 'You are the first one on it.'}
-        <Box sx={{ mt: 1.5 }}>
-          <Button component={RouterLink} to="/standings" variant="outlined" color="inherit">
-            See the standings
-          </Button>
-        </Box>
-      </Alert>
-    );
-  }
 
   const firstName = tidy(name);
-  const errors = { name: firstName ? '' : 'Type your first name.', pronouns: pronounsError(pronouns), phone: phoneError(phone) };
+  const pick = 'Pick one.';
+  const errors = {
+    name: firstName ? '' : 'Type your first name.', pronouns: pronounsError(pronouns), phone: phoneError(phone),
+    pin: pinProblem(pin), pinAgain: !pinAgain ? 'Type the PIN again.' : pinAgain !== pin ? 'The two PINs do not match.' : '',
+    why: answers.why ? '' : pick, energy: answers.energy ? '' : pick, experience: answers.experience ? '' : pick, style: answers.style ? '' : pick
+  };
   type Field = keyof typeof errors;
   const shown = (key: Field) => (tried || left[key] ? errors[key] : '');
-  const field = (key: Field) => ({ id: `solo-${key}`, error: !!shown(key), helperText: shown(key) || undefined, onBlur: () => setLeft((l) => ({ ...l, [key]: true })) });
+  const field = (key: Field, hint?: string) => ({ id: `solo-${key}`, error: !!shown(key), helperText: shown(key) || hint, onBlur: () => setLeft((l) => ({ ...l, [key]: true })) });
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -306,19 +303,20 @@ function SoloForm() {
       focusFirst(wrong.map((key) => `solo-${key}`));
       return;
     }
+    const traits = answers as SoloTraits;
     if (liveOn) {
-      // The live league: the server keeps the phone private.
+      // The live league: the server keeps the phone and PIN private.
       setFailed('');
       setSending(true);
-      live.joinWaitlist({ name: firstName, pronouns: tidy(pronouns), phone, texts })
-        .then(async () => { await refreshLive(); dispatch(showToast(`${firstName} joined the waitlist`)); setJoinedAs(firstName); })
+      live.joinWaitlist({ name: firstName, pronouns: tidy(pronouns), phone, texts, pin, traits, wants })
+        .then(async () => { await refreshLive(); dispatch(showToast(`${firstName} joined the waitlist`)); navigate('/solo'); })
         .catch((err: Error) => setFailed(err.message))
         .finally(() => setSending(false));
       return;
     }
-    dispatch(sample.joinWaitlist({ name: firstName, pronouns: tidy(pronouns) }));
+    dispatch(sample.joinWaitlist({ name: firstName, pronouns: tidy(pronouns), traits, wants }));
     dispatch(showToast(`${firstName} joined the waitlist`));
-    setJoinedAs(firstName);
+    navigate('/solo');
   };
 
   return (
@@ -328,16 +326,26 @@ function SoloForm() {
           <TextField label="First name" value={name} onChange={(e) => setName(e.target.value.slice(0, PLAYER_NAME_MAX))} autoComplete="given-name" sx={{ flex: '1 1 150px' }} {...field('name')} />
           <PronounPicker value={pronouns} onChange={setPronouns} field={field('pronouns') as { id: string; error: boolean; helperText?: string; onBlur: () => void }} />
         </Box>
-        <TextField label="Phone" type="tel" value={phone} onChange={(e) => setPhone(formatPhoneInput(e.target.value))} slotProps={phoneInput} {...field('phone')} />
+        <TextField label="Phone" type="tel" value={phone} onChange={(e) => setPhone(formatPhoneInput(e.target.value))} slotProps={phoneInput} {...field('phone', 'You log back in with it.')} />
+        <TextField label="PIN" type="password" value={pin} onChange={(e) => setPin(digitsIn(e.target.value).slice(0, 4))} slotProps={pinInput} {...field('pin', '4 digits, to log back in and see your matches.')} />
+        <TextField label="PIN again" type="password" value={pinAgain} onChange={(e) => setPinAgain(digitsIn(e.target.value).slice(0, 4))} slotProps={pinInput} {...field('pinAgain')} />
         <FormControlLabel
           control={<Checkbox checked={texts} onChange={(e) => setTexts(e.target.checked)} />}
           label={<Typography variant="body2">Text this phone a reminder to check in on league nights once you're on a team (about 1 text a league night). Msg &amp; data rates may apply. Reply STOP to stop, HELP for help.</Typography>}
           sx={{ alignItems: 'flex-start', mx: 0, '& .MuiCheckbox-root': { pt: 0.25 } }}
         />
         <Typography variant="body2" sx={{ color: 'text.secondary', mt: '8px !important' }}>
-          Your phone number stays private. It is only used to reach you about a partner and, if you tick the box, for the reminder.{' '}
+          Your phone number stays private. It is only used to log you in, reach you about a partner and, if you tick the box, for the reminder.{' '}
           <Link href="https://knckr.com/sms.html" target="_blank" rel="noopener">Text terms and privacy</Link>
         </Typography>
+
+        <Typography variant="h3" component="h2" sx={{ fontSize: '1.15rem', pt: 1 }}>Find your partner</Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mt: '4px !important' }}>
+          Other solo players see your answers, never your name. When you and another player both pick each other, you're a team.
+        </Typography>
+        <SoloQuestions answers={answers} onChange={setAnswers} errors={{ why: shown('why'), energy: shown('energy'), experience: shown('experience'), style: shown('style') }} />
+        <WantsPicker value={wants} onChange={setWants} />
+
         {failed && <Typography role="alert" sx={{ color: 'secondary.main', fontWeight: 700 }}>{failed}</Typography>}
         <Button type="submit" variant="contained" color="secondary" size="large" disabled={sending}>
           {sending ? 'Joining…' : 'Join the waitlist'}
@@ -412,7 +420,7 @@ export default function SignUp() {
             </ModeButton>
           </ToggleButtonGroup>
           <Typography sx={{ color: 'text.secondary', mt: 1.5 }}>
-            A pair’s sign-up goes to the league admin for approval, and is deleted if nobody approves it within 24 hours. Solo players join the waitlist and get paired if spots are left.
+            A pair’s sign-up goes to the league admin for approval, and is deleted if nobody approves it within 24 hours. Solo players join the waitlist and pick a partner from the other solo players.
           </Typography>
         </Box>
 

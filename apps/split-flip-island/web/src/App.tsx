@@ -3,7 +3,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { startLiveRefresh } from './live/sync';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router';
-import { useAppDispatch, useAppSelector, useMe } from './hooks';
+import { useAppDispatch, useAppSelector, useLeague, useMe } from './hooks';
 import { sample } from './sample/slice';
 import { setPendingRole } from './store';
 import BareLayout from './layout/BareLayout';
@@ -15,6 +15,8 @@ import FrontDoor from './pages/FrontDoor';
 import LineJoin from './pages/LineJoin';
 import Lines from './pages/Lines';
 import LogIn from './pages/Login';
+import Solo from './pages/Solo';
+import Waitlist from './pages/admin/Waitlist';
 import Machine from './pages/Machine';
 import SignUp from './pages/SignUp';
 import Submit from './pages/Submit';
@@ -57,7 +59,10 @@ import Tonight from './pages/standings/Tonight';
  */
 function Root() {
   const me = useMe();
+  const soloId = useLeague().mySoloId;
   if (me.isTeam) return <TeamHome />;
+  // A solo player on the waitlist: their page is the partner finder.
+  if (soloId) return <Navigate to="/solo" replace />;
   if (me.isAdmin) return <Navigate to="/standings" replace />;
   return <FrontDoor />;
 }
@@ -118,6 +123,7 @@ export default function App() {
           <Route path="/" element={<Root />} />
           <Route path="/join" element={<SignUp />} />
           <Route path="/login" element={<LogIn />} />
+          <Route path="/solo" element={<Solo />} />
           <Route path="/tour" element={<Tour />} />
           <Route path="/settings" element={<Settings />} />
 
@@ -159,6 +165,7 @@ export default function App() {
             <Route path="/admin/night" element={<NightSettings />} />
             <Route path="/admin/teams" element={<Teams />} />
             <Route path="/admin/teams/:teamId" element={<TeamDetail />} />
+            <Route path="/admin/waitlist" element={<Waitlist />} />
             <Route path="/admin/weeks" element={<Weeks />} />
             <Route path="/admin/weeks/:week" element={<WeekDetail />} />
             <Route path="/admin/machines" element={<Machines />} />

@@ -9,7 +9,12 @@ import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import type { LeagueActionName } from '../../shared/league/rules.js';
 import { ADMIN_ACTIONS, TEAM_ACTIONS } from '../../shared/league/permissions.js';
 import { requireAdmin } from './admin.js';
-import { readAdminToken, readToken } from './auth.js';
+import { issueToken, readAdminToken, readSoloToken, readToken } from './auth.js';
+import { GetCommand } from '@aws-sdk/lib-dynamodb';
+import { ddb, leagueId, table } from './db.js';
+import { fits } from '../../shared/league/match.js';
+import type { SWaitlistEntry } from '../../shared/league/types.js';
+import { soloTeamKey } from './waitlist.js';
 import { teamPhoto } from '../../shared/league/art.js';
 import { loadPrivates } from './handlers.js';
 import { applyAction, loadLeagueState, type Actor, type League } from './leagueStore.js';
@@ -26,7 +31,31 @@ async function viewer(event: APIGatewayProxyEventV2): Promise<(Actor & { owner?:
     return { kind: 'admin', name: admin.name, owner: admin.owner === true };
   }
   const team = readToken(event);
-  return team ? { kind: 'team', teamId: team.teamId } : null;
+  if (team) return { kind: 'team', teamId: team.teamId };
+  const solo = readSoloToken(event);
+  return solo ? { kind: 'solo', soloId: solo.soloId } : null;
+}
+
+/**
+ * The waitlist as one viewer may see it. Admins: everyone, with names and answers, and which
+ * others each one fits (never who they asked for, or their picks). A solo player: themselves, plus
+ * only the players who fit them, with no name, pronouns or picks. Everyone else: just how many.
+ */
+function waitlistFor(waitlist: SWaitlistEntry[], who: (Actor & { owner?: boolean }) | null): SWaitlistEntry[] {
+  if (who?.kind === 'admin') {
+    return waitlist.map(({ wants: _w, picks: _p, ...w }) => ({ ...w, fitsWith: waitlist.filter((o) => o.id !== w.id && fits({ ...w, wants: _w }, o)).map((o) => o.id) }));
+  }
+  if (who?.kind === 'solo') {
+    const me = waitlist.find((w) => w.id === who.soloId);
+    if (me) {
+      return waitlist.flatMap((w) => {
+        if (w.id === me.id) return [me];
+        if (!w.traits || !fits(me, w)) return [];
+        return [{ id: w.id, name: '', at: w.at, traits: w.traits }];
+      });
+    }
+  }
+  return waitlist.map((w) => ({ id: w.id, name: '', at: w.at }));
 }
 
 /**
@@ -41,6 +70,8 @@ export function viewFor(league: League, who: (Actor & { owner?: boolean }) | nul
     now: nowIso(),
     role: admin ? 'admin' : mine ? 'team' : 'visitor',
     myTeamId: mine,
+    mySoloId: who?.kind === 'solo' && league.waitlist.some((w) => w.id === who.soloId) ? who.soloId : undefined,
+    waitlist: waitlistFor(league.waitlist, who),
     adminName: admin ? who.name : '',
     adminOnTeam: false,
     adminIsOwner: admin && who.owner === true,
@@ -65,8 +96,8 @@ async function adminPhones() {
  */
 export interface NoLeague { version: 0; league: null; viewer: { role: 'visitor' | 'team' | 'admin'; adminName: string; adminIsOwner: boolean } }
 
-export async function getLeague(event: APIGatewayProxyEventV2): Promise<{ version: number; league: League } | NoLeague> {
-  const who = await viewer(event);
+export async function getLeague(event: APIGatewayProxyEventV2): Promise<{ version: number; league: League; teamToken?: string; soloGone?: boolean } | NoLeague> {
+  let who = await viewer(event);
   let state = await loadLeagueState();
   // Turns that ran out are forfeited before anyone sees the league.
   if (state && (await runTurnClock(state.league))) state = await loadLeagueState();
@@ -76,7 +107,21 @@ export async function getLeague(event: APIGatewayProxyEventV2): Promise<{ versio
       viewer: { role: who?.kind === 'admin' ? 'admin' : who?.kind === 'team' ? 'team' : 'visitor', adminName: who?.kind === 'admin' ? who.name : '', adminIsOwner: who?.kind === 'admin' && who.owner === true }
     };
   }
-  return { version: state.version, league: viewFor(state.league, who, who?.kind === 'admin' ? await adminPhones() : undefined) };
+  // A solo player who is now on a team (picked each other, or the admin paired them): their phone
+  // switches to the team. One who left the waitlist goes back to being a visitor.
+  let handoff: { teamToken?: string; soloGone?: boolean } = {};
+  const soloId = who?.kind === 'solo' ? who.soloId : '';
+  if (soloId && !state.league.waitlist.some((w) => w.id === soloId)) {
+    const teamId = ((await ddb.send(new GetCommand({ TableName: table(), Key: soloTeamKey(soloId) }))).Item?.teamId as string | undefined);
+    if (teamId && state.league.teams.some((t) => t.teamId === teamId)) {
+      handoff = { teamToken: issueToken(teamId, leagueId()) };
+      who = { kind: 'team', teamId };
+    } else {
+      handoff = { soloGone: true };
+      who = null;
+    }
+  }
+  return { version: state.version, league: viewFor(state.league, who, who?.kind === 'admin' ? await adminPhones() : undefined), ...handoff };
 }
 
 /** Makes a team's action act for that team only, whatever the request says. */

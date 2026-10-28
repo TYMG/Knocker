@@ -9,7 +9,7 @@
 import type { Dispatch, Middleware, UnknownAction } from '@reduxjs/toolkit';
 import { ADMIN_ACTIONS, SERVER_ONLY, TEAM_ACTIONS } from '../../../shared/league/permissions';
 import type { LeagueActionName } from '../../../shared/league/rules';
-import { live, LiveError } from './client';
+import { live, LiveError, tokens } from './client';
 import { liveActions } from './liveSlice';
 
 const REFRESH_MS = 10_000;
@@ -43,6 +43,9 @@ export function refreshLive(): Promise<void> {
         d(liveActions.failed({ message: 'The live league has not been set up yet.', missing: true }));
         return;
       }
+      // A solo player's phone moves to their new team, or back to visiting if they left.
+      if (r.teamToken) { tokens.clear(); tokens.setTeam(r.teamToken); }
+      else if (r.soloGone) tokens.setSolo('');
       d(sample.loadLeague(r.league));
       d(liveActions.loaded(r.version));
     } catch (err) {
@@ -94,6 +97,12 @@ export const liveMiddleware: Middleware = (api) => {
       case 'setSmsOptIn': { const p = a.payload as { player: 0 | 1; optIn: boolean }; void send(() => live.setTexts(p.player, p.optIn)); return undefined; }
       case 'approveTeam': void send(() => live.approve(a.payload as string)); return undefined;
       case 'removeSignUp': { const p = a.payload as { teamId: string; reason: string }; void send(() => live.remove(p.teamId, p.reason)); return undefined; }
+      case 'pickPartner': { const p = a.payload as { toId: string; picked: boolean }; void send(() => live.pickPartner(p.toId, p.picked)); return undefined; }
+      case 'leaveWaitlist': {
+        const id = a.payload as string | undefined;
+        void send(() => (tokens.admin() && id ? live.removeSolo(id) : live.leaveWaitlist()));
+        return undefined;
+      }
     }
     // Sign-up, posting a score and PIN resets are sent by their pages; the rest isn't live yet.
     if (!SAMPLE_ONLY.has(name) && !SERVER_ONLY.has(name as LeagueActionName)) void toast("That isn't on the live league yet.");

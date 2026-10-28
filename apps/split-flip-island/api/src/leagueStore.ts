@@ -20,6 +20,7 @@ export type League = SampleState;
 export type Actor =
   | { kind: 'team'; teamId: string }
   | { kind: 'admin'; name: string }
+  | { kind: 'solo'; soloId: string }
   | { kind: 'league' };
 
 export interface LeagueAction { type: LeagueActionName; payload?: unknown }
@@ -43,13 +44,14 @@ function withActor(league: League, actor: Actor, now: string): League {
     now,
     role: actor.kind === 'admin' ? 'admin' : actor.kind === 'team' ? 'team' : 'visitor',
     myTeamId: actor.kind === 'team' ? actor.teamId : '',
+    mySoloId: actor.kind === 'solo' ? actor.soloId : undefined,
     adminName: actor.kind === 'admin' ? actor.name : 'League',
     adminOnTeam: false
   };
 }
 
 /** Saved leagues never keep a viewer: those fields are set per request. */
-const neutral = (league: League): League => ({ ...league, role: 'visitor', myTeamId: '', adminName: '', adminOnTeam: false });
+const neutral = (league: League): League => ({ ...league, role: 'visitor', myTeamId: '', mySoloId: undefined, adminName: '', adminOnTeam: false });
 
 /**
  * Saves a league for the first time (season setup). Refuses if one already exists, so a setup

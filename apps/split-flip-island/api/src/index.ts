@@ -4,7 +4,7 @@ import { sameSecret } from './auth.js';
 import { adminEnterScore, createUpload, login, register, submitScore } from './handlers.js';
 import { getLeague, postAction } from './leagueApi.js';
 import { setupLeague, startOver } from './leagueAdmin.js';
-import { joinWaitlist, pairWaitlist } from './waitlist.js';
+import { adminRemoveSolo, joinWaitlist, pairWaitlist, pickPartner, soloLeave, soloLogin } from './waitlist.js';
 import { changePin, resetPin } from './pin.js';
 import { openNightIfTime, sendCheckInReminders } from './reminders.js';
 import { runTurnClock } from './turnClock.js';
@@ -32,6 +32,10 @@ const routes: Record<string, { run: Route; status?: 201 }> = {
   'POST /api/admin/scores': { run: adminEnterScore, status: 201 },
   'POST /api/waitlist': { run: joinWaitlist, status: 201 },
   'POST /api/admin/waitlist/pair': { run: pairWaitlist, status: 201 },
+  'POST /api/admin/waitlist/remove': { run: adminRemoveSolo },
+  'POST /api/solo/login': { run: soloLogin },
+  'POST /api/solo/pick': { run: pickPartner },
+  'POST /api/solo/leave': { run: soloLeave },
   'POST /api/admin/league/start-over': { run: startOver }
 };
 

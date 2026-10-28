@@ -257,6 +257,14 @@ export default function TeamHome() {
   // Tonight is the first tab while the night is open, and while check-in is open before it.
   const [tab, setTab] = useHomeTab(night.open || checkInWindow(league).open);
 
+  // Matched from the waitlist: the two pick their shared PIN first.
+  const pinPrompt = team.needsPin ? (
+    <Alert severity="warning" action={<Button component={RouterLink} to="/settings#team-pin" color="inherit" size="small">Pick it</Button>}>
+      <Typography sx={{ fontWeight: 700 }}>Pick your team PIN together.</Typography>
+      You both use it to log in on another phone.
+    </Alert>
+  ) : null;
+
   // 1. A new team that no admin has approved yet.
   if (team.status === 'pending') {
     return (
@@ -280,6 +288,7 @@ export default function TeamHome() {
           <Header team={team}>
             <Typography sx={{ color: 'text.secondary' }}>{starts ? `Starts in week ${first.week}` : 'Approved'}</Typography>
           </Header>
+          {pinPrompt}
           <Alert severity="info">
             <Typography sx={{ fontWeight: 700 }}>You are in.</Typography>
             {starts
@@ -386,6 +395,7 @@ export default function TeamHome() {
           <Header team={team}>
             <Typography sx={{ color: 'text.secondary' }}>{weekLine}</Typography>
           </Header>
+          {pinPrompt}
           <HomeTabs tab={tab} onChange={setTab} tonightLabel={weekLabel(week.week)} />
           {tab === 'tonight' && (
           <>
@@ -457,6 +467,7 @@ export default function TeamHome() {
             {tonight.checkedInAt ? `Checked in at ${clock(tonight.checkedInAt)}` : 'Not checked in yet'}
           </Typography>
         </Header>
+        {pinPrompt}
         {!tonight.checkedInAt && <CheckInCard teamId={team.teamId} />}
         <HomeTabs tab={tab} onChange={setTab} tonightLabel="Tonight" />
 

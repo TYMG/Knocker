@@ -211,49 +211,106 @@ describe('an admin entering a score for a team', () => {
   });
 });
 
-describe('solo players', () => {
-  const join = (body: Record<string, unknown>) => call('POST', '/api/waitlist', { body });
+describe('solo players and the matchmaker', () => {
+  const traits = { why: 'win', energy: 'loud', experience: 'some', style: 'coach' };
+  const join = (body: Record<string, unknown>) => call('POST', '/api/waitlist', { body: { pin: '4826', traits, wants: 'anyone', ...body } });
+  const asSolo = (token: string) => ({ headers: { 'x-solo-token': token } });
+  const pick = (token: string, toId: string, picked = true) => call('POST', '/api/solo/pick', { ...asSolo(token), body: { toId, picked } });
 
-  it('join the waitlist with their phone kept private, and an admin pairs them into a team', async () => {
+  it('join with phone, PIN and answers kept private; others see only how many are waiting', async () => {
     expect((await join({ name: '', phone: '2025550199' })).status).toBe(400);
     expect((await join({ name: 'Jo', phone: '555' })).status).toBe(400);
-    expect((await join({ name: 'Jo', pronouns: 'they/them', phone: '(202) 555-0199', texts: true })).status).toBe(201);
-    expect((await join({ name: 'Kai', phone: '2025550188' })).status).toBe(201);
+    expect((await join({ name: 'Jo', phone: '2025550199', pin: '1234' })).status).toBe(400);
+    expect((await join({ name: 'Jo', phone: '2025550199', traits: { ...traits, why: 'nap' } })).status).toBe(400);
+    expect((await join({ name: 'Jo', phone: '2025550199', wants: 'robots' })).status).toBe(400);
+    const jo = await join({ name: 'Jo', pronouns: 'they/them', phone: '(202) 555-0199', texts: true });
+    expect(jo.status).toBe(201);
+    expect(jo.body.token).toBeTruthy();
+    expect((await join({ name: 'Joanne', phone: '2025550199' })).status).toBe(409); // that phone is already waiting
+    await join({ name: 'Kai', phone: '2025550188', wants: 'women' });
 
     const visitor = (await call('GET', '/api/league')).body.league;
-    expect(visitor.waitlist.map((w: any) => [w.name, w.pronouns ?? ''])).toEqual([['Jo', 'they/them'], ['Kai', '']]);
+    expect(visitor.waitlist).toHaveLength(2);
+    expect(visitor.waitlist.every((w: any) => w.name === '' && !w.traits && !w.pronouns)).toBe(true);
     expect(JSON.stringify(visitor)).not.toContain('555');
-    const ids = visitor.waitlist.map((w: any) => w.id);
 
-    expect((await call('POST', '/api/admin/waitlist/pair', { body: { ids } })).status).toBe(401);
-    const admin = await asAdmin();
-    expect((await call('POST', '/api/admin/waitlist/pair', { ...admin, body: { ids: [ids[0], ids[0]] } })).status).toBe(400);
-    const paired = await call('POST', '/api/admin/waitlist/pair', { ...admin, body: { ids } });
-    expect(paired.status).toBe(201);
-    expect(paired.body.teamName).toBe('Jo & Kai');
-    expect(paired.body.pin).toMatch(/^\d{4}$/);
+    const admin = (await call('GET', '/api/league', await asAdmin())).body.league;
+    expect(admin.waitlist.map((w: any) => [w.name, w.traits?.why, w.wants, w.picks, w.fitsWith])).toEqual([
+      ['Jo', 'win', undefined, undefined, []], ['Kai', 'win', undefined, undefined, []] // Kai wants women; Jo is they/them
+    ]);
+  });
+
+  it('log back in with phone number and PIN', async () => {
+    await join({ name: 'Jo', phone: '2025550199' });
+    expect((await call('POST', '/api/solo/login', { body: { phone: '202-555-0199', pin: '0000' } })).status).toBe(401);
+    expect((await call('POST', '/api/solo/login', { body: { phone: '2025550100', pin: '4826' } })).status).toBe(401);
+    const ok = await call('POST', '/api/solo/login', { body: { phone: '(202) 555-0199', pin: '4826' } });
+    expect(ok.status).toBe(200);
+    const me = (await call('GET', '/api/league', asSolo(ok.body.token))).body.league;
+    expect(me.mySoloId).toBe(ok.body.soloId);
+    expect(me.waitlist[0].name).toBe('Jo');
+  });
+
+  it('see only nameless players who fit them; a mutual pick makes the team straight away', async () => {
+    const ana = (await join({ name: 'Ana', pronouns: 'she/her', phone: '2025550111', wants: 'women', texts: true })).body;
+    const bea = (await join({ name: 'Bea', pronouns: 'she/they', phone: '2025550112' })).body;
+    const cal = (await join({ name: 'Cal', pronouns: 'he/him', phone: '2025550113' })).body;
+
+    const anaSees = (await call('GET', '/api/league', asSolo(ana.token))).body.league.waitlist;
+    expect(anaSees.map((w: any) => [w.id, w.name, w.pronouns, w.wants])).toEqual([[ana.soloId, 'Ana', 'she/her', 'women'], [bea.soloId, '', undefined, undefined]]);
+    const calSees = (await call('GET', '/api/league', asSolo(cal.token))).body.league.waitlist;
+    expect(calSees.map((w: any) => w.id)).toEqual([bea.soloId, cal.soloId]); // not Ana: she asked for women
+
+    expect((await pick(ana.token, cal.soloId)).body).toEqual({}); // doesn't fit: nothing happens
+    expect((await pick(ana.token, bea.soloId)).body).toEqual({});
+    // Bea can't tell she was picked.
+    expect(JSON.stringify((await call('GET', '/api/league', asSolo(bea.token))).body.league.waitlist)).not.toContain('picks":["');
+    const matched = await pick(bea.token, ana.soloId);
+    expect(matched.body.teamName).toBe('Bea & Ana');
 
     const l = (await loadLeagueState())!.league;
-    const team = l.teams.find((t) => t.teamName === 'Jo & Kai')!;
-    expect([team.status, team.players, team.pronouns, team.texts]).toEqual(['approved', ['Jo', 'Kai'], ['they/them', ''], [true, false]]);
-    expect(l.waitlist).toHaveLength(0);
-    const priv = fake.table.get(L, `TEAM#${team.teamId}#PRIVATE`)!;
-    expect([priv.phone1, priv.phone2, priv.smsOptIn1, priv.smsOptIn2]).toEqual(['2025550199', '2025550188', true, false]);
-    expect(fake.table.all(L).some((i) => String(i.SK).startsWith('WAITLIST#'))).toBe(false);
-    expect((await call('POST', '/api/login', { body: { teamName: 'Jo & Kai', pin: paired.body.pin } })).status).toBe(200);
+    const team = l.teams.find((t) => t.teamName === 'Bea & Ana')!;
+    expect([team.status, team.needsPin, team.texts]).toEqual(['approved', true, [false, true]]);
+    expect(l.waitlist.map((w) => w.name)).toEqual(['Cal']);
+    expect(fake.table.all(L).filter((i) => /^(WAITLIST|SOLOPHONE)#/.test(String(i.SK)))).toHaveLength(2); // Cal's only
+
+    // Ana's phone switches over to the team by itself.
+    const handoff = (await call('GET', '/api/league', asSolo(ana.token))).body;
+    expect(handoff.league.myTeamId).toBe(team.teamId);
+    const asTeamNow = { headers: { 'x-team-token': handoff.teamToken } };
+    // Nobody can log in until they pick a PIN, which needs no current one the first time.
+    expect((await call('POST', '/api/login', { body: { teamName: 'Bea & Ana', pin: '' } })).status).toBe(401);
+    expect((await call('POST', '/api/me/pin', { ...asTeamNow, body: { currentPin: '', newPin: '5830' } })).status).toBe(200);
+    expect((await loadLeagueState())!.league.teams.find((t) => t.teamId === team.teamId)!.needsPin).toBeUndefined();
+    expect((await call('POST', '/api/login', { body: { teamName: 'Bea & Ana', pin: '5830' } })).status).toBe(200);
+    expect((await call('POST', '/api/me/pin', { ...asTeamNow, body: { currentPin: '', newPin: '6941' } })).status).toBe(401);
   });
 
-  it('cannot pair into a name another team already has', async () => {
-    await join({ name: 'Left', phone: '2025550101' });
+  it('an admin pairs them, with a temporary PIN; a taken name gets a number', async () => {
+    const left = (await join({ name: 'Left', phone: '2025550101' })).body;
     await join({ name: 'Right', phone: '2025550102' });
-    // An existing team named "Left & Right" (aaaa1111) is in the league from the set-up.
-    const ids = (await call('GET', '/api/league')).body.league.waitlist.map((w: any) => w.id);
-    const res = await call('POST', '/api/admin/waitlist/pair', { ...(await asAdmin()), body: { ids } });
-    expect(res.status).toBe(409);
-    expect((await loadLeagueState())!.league.waitlist).toHaveLength(2);
+    const admin = await asAdmin();
+    const ids = (await call('GET', '/api/league', admin)).body.league.waitlist.map((w: any) => w.id);
+    expect((await call('POST', '/api/admin/waitlist/pair', { body: { ids } })).status).toBe(401);
+    expect((await call('POST', '/api/admin/waitlist/pair', { ...admin, body: { ids: [ids[0], ids[0]] } })).status).toBe(400);
+    const paired = await call('POST', '/api/admin/waitlist/pair', { ...admin, body: { ids } });
+    expect(paired.body.teamName).toBe('Left & Right 2'); // "Left & Right" is already a team
+    expect((await call('POST', '/api/login', { body: { teamName: 'Left & Right 2', pin: paired.body.pin } })).status).toBe(200);
+    const priv = fake.table.get(L, `TEAM#${paired.body.teamId}#PRIVATE`)!;
+    expect([priv.phone1, priv.phone2]).toEqual(['2025550101', '2025550102']);
+    expect((await call('GET', '/api/league', asSolo(left.token))).body.teamToken).toBeTruthy();
+  });
+
+  it('leave the waitlist, or an admin takes them off', async () => {
+    const jo = (await join({ name: 'Jo', phone: '2025550199' })).body;
+    const kai = (await join({ name: 'Kai', phone: '2025550188' })).body;
+    expect((await call('POST', '/api/solo/leave', asSolo(jo.token))).status).toBe(200);
+    expect((await call('GET', '/api/league', asSolo(jo.token))).body.soloGone).toBe(true);
+    expect((await join({ name: 'Jo', phone: '2025550199' })).status).toBe(201); // the phone is free again
+    expect((await call('POST', '/api/admin/waitlist/remove', { ...(await asAdmin()), body: { id: kai.soloId } })).status).toBe(200);
+    expect((await loadLeagueState())!.league.waitlist.map((w) => w.name)).toEqual(['Jo']);
   });
 });
-
 
 describe('the turn clock on the server', () => {
   const at = (iso: string) => vi.setSystemTime(new Date(iso));

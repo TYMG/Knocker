@@ -1,5 +1,6 @@
 // Changing and resetting a team's PIN.
-//   POST /api/me/pin                         a team changes its own PIN (needs the current one)
+//   POST /api/me/pin                         a team changes its own PIN (needs the current one,
+//                                            except a team matched from the waitlist picking its first)
 //   POST /api/admin/teams/{teamId}/reset-pin  an admin sets a temporary PIN, shown once
 import { randomInt } from 'node:crypto';
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
@@ -25,6 +26,21 @@ export async function changePin(event: APIGatewayProxyEventV2): Promise<{ ok: tr
   const key = privKey(teamId);
   const priv = (await ddb.send(new GetCommand({ TableName: table(), Key: key }))).Item as PrivateItem | undefined;
   if (!priv) throw new HttpError(401, 'Your team was not found. Log in again.');
+  // A team matched from the waitlist has no PIN yet: it picks one, with no current PIN to give.
+  if (!priv.pinHash) {
+    await applyAction({ kind: 'team', teamId }, { type: 'teamPinSet', payload: teamId }, {
+      refusal: 'Your team already has a PIN. Refresh.',
+      extraWrites: () => [{
+        Update: {
+          TableName: table(), Key: key,
+          UpdateExpression: 'SET pinHash = :h, pinChangedAt = :at',
+          ConditionExpression: 'pinHash = :none',
+          ExpressionAttributeValues: { ':h': hashPin(next), ':at': nowIso(), ':none': '' }
+        }
+      }]
+    });
+    return { ok: true };
+  }
   // Wrong guesses here count toward the same lockout as logging in.
   if (!(await takeLoginStrike(key))) throw new HttpError(429, 'Too many wrong PINs. Wait 15 minutes or ask the league admin.');
   if (!verifyPin(current, priv.pinHash)) throw new HttpError(401, "That isn't your current PIN.");

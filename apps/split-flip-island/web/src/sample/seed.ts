@@ -274,8 +274,11 @@ export function buildSeed(seed = SEED): SampleState {
     log,
     feed,
     waitlist: [
-      { id: id('w'), name: 'Dana', at: at('2026-10-03', '11:20') },
-      { id: id('w'), name: 'Quinn', at: at('2026-10-06', '17:45') }
+      // Solo players looking for a partner, with the matchmaker's answers.
+      { id: id('w'), name: 'Dana', pronouns: 'she/her', at: at('2026-10-03', '11:20'), traits: { why: 'win', energy: 'loud', experience: 'lots', style: 'coach' }, wants: 'anyone', picks: [] },
+      { id: id('w'), name: 'Quinn', pronouns: 'they/them', at: at('2026-10-06', '17:45'), traits: { why: 'both', energy: 'mid', experience: 'some', style: 'cheer' }, wants: 'anyone', picks: [] },
+      { id: id('w'), name: 'Priya', pronouns: 'she/her', at: at('2026-10-09', '20:05'), traits: { why: 'hang', energy: 'chill', experience: 'new', style: 'cheer' }, wants: 'women', picks: [] },
+      { id: id('w'), name: 'Marcus', pronouns: 'he/him', at: at('2026-10-11', '13:30'), traits: { why: 'both', energy: 'loud', experience: 'lots', style: 'solo' }, wants: 'anyone', picks: [] }
     ],
     night: { opensAt: '19:00', closesAt: '21:00', extraMinutes: 0 },
     // Finals are four weeks away. This is what the page looks like on the night, mid game 3.

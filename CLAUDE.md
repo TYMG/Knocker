@@ -204,10 +204,20 @@ The server runs the **same rules code** as the sample league, so the two can nev
   waiting team a fresh 5 minutes. The web never sends clock forfeits in live mode.
 - **Admin enters a score** (Oct 28): `POST /api/admin/scores` {teamId, machineId, score, photo?}
   (rule `adminEnterScore`; photo upload via `/api/uploads` with purpose score and teamId).
-- **Solo waitlist** (Oct 28, `api/src/waitlist.ts`): `POST /api/waitlist` {name, pronouns, phone,
-  texts} (public; phone and texts choice kept in `WAITLIST#<id>#PRIVATE`). The admin pairs the
-  first two with `POST /api/admin/waitlist/pair` {ids}; the server makes the team, carries the
-  private details over and returns a temporary PIN, shown once on the admin Teams page.
+- **Solo waitlist and matchmaker** (Oct 28, `api/src/waitlist.ts`, `shared/league/match.ts`):
+  joining (`POST /api/waitlist`) takes name, pronouns, phone, texts, a 4-digit PIN, four answers
+  (why here, energy, experience, partner style) and who they want to play with (Anyone / Women /
+  Men / Nonbinary players; gender read from pronouns, typed-in or none = shown only to "Anyone").
+  Phone, PIN hash and texts live in `WAITLIST#<id>#PRIVATE` with a lookup `SOLOPHONE#<HMAC of
+  phone>`; solo tokens use header `x-solo-token` (signed with a `solo:` prefix). `/solo` is the
+  partner page: nameless cards of players who fit both ways, scored out of 10 (why 4, energy 2,
+  style 2, experience 2; only shared traits shown). `POST /api/solo/pick` {toId, picked}; a mutual
+  pick makes the team at once (`needsPin`, empty pinHash; the team picks its PIN in Settings with no
+  current PIN) and `SOLOTEAM#<id>` hands each phone a team token on its next `GET /api/league`.
+  `POST /api/solo/login` {phone, pin}, `/api/solo/leave`. Admin page `/admin/waitlist`: suggested
+  pairs, everyone's answers, Pair with… (`/api/admin/waitlist/pair`, temporary PIN shown once),
+  Remove (`/api/admin/waitlist/remove`). Visitors and teams only get a count; admins never get
+  wants or picks (the server sends `fitsWith` instead).
 - **Season setup:** `./scripts/league.sh setup --first-night YYYY-MM-DD --opens 19:00 --closes
   21:00 --machines "A,B"`; `show`; `clear` (typed confirmation; for clearing the demo).
 - **Admin League setup page** (`/admin/league`, Oct 27): the season's dates and times; **Pause**

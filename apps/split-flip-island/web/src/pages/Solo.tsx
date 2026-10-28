@@ -1,9 +1,13 @@
-// A solo player's partner page, at "/solo". Logged in (phone number and PIN), they see the other
-// solo players who fit them: no names, just how each one plays and what the two have in common,
-// best match first. Picking says "I'd team up"; when two players pick each other, they're a team
-// straight away and this phone moves to the new team. Nobody ever sees who passed on them.
+// A solo player's partner page, at "/solo", like a dating app's.
+//   Swipe: one nameless card at a time (how they play, what you have in common), best match first.
+//     Right (or the check button) = would team up; left (or the X) = pass.
+//   Both swiped right: it's a match. Names show, and a pop-up offers Ask to pair or Keep swiping.
+//   Matches: everyone you've matched with. Ask one to pair; they get a request to accept or turn
+//     down. Only when both have said yes is it a team: this phone moves to the team, and anyone who
+//     said yes to texts gets one. Nobody ever sees who passed on them or turned them down.
 // Not logged in: the log-in form for solo players.
 import { useEffect, useState, type FormEvent } from 'react';
+import { animate, motion, useMotionValue, useTransform } from 'motion/react';
 import { Link as RouterLink, useNavigate } from 'react-router';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -15,15 +19,20 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import Alert from '@mui/material/Alert';
+import Badge from '@mui/material/Badge';
+import IconButton from '@mui/material/IconButton';
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
 import CheckIcon from '@mui/icons-material/Check';
-import FavoriteBorderIcon from '@mui/icons-material/HandshakeOutlined';
-import { useAppDispatch, useLeague, useLiveOn } from '../hooks';
+import CloseIcon from '@mui/icons-material/Close';
+import { useAppDispatch, useCalm, useLeague, useLiveOn } from '../hooks';
 import { formatPhoneInput } from '../lib/format';
 import { sample } from '../sample/slice';
 import { showToast } from '../store';
 import { live } from '../live/client';
 import { refreshLive } from '../live/sync';
-import { cardsFor, match, QUESTIONS, shortAnswer, SUGGEST_FROM, type SoloTraits } from '../../../shared/league/match';
+import { QUESTIONS, shortAnswer, soloView, SUGGEST_FROM, type SoloCard, type SoloTraits } from '../../../shared/league/match';
 import EmptyNote from '../ui/EmptyNote';
 import Page from '../ui/Page';
 import Section from '../ui/Section';
@@ -101,88 +110,192 @@ function SoloLogIn() {
   );
 }
 
+/** The matches this phone has already shown a "match!" pop-up for. Per player; lost in a private window, which only means a repeat pop-up. */
+const seenKey = (id: string) => `sfi-seen-matches-${id}`;
+const readSeen = (id: string): string[] => { try { return JSON.parse(localStorage.getItem(seenKey(id)) ?? '[]') as string[]; } catch { return []; } };
+const markSeen = (id: string, matchId: string) => { try { localStorage.setItem(seenKey(id), JSON.stringify([...readSeen(id), matchId])); } catch { /* private window */ } };
+
+const who = (c: SoloCard) => (c.pronouns ? `${c.name} (${c.pronouns})` : c.name);
+
+/** The card on top of the deck. Drag it right or left, or use the buttons under it. */
+function SwipeCard({ card, onDecide }: { card: SoloCard; onDecide: (like: boolean) => void }) {
+  const calm = useCalm();
+  const x = useMotionValue(0);
+  const rotate = useTransform(x, [-220, 220], [-12, 12]);
+  const likeOpacity = useTransform(x, [30, 110], [0, 1]);
+  const passOpacity = useTransform(x, [-110, -30], [1, 0]);
+  const fling = (like: boolean) => {
+    if (calm) { onDecide(like); return; }
+    void animate(x, like ? 520 : -520, { duration: 0.22 }).then(() => onDecide(like));
+  };
+  const inner = (
+    <Stack spacing={1.25}>
+      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+        <Typography sx={{ fontWeight: 700, flexGrow: 1 }}>A solo player <Typography component="span" variant="body2" color="textSecondary">· waiting since {since(card.at)}</Typography></Typography>
+        {card.score >= SUGGEST_FROM && <Tag tone="good">Good match</Tag>}
+      </Box>
+      <Traits traits={card.traits} />
+      <Together lines={card.together} />
+    </Stack>
+  );
+  return (
+    <Box>
+      <Box sx={{ position: 'relative', touchAction: 'pan-y' }}>
+        {calm ? (
+          <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 3, p: 2.5, bgcolor: 'background.paper', minHeight: 220 }}>{inner}</Box>
+        ) : (
+          <motion.div
+            key={card.id}
+            drag="x"
+            dragSnapToOrigin
+            style={{ x, rotate }}
+            onDragEnd={(_, info) => { if (info.offset.x > 110) fling(true); else if (info.offset.x < -110) fling(false); }}
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+          >
+            <Box sx={{ border: 1, borderColor: 'divider', borderRadius: 3, p: 2.5, bgcolor: 'background.paper', minHeight: 220, cursor: 'grab', position: 'relative' }}>
+              <motion.div style={{ opacity: likeOpacity, position: 'absolute', top: 14, right: 14 }} aria-hidden><Tag tone="live">Team up</Tag></motion.div>
+              <motion.div style={{ opacity: passOpacity, position: 'absolute', top: 14, right: 14 }} aria-hidden><Tag tone="bad">Pass</Tag></motion.div>
+              {inner}
+            </Box>
+          </motion.div>
+        )}
+      </Box>
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 4, mt: 2 }}>
+        <IconButton aria-label="Pass" onClick={() => fling(false)} sx={{ width: 64, height: 64, border: 2, borderColor: 'divider' }}><CloseIcon fontSize="large" /></IconButton>
+        <IconButton aria-label="I'd team up" onClick={() => fling(true)} sx={{ width: 64, height: 64, bgcolor: 'secondary.main', color: 'secondary.contrastText', '&:hover': { bgcolor: 'secondary.dark' } }}><CheckIcon fontSize="large" /></IconButton>
+      </Box>
+    </Box>
+  );
+}
+
 export default function Solo() {
   const league = useLeague();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const liveOn = useLiveOn();
+  const [tab, setTab] = useState<'swipe' | 'matches'>('swipe');
   const [leaving, setLeaving] = useState(false);
-  const me = league.waitlist.find((w) => w.id === league.mySoloId);
+  const [popup, setPopup] = useState<SoloCard | null>(null);
+  const view = soloView(league.waitlist, league.mySoloId);
+  const me = view.me;
 
-  // Picked each other (or the admin paired them): this phone is on the new team now.
+  // Paired (both said yes, or the admin paired them): this phone is on the new team now.
   const nowTeam = !me && league.role === 'team' && !!league.myTeamId;
   useEffect(() => {
     if (nowTeam) {
-      dispatch(showToast("You picked each other. You're a team!"));
-      navigate('/', { replace: true });
+      dispatch(showToast("You're a team! Now set it up together."));
+      navigate('/team/setup', { replace: true });
     }
   }, [nowTeam, dispatch, navigate]);
 
+  // A match this phone hasn't celebrated yet (just now, or while they were away): the pop-up.
+  const matchIds = view.matches.map((m) => m.id).join(',');
+  useEffect(() => {
+    if (!me || popup) return;
+    const seen = readSeen(me.id);
+    const fresh = view.matches.find((m) => !seen.includes(m.id));
+    if (fresh) setPopup(fresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchIds, me?.id]);
+
   if (!me?.traits) return nowTeam ? null : <SoloLogIn />;
-  const myTraits = me.traits;
+  const meId = me.id;
+  const closePopup = () => { if (popup) markSeen(meId, popup.id); setPopup(null); };
 
-  const cards = cardsFor(league.waitlist, me.id);
-  const picks = me.picks ?? [];
-  const others = league.waitlist.length - 1;
-
-  const toggle = (toId: string, theirs: SoloTraits) => {
-    const picked = !picks.includes(toId);
-    // The sample league has nobody behind its cards, so a good match picks you back.
-    const pickedBack = !liveOn && picked && match(myTraits, theirs).score >= SUGGEST_FROM;
-    if (pickedBack) dispatch(sample.pickPartner({ fromId: toId, toId: me.id, picked: true }));
-    dispatch(sample.pickPartner({ toId, picked }));
-    if (!picked) dispatch(showToast('Took back your pick'));
-    else if (!pickedBack) dispatch(showToast("Picked. If they pick you too, you're a team."));
+  const decide = (card: SoloCard, like: boolean) => {
+    // The sample league has nobody behind its cards: a good match swipes right on you too, and a
+    // great one asks you to pair straight away, so the whole flow can be tried.
+    const back = !liveOn && like && card.score >= SUGGEST_FROM;
+    if (back) dispatch(sample.swipe({ fromId: card.id, toId: meId, like: true }));
+    dispatch(sample.swipe({ toId: card.id, like }));
+    if (back && card.score >= 8) dispatch(sample.askToPair({ fromId: card.id, toId: meId }));
+  };
+  const ask = (c: SoloCard) => {
+    dispatch(sample.askToPair({ toId: c.id }));
+    // In the sample league, they say yes.
+    if (!liveOn) dispatch(sample.answerPair({ fromId: meId, accept: true, meId: c.id }));
+    else dispatch(showToast(`Asked ${c.name}. You'll be a team once they say yes.`));
+  };
+  const answer = (c: SoloCard, accept: boolean) => {
+    dispatch(sample.answerPair({ fromId: c.id, accept }));
+    if (!accept) dispatch(showToast('Request turned down. They won’t be told why.'));
   };
 
-  return (
-    <Page title="Find a partner" subtitle={`Hi ${me.name}. These are the solo players who fit what you're looking for, best match first.`}>
-      <Stack spacing={3}>
-        <Section title="How you play" small>
-          <Traits traits={myTraits} />
-        </Section>
+  const top = view.deck[0];
+  const incoming = view.incoming[0];
 
-        <Section title="Waiting now" aside={cards.length > 0 ? cards.length : undefined}>
-          {cards.length === 0 ? (
+  return (
+    <Page title="Find a partner" subtitle={`Hi ${me.name}. Swipe right on players you'd team up with. Nobody sees your name until you match.`}>
+      <Stack spacing={2.5}>
+        {incoming && (
+          <Alert severity="info" icon={false} sx={{ alignItems: 'center' }}>
+            <Typography sx={{ fontWeight: 700 }}>{who(incoming)} wants to pair up with you.</Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>You'll be a team once you say yes.</Typography>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button variant="contained" color="secondary" onClick={() => answer(incoming, true)}>Accept</Button>
+              <Button color="inherit" onClick={() => answer(incoming, false)}>Not now</Button>
+            </Box>
+          </Alert>
+        )}
+
+        <Tabs value={tab} onChange={(_, v: 'swipe' | 'matches') => setTab(v)} variant="fullWidth">
+          <Tab value="swipe" label={`Swipe${view.deck.length ? ` (${view.deck.length})` : ''}`} />
+          <Tab value="matches" label={<Badge color="secondary" badgeContent={view.incoming.length} sx={{ '& .MuiBadge-badge': { right: -14 } }}>{`Matches${view.matches.length ? ` (${view.matches.length})` : ''}`}</Badge>} />
+        </Tabs>
+
+        {tab === 'swipe' && (
+          top ? <SwipeCard key={top.id} card={top} onDecide={(like) => decide(top, like)} /> : (
             <EmptyNote>
-              {others > 0
-                ? "Nobody waiting fits what you're looking for yet. You're first in line when someone new joins."
-                : "You're the only one waiting so far. You're first in line when someone new joins."}
+              {view.matches.length > 0
+                ? "You've seen everyone waiting for now. Check your matches, or come back when someone new joins."
+                : "Nobody new to look at right now. You're first in line when someone who fits joins."}
             </EmptyNote>
-          ) : (
+          )
+        )}
+
+        {tab === 'matches' && (
+          view.matches.length === 0 ? <EmptyNote>No matches yet. When you and another player both swipe right, they show up here.</EmptyNote> : (
             <Stack spacing={1.5}>
-              {cards.map((c, i) => {
-                const picked = picks.includes(c.id);
-                const suggested = i < 2 && c.score >= SUGGEST_FROM && !picked;
+              {view.matches.map((c) => {
+                const askedThem = view.asked?.id === c.id;
+                const askedMe = view.incoming.some((x) => x.id === c.id);
                 return (
-                  <Box key={c.id} sx={{ border: 1, borderColor: picked ? 'primary.main' : 'divider', borderRadius: 2, p: 2 }}>
+                  <Box key={c.id} sx={{ border: 1, borderColor: askedMe || askedThem ? 'primary.main' : 'divider', borderRadius: 2, p: 2 }}>
                     <Stack spacing={1.25}>
                       <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-                        <Typography sx={{ fontWeight: 700, flexGrow: 1 }}>A solo player <Typography component="span" variant="body2" color="textSecondary">· waiting since {since(c.at)}</Typography></Typography>
-                        {suggested && <Tag tone="good">Suggested</Tag>}
-                        {picked && <Tag tone="live">You picked</Tag>}
+                        <Typography sx={{ fontWeight: 700, flexGrow: 1 }}>{who(c)}</Typography>
+                        {askedMe && <Tag tone="live">Asked you</Tag>}
+                        {askedThem && <Tag tone="good">Waiting for them</Tag>}
                       </Box>
                       <Traits traits={c.traits} />
                       <Together lines={c.together} />
-                      <Button
-                        variant={picked ? 'outlined' : 'contained'}
-                        color={picked ? 'inherit' : 'secondary'}
-                        aria-pressed={picked}
-                        startIcon={picked ? <CheckIcon /> : <FavoriteBorderIcon />}
-                        onClick={() => toggle(c.id, c.traits)}
-                        sx={{ alignSelf: 'flex-start', minHeight: 44 }}
-                      >
-                        {picked ? 'Picked. Tap to take it back' : "I'd team up"}
-                      </Button>
+                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                        {askedMe ? (
+                          <>
+                            <Button variant="contained" color="secondary" onClick={() => answer(c, true)}>Accept</Button>
+                            <Button color="inherit" onClick={() => answer(c, false)}>Not now</Button>
+                          </>
+                        ) : askedThem ? (
+                          <Button variant="outlined" color="inherit" onClick={() => dispatch(sample.cancelAsk(undefined))}>Take back my request</Button>
+                        ) : (
+                          <Button variant="contained" color="secondary" onClick={() => ask(c)}>{view.asked ? 'Ask to pair instead' : 'Ask to pair'}</Button>
+                        )}
+                        <Button size="small" color="inherit" sx={{ color: 'text.secondary', ml: 'auto' }} onClick={() => { dispatch(sample.swipe({ toId: c.id, like: false })); dispatch(showToast('Unmatched')); }}>Unmatch</Button>
+                      </Box>
+                      {view.asked && !askedThem && !askedMe && (
+                        <Typography variant="body2" color="textSecondary">You can ask one match at a time. Asking {c.name} takes back your request to {view.asked.name}.</Typography>
+                      )}
                     </Stack>
                   </Box>
                 );
               })}
             </Stack>
-          )}
-          <Typography variant="body2" color="textSecondary" sx={{ mt: 1.5 }}>
-            Pick as many as you like. When you and another player have both picked each other, you're a team straight away, and you'll see each other's first names. Nobody ever sees who didn't pick them.
-          </Typography>
+          )
+        )}
+
+        <Section title="How you play" small>
+          <Traits traits={me.traits} />
         </Section>
 
         <Box>
@@ -190,10 +303,26 @@ export default function Solo() {
         </Box>
       </Stack>
 
+      <Dialog open={!!popup} onClose={closePopup} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ textAlign: 'center' }}>It's a match!</DialogTitle>
+        <DialogContent>
+          {popup && (
+            <Stack spacing={1.5}>
+              <Typography sx={{ textAlign: 'center' }}>You and <strong>{who(popup)}</strong> both want to team up.</Typography>
+              <Together lines={popup.together} />
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, flexDirection: 'column', gap: 1, '& > :not(style) ~ :not(style)': { ml: 0 } }}>
+          <Button fullWidth variant="contained" color="secondary" onClick={() => { const c = popup; closePopup(); if (c) ask(c); }}>Ask to pair</Button>
+          <Button fullWidth color="inherit" onClick={closePopup}>Keep swiping</Button>
+        </DialogActions>
+      </Dialog>
+
       <Dialog open={leaving} onClose={() => setLeaving(false)} fullWidth maxWidth="xs">
         <DialogTitle>Leave the waitlist?</DialogTitle>
         <DialogContent>
-          <Typography>Your answers and picks are deleted. You can join again any time.</Typography>
+          <Typography>Your answers, swipes and matches are deleted. You can join again any time.</Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setLeaving(false)}>Stay</Button>

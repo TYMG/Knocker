@@ -209,15 +209,20 @@ The server runs the **same rules code** as the sample league, so the two can nev
   (why here, energy, experience, partner style) and who they want to play with (Anyone / Women /
   Men / Nonbinary players; gender read from pronouns, typed-in or none = shown only to "Anyone").
   Phone, PIN hash and texts live in `WAITLIST#<id>#PRIVATE` with a lookup `SOLOPHONE#<HMAC of
-  phone>`; solo tokens use header `x-solo-token` (signed with a `solo:` prefix). `/solo` is the
-  partner page: nameless cards of players who fit both ways, scored out of 10 (why 4, energy 2,
-  style 2, experience 2; only shared traits shown). `POST /api/solo/pick` {toId, picked}; a mutual
-  pick makes the team at once (`needsPin`, empty pinHash; the team picks its PIN in Settings with no
-  current PIN) and `SOLOTEAM#<id>` hands each phone a team token on its next `GET /api/league`.
+  phone>`; solo tokens use header `x-solo-token` (signed with a `solo:` prefix). `/solo` works like
+  a dating app: a deck of nameless cards (players who fit both ways, best match first; score out
+  of 10: why 4, energy 2, style 2, experience 2; only shared traits shown), swipe right/left
+  (`POST /api/solo/swipe` {toId, like}). Right both ways = a match: names show, a pop-up offers Ask
+  to pair / Keep swiping, and the Matches tab lists them. `POST /api/solo/ask` {toId} (one request
+  at a time), `/api/solo/cancel-ask`, `/api/solo/answer` {fromId, accept}: the team is made only
+  when both have said yes (both asking counts). The team starts with `needsSetup` and an empty
+  pinHash; `/team/setup` (`POST /api/me/setup` {teamName, photoKey?, pin}) picks name, photo, PIN.
+  `SOLOTEAM#<id>` hands each phone a team token on its next `GET /api/league`. When a pairing
+  completes, each player who ticked texts gets the `teamMade` text (shared/sms.ts).
   `POST /api/solo/login` {phone, pin}, `/api/solo/leave`. Admin page `/admin/waitlist`: suggested
   pairs, everyone's answers, Pair with… (`/api/admin/waitlist/pair`, temporary PIN shown once),
   Remove (`/api/admin/waitlist/remove`). Visitors and teams only get a count; admins never get
-  wants or picks (the server sends `fitsWith` instead).
+  wants or swipes (the server sends `fitsWith` instead); nobody learns who passed on them.
 - **Season setup:** `./scripts/league.sh setup --first-night YYYY-MM-DD --opens 19:00 --closes
   21:00 --machines "A,B"`; `show`; `clear` (typed confirmation; for clearing the demo).
 - **Admin League setup page** (`/admin/league`, Oct 27): the season's dates and times; **Pause**

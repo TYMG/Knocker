@@ -51,7 +51,7 @@ export default function CheckInReminder() {
         {/* Demo of the real text: teams that opted in get it on Player 1's phone 5 minutes before start. */}
         {opening && anyTexts(t) && (
           <Typography variant="body2" sx={{ mt: 0.5, fontStyle: 'italic' }}>
-            Texted to {textedNames(t)}: "{SMS_TEMPLATES.checkInReminder.body({ teamName: t.teamName, machineName: '', minutes: 5, week: 0, noShows: 0 })}"
+            Texted to {textedNames(t)}: "{SMS_TEMPLATES.checkInReminder.body({ teamName: t.teamName, machineName: '', minutes: 5, week: 0, noShows: 0, partnerName: '' })}"
           </Typography>
         )}
       </Box>

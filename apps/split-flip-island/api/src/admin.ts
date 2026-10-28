@@ -69,7 +69,7 @@ export async function adminLogin(event: APIGatewayProxyEventV2): Promise<AdminAu
 
 // ---------- Photos ----------
 
-async function deletePhoto(key: string) {
+export async function deletePhoto(key: string) {
   if (!key || !key.startsWith('leagues/')) return;
   try {
     await s3.send(new DeleteObjectCommand({ Bucket: env('PHOTOS_BUCKET'), Key: key }));
@@ -86,7 +86,7 @@ const keptPhotoKey = (teamId: string) => `leagues/${leagueId()}/teams/${teamId}.
  * Returns '' when the photo no longer exists (the team is approved without one). Any other
  * failure stops the approval, so a passing error never costs a team its photo.
  */
-async function keepPhoto(team: STeam): Promise<string> {
+export async function keepPhoto(team: Pick<STeam, "teamId" | "photo">): Promise<string> {
   const Bucket = env('PHOTOS_BUCKET');
   if (!team.photo.startsWith('leagues/')) return '';
   let bytes: Uint8Array;

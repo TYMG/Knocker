@@ -116,18 +116,33 @@ export function match(a: SoloTraits, b: SoloTraits): Match {
 /** A strong pairing: worth suggesting. */
 export const SUGGEST_FROM = 6;
 
+export type SoloCard = SWaitlistEntry & Match & { traits: SoloTraits };
+
 /**
- * The other solo players one player may see, best match first. On the server the list has already
- * been cut to the ones that fit (and their wants removed); in the sample league it is cut here.
+ * What one solo player sees. deck: players who fit them that they haven't swiped on yet, best
+ * match first. matches: both swiped right (names shown). incoming: matches who asked them to pair.
+ * On the server the list has already been cut to what this player may see: others come without
+ * wants, likes or asks, with matched / askedMe set instead. In the sample league it's worked out here.
  */
-export function cardsFor(waitlist: SWaitlistEntry[], meId: string): (SWaitlistEntry & Match & { traits: SoloTraits })[] {
+export function soloView(waitlist: SWaitlistEntry[], meId: string | undefined) {
   const me = waitlist.find((w) => w.id === meId);
-  if (!me?.traits) return [];
-  return waitlist
-    // Cards from the server come without wants or pronouns: the server has already cut them.
-    .filter((w): w is SWaitlistEntry & { traits: SoloTraits } => w.id !== meId && !!w.traits && (w.wants === undefined || fits(me, w)))
+  const empty = { me, deck: [] as SoloCard[], matches: [] as SoloCard[], incoming: [] as SoloCard[], asked: undefined as SoloCard | undefined };
+  if (!me?.traits) return empty;
+  const cards = waitlist
+    .filter((w): w is SWaitlistEntry & { traits: SoloTraits } => w.id !== me.id && !!w.traits && (w.wants === undefined || fits(me, w)))
     .map((w) => ({ ...w, ...match(me.traits!, w.traits) }))
     .sort((x, y) => y.score - x.score || x.at.localeCompare(y.at));
+  const matched = (w: SWaitlistEntry) => w.matched ?? (!!me.likes?.includes(w.id) && !!w.likes?.includes(me.id));
+  const askedMe = (w: SWaitlistEntry) => w.askedMe ?? w.asked === me.id;
+  const swiped = (w: SWaitlistEntry) => !!me.likes?.includes(w.id) || !!me.passes?.includes(w.id);
+  const matches = cards.filter(matched);
+  return {
+    me,
+    deck: cards.filter((w) => !swiped(w) && !matched(w)),
+    matches,
+    incoming: matches.filter(askedMe),
+    asked: matches.find((w) => w.id === me.asked)
+  };
 }
 
 /** Every pair of waiting players that fit each other, best first (for the admin). */

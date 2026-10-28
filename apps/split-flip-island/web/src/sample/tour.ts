@@ -57,8 +57,8 @@ export const TOUR: TourPage[] = [
     path: '/solo', example: '/solo', title: 'Find a partner', group: 'Getting in', role: 'visitor',
     who: 'A solo player on the waitlist (they log in with their phone number and PIN).',
     when: 'Any time before they have a partner.',
-    does: ['See the other solo players who fit what you asked for, as nameless cards: how each one plays and what you have in common, best match first.', 'Pick "I\'d team up". When two players pick each other, they are a team straight away.', 'Nobody sees who did not pick them.'],
-    tryIt: 'Join the waitlist as a solo player first, then pick the suggested match.'
+    does: ['Swipe through the other solo players who fit what you asked for, as nameless cards: how each one plays and what you have in common, best match first.', 'Both swipe right: a match, with names. Ask to pair, or keep swiping; every match is under Matches.', 'A pairing request needs a yes from the other player. Then you are a team, and anyone who said yes to texts gets one.'],
+    tryIt: 'Join the waitlist as a solo player, then swipe right on the first card.'
   },
 
   // ---- On league night ----
@@ -282,6 +282,12 @@ export const TOUR: TourPage[] = [
     when: 'While sign-ups are open, and when looking for one team.',
     does: ['Approve or remove new sign-ups. One that nobody approves is deleted after 24 hours.', 'Find a team and open it.', 'Open the solo players\' waitlist: suggested pairs, everyone\'s answers, Pair up and Remove.'],
     tryIt: 'Approve Shoot Again before its time runs out. It joins the league starting next week.'
+  },
+  {
+    path: '/team/setup', example: '/team/setup', title: 'Set up your team', group: 'Getting in', role: 'team',
+    who: 'Two solo players who just paired up.',
+    when: 'Right after both said yes.',
+    does: ['Keep the team name or pick your own.', 'Add a photo if you like.', 'Pick the PIN you both share.']
   },
   {
     path: '/admin/waitlist', example: '/admin/waitlist', title: 'Waitlist', group: 'Running the season', role: 'admin',

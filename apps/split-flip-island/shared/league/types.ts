@@ -16,8 +16,8 @@ export interface STeam {
   texts?: [boolean, boolean];
   /** Answered the end-of-season "keep the reminder texts?" question. */
   smsSeasonAsked?: boolean;
-  /** Matched from the waitlist and hasn't picked its team PIN yet. */
-  needsPin?: boolean;
+  /** Paired from the waitlist and hasn't finished setting up yet: team name, photo and PIN. */
+  needsSetup?: boolean;
   photo: string; // image address (a drawn placeholder)
   /** New teams wait for an admin. Only approved teams play and appear in standings. */
   status: 'pending' | 'approved' | 'withdrawn';
@@ -206,8 +206,16 @@ export interface SWaitlistEntry {
   traits?: import('./match.js').SoloTraits;
   /** Who they want to play with. Private: only the server and the sample league read it. */
   wants?: import('./match.js').Wants;
-  /** Who they would team up with. Private: only that player sees their own picks. */
-  picks?: string[];
+  /** Swiped right: would team up. Private: only that player sees their own. */
+  likes?: string[];
+  /** Swiped left. Private, and never shown to anyone else. */
+  passes?: string[];
+  /** Asked this matched player to pair up, waiting for their answer. */
+  asked?: string;
+  /** Sent to a solo player about another: you both swiped right (names are shown from here on). */
+  matched?: boolean;
+  /** Sent to a solo player about a match: they've asked you to pair up. */
+  askedMe?: boolean;
   /** Sent to admins only: the other waiting players this one fits (both ways). */
   fitsWith?: string[];
 }

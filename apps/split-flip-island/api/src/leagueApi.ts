@@ -38,12 +38,14 @@ async function viewer(event: APIGatewayProxyEventV2): Promise<(Actor & { owner?:
 
 /**
  * The waitlist as one viewer may see it. Admins: everyone, with names and answers, and which
- * others each one fits (never who they asked for, or their picks). A solo player: themselves, plus
- * only the players who fit them, with no name, pronouns or picks. Everyone else: just how many.
+ * others each one fits (never who they asked for, or their swipes). A solo player: themselves in
+ * full, plus only the players who fit them, nameless, except matches (both swiped right), who come
+ * with name and pronouns and whether they've asked to pair. Nobody learns who passed on them.
+ * Everyone else: just how many are waiting.
  */
 function waitlistFor(waitlist: SWaitlistEntry[], who: (Actor & { owner?: boolean }) | null): SWaitlistEntry[] {
   if (who?.kind === 'admin') {
-    return waitlist.map(({ wants: _w, picks: _p, ...w }) => ({ ...w, fitsWith: waitlist.filter((o) => o.id !== w.id && fits({ ...w, wants: _w }, o)).map((o) => o.id) }));
+    return waitlist.map(({ wants, likes: _l, passes: _p, asked: _a, ...w }) => ({ ...w, fitsWith: waitlist.filter((o) => o.id !== w.id && fits({ ...w, wants }, o)).map((o) => o.id) }));
   }
   if (who?.kind === 'solo') {
     const me = waitlist.find((w) => w.id === who.soloId);
@@ -51,7 +53,10 @@ function waitlistFor(waitlist: SWaitlistEntry[], who: (Actor & { owner?: boolean
       return waitlist.flatMap((w) => {
         if (w.id === me.id) return [me];
         if (!w.traits || !fits(me, w)) return [];
-        return [{ id: w.id, name: '', at: w.at, traits: w.traits }];
+        const matched = !!me.likes?.includes(w.id) && !!w.likes?.includes(me.id);
+        return [matched
+          ? { id: w.id, name: w.name, ...(w.pronouns ? { pronouns: w.pronouns } : {}), at: w.at, traits: w.traits, matched: true, askedMe: w.asked === me.id }
+          : { id: w.id, name: '', at: w.at, traits: w.traits }];
       });
     }
   }

@@ -257,11 +257,11 @@ export default function TeamHome() {
   // Tonight is the first tab while the night is open, and while check-in is open before it.
   const [tab, setTab] = useHomeTab(night.open || checkInWindow(league).open);
 
-  // Matched from the waitlist: the two pick their shared PIN first.
-  const pinPrompt = team.needsPin ? (
-    <Alert severity="warning" action={<Button component={RouterLink} to="/settings#team-pin" color="inherit" size="small">Pick it</Button>}>
-      <Typography sx={{ fontWeight: 700 }}>Pick your team PIN together.</Typography>
-      You both use it to log in on another phone.
+  // Paired from the waitlist: the two finish setting up first (name, photo, PIN).
+  const pinPrompt = team.needsSetup ? (
+    <Alert severity="warning" action={<Button component={RouterLink} to="/team/setup" color="inherit" size="small">Set up</Button>}>
+      <Typography sx={{ fontWeight: 700 }}>Finish setting up your team.</Typography>
+      Pick your team name, photo and PIN together.
     </Alert>
   ) : null;
 

@@ -1,7 +1,7 @@
 // Admin: solo players waiting for a partner, at "/admin/waitlist".
 //   1. Suggested pairs: players who fit each other, best match first, each with a Pair up button.
 //   2. Everyone waiting: name, pronouns, how they play, their best match, and Pair with… or Remove.
-// Who each player asked to play with, and who they've picked, are never shown here: the server
+// Who each player asked to play with, and how they've swiped, are never shown here: the server
 // only says which others each one fits.
 import { useState } from 'react';
 import Box from '@mui/material/Box';
@@ -84,7 +84,7 @@ export default function Waitlist() {
             </Stack>
           )}
           <Typography variant="body2" color="textSecondary" sx={{ mt: 1.5 }}>
-            Players see each other as nameless cards and can pick each other; a mutual pick makes the team without you. These are for nudging along anyone who hasn't.
+            Players swipe on each other's nameless cards. When two match and both say yes to pairing, they become a team without you. These are for nudging along anyone who hasn't.
           </Typography>
         </Section>
 

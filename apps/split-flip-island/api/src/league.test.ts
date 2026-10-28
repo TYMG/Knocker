@@ -23,6 +23,12 @@ vi.mock('./db.js', async (importOriginal) => {
   };
 });
 
+const sms = vi.hoisted(() => ({ texts: [] as { to: string; body: string }[] }));
+vi.mock('./textsender.js', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./textsender.js')>();
+  return { ...real, sendText: async (to: string, body: string) => { sms.texts.push({ to, body }); } };
+});
+
 const { handler } = await import('./index.js');
 const { hashPassword, issueToken } = await import('./auth.js');
 const { createLeagueState, applyAction, loadLeagueState } = await import('./leagueStore.js');
@@ -235,7 +241,7 @@ describe('solo players and the matchmaker', () => {
     expect(JSON.stringify(visitor)).not.toContain('555');
 
     const admin = (await call('GET', '/api/league', await asAdmin())).body.league;
-    expect(admin.waitlist.map((w: any) => [w.name, w.traits?.why, w.wants, w.picks, w.fitsWith])).toEqual([
+    expect(admin.waitlist.map((w: any) => [w.name, w.traits?.why, w.wants, w.likes, w.fitsWith])).toEqual([
       ['Jo', 'win', undefined, undefined, []], ['Kai', 'win', undefined, undefined, []] // Kai wants women; Jo is they/them
     ]);
   });
@@ -251,39 +257,75 @@ describe('solo players and the matchmaker', () => {
     expect(me.waitlist[0].name).toBe('Jo');
   });
 
-  it('see only nameless players who fit them; a mutual pick makes the team straight away', async () => {
+  it('swipe on nameless players who fit them; a match shows names; pairing needs both to say yes', async () => {
     const ana = (await join({ name: 'Ana', pronouns: 'she/her', phone: '2025550111', wants: 'women', texts: true })).body;
-    const bea = (await join({ name: 'Bea', pronouns: 'she/they', phone: '2025550112' })).body;
+    const bea = (await join({ name: 'Bea', pronouns: 'she/they', phone: '2025550112', texts: true })).body;
     const cal = (await join({ name: 'Cal', pronouns: 'he/him', phone: '2025550113' })).body;
+    const seen = async (who: any) => (await call('GET', '/api/league', asSolo(who.token))).body.league.waitlist;
+    const swipe = (who: any, toId: string, like: boolean) => call('POST', '/api/solo/swipe', { ...asSolo(who.token), body: { toId, like } });
+    const ask = (who: any, toId: string) => call('POST', '/api/solo/ask', { ...asSolo(who.token), body: { toId } });
+    const answer = (who: any, fromId: string, accept: boolean) => call('POST', '/api/solo/answer', { ...asSolo(who.token), body: { fromId, accept } });
 
-    const anaSees = (await call('GET', '/api/league', asSolo(ana.token))).body.league.waitlist;
-    expect(anaSees.map((w: any) => [w.id, w.name, w.pronouns, w.wants])).toEqual([[ana.soloId, 'Ana', 'she/her', 'women'], [bea.soloId, '', undefined, undefined]]);
-    const calSees = (await call('GET', '/api/league', asSolo(cal.token))).body.league.waitlist;
-    expect(calSees.map((w: any) => w.id)).toEqual([bea.soloId, cal.soloId]); // not Ana: she asked for women
+    expect((await seen(ana)).map((w: any) => [w.id, w.name, w.pronouns, w.wants])).toEqual([[ana.soloId, 'Ana', 'she/her', 'women'], [bea.soloId, '', undefined, undefined]]);
+    expect((await seen(cal)).map((w: any) => w.id)).toEqual([bea.soloId, cal.soloId]); // not Ana: she asked for women
 
-    expect((await pick(ana.token, cal.soloId)).body).toEqual({}); // doesn't fit: nothing happens
-    expect((await pick(ana.token, bea.soloId)).body).toEqual({});
-    // Bea can't tell she was picked.
-    expect(JSON.stringify((await call('GET', '/api/league', asSolo(bea.token))).body.league.waitlist)).not.toContain('picks":["');
-    const matched = await pick(bea.token, ana.soloId);
-    expect(matched.body.teamName).toBe('Bea & Ana');
+    expect((await swipe(ana, cal.soloId, true)).body).toEqual({}); // doesn't fit: nothing happens
+    await swipe(ana, bea.soloId, true);
+    await swipe(cal, bea.soloId, true);
+    // Bea can't tell who swiped right on her.
+    expect(JSON.stringify(await seen(bea))).not.toMatch(/likes":\["w/);
+    expect((await ask(ana, bea.soloId)).body).toEqual({}); // not a match yet: refused quietly
+    await swipe(bea, cal.soloId, false); // a pass: Cal never finds out
+    expect((await seen(cal)).find((w: any) => w.id === bea.soloId)).toEqual(expect.objectContaining({ name: '' }));
+    await swipe(bea, ana.soloId, true); // a match
+    const match = (await seen(ana)).find((w: any) => w.id === bea.soloId);
+    expect([match.name, match.pronouns, match.matched, match.askedMe]).toEqual(['Bea', 'she/they', true, false]);
+
+    // Ana asks; Bea is told, and says not now; the request is gone. Ana asks again; Bea says yes.
+    await ask(ana, bea.soloId);
+    expect((await seen(bea)).find((w: any) => w.id === ana.soloId).askedMe).toBe(true);
+    expect((await answer(bea, ana.soloId, false)).body).toEqual({});
+    expect((await seen(bea)).find((w: any) => w.id === ana.soloId).askedMe).toBe(false);
+    expect((await loadLeagueState())!.league.teams).toHaveLength(3);
+    await ask(ana, bea.soloId);
+    process.env.SMS_ORIGINATION = '+18555550100';
+    sms.texts.length = 0;
+    const made = await answer(bea, ana.soloId, true);
+    delete process.env.SMS_ORIGINATION;
+    expect(made.body.teamName).toBe('Ana & Bea');
+    // Both had said yes to texts: each is told who their partner is.
+    expect(sms.texts.map((t) => [t.to, t.body.includes('you and Bea') || t.body.includes('you and Ana')])).toEqual([['+12025550111', true], ['+12025550112', true]]);
+    expect(sms.texts[0]!.body).toContain('you and Bea are a team');
 
     const l = (await loadLeagueState())!.league;
-    const team = l.teams.find((t) => t.teamName === 'Bea & Ana')!;
-    expect([team.status, team.needsPin, team.texts]).toEqual(['approved', true, [false, true]]);
-    expect(l.waitlist.map((w) => w.name)).toEqual(['Cal']);
+    const team = l.teams.find((t) => t.teamName === 'Ana & Bea')!;
+    expect([team.status, team.needsSetup, team.texts]).toEqual(['approved', true, [true, true]]);
+    expect(l.waitlist.map((w) => [w.name, w.likes])).toEqual([['Cal', []]]); // Cal's like of Bea is gone with her
     expect(fake.table.all(L).filter((i) => /^(WAITLIST|SOLOPHONE)#/.test(String(i.SK)))).toHaveLength(2); // Cal's only
 
-    // Ana's phone switches over to the team by itself.
+    // Ana's phone switches over to the team by itself, then the two finish setting up.
     const handoff = (await call('GET', '/api/league', asSolo(ana.token))).body;
     expect(handoff.league.myTeamId).toBe(team.teamId);
     const asTeamNow = { headers: { 'x-team-token': handoff.teamToken } };
-    // Nobody can log in until they pick a PIN, which needs no current one the first time.
-    expect((await call('POST', '/api/login', { body: { teamName: 'Bea & Ana', pin: '' } })).status).toBe(401);
-    expect((await call('POST', '/api/me/pin', { ...asTeamNow, body: { currentPin: '', newPin: '5830' } })).status).toBe(200);
-    expect((await loadLeagueState())!.league.teams.find((t) => t.teamId === team.teamId)!.needsPin).toBeUndefined();
-    expect((await call('POST', '/api/login', { body: { teamName: 'Bea & Ana', pin: '5830' } })).status).toBe(200);
-    expect((await call('POST', '/api/me/pin', { ...asTeamNow, body: { currentPin: '', newPin: '6941' } })).status).toBe(401);
+    expect((await call('POST', '/api/me/pin', { ...asTeamNow, body: { currentPin: '', newPin: '5830' } })).status).toBe(409);
+    expect((await call('POST', '/api/me/setup', { ...asTeamNow, body: { teamName: 'Left & Right', pin: '5830' } })).status).toBe(409); // taken
+    expect((await call('POST', '/api/me/setup', { ...asTeamNow, body: { teamName: 'Bumper Crop', pin: '1234' } })).status).toBe(400); // easy PIN
+    const setUp = await call('POST', '/api/me/setup', { ...asTeamNow, body: { teamName: 'Bumper Crop', pin: '5830' } });
+    expect(setUp.status).toBe(200);
+    const after = (await loadLeagueState())!.league.teams.find((t) => t.teamId === team.teamId)!;
+    expect([after.teamName, after.needsSetup]).toEqual(['Bumper Crop', undefined]);
+    expect((await call('POST', '/api/login', { body: { teamName: 'Bumper Crop', pin: '5830' } })).status).toBe(200);
+    expect((await call('POST', '/api/login', { body: { teamName: 'Ana & Bea', pin: '5830' } })).status).toBe(401); // the old name is free
+    expect((await call('POST', '/api/me/setup', { ...asTeamNow, body: { pin: '6941' } })).status).toBe(409); // only once
+  });
+
+  it('when both ask each other, that counts as both saying yes', async () => {
+    const ana = (await join({ name: 'Ana', phone: '2025550111' })).body;
+    const bea = (await join({ name: 'Bea', phone: '2025550112' })).body;
+    for (const [who, to] of [[ana, bea], [bea, ana]] as const) await call('POST', '/api/solo/swipe', { ...asSolo(who.token), body: { toId: to.soloId, like: true } });
+    await call('POST', '/api/solo/ask', { ...asSolo(ana.token), body: { toId: bea.soloId } });
+    const made = await call('POST', '/api/solo/ask', { ...asSolo(bea.token), body: { toId: ana.soloId } });
+    expect(made.body.teamName).toBe('Ana & Bea');
   });
 
   it('an admin pairs them, with a temporary PIN; a taken name gets a number', async () => {

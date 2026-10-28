@@ -331,7 +331,7 @@ function SoloForm() {
         <TextField label="PIN again" type="password" value={pinAgain} onChange={(e) => setPinAgain(digitsIn(e.target.value).slice(0, 4))} slotProps={pinInput} {...field('pinAgain')} />
         <FormControlLabel
           control={<Checkbox checked={texts} onChange={(e) => setTexts(e.target.checked)} />}
-          label={<Typography variant="body2">Text this phone a reminder to check in on league nights once you're on a team (about 1 text a league night). Msg &amp; data rates may apply. Reply STOP to stop, HELP for help.</Typography>}
+          label={<Typography variant="body2">Text this phone when you and a partner have both agreed to pair up, and once you're on a team, a reminder to check in on league nights (about 1 text a league night). Msg &amp; data rates may apply. Reply STOP to stop, HELP for help.</Typography>}
           sx={{ alignItems: 'flex-start', mx: 0, '& .MuiCheckbox-root': { pt: 0.25 } }}
         />
         <Typography variant="body2" sx={{ color: 'text.secondary', mt: '8px !important' }}>
@@ -341,7 +341,7 @@ function SoloForm() {
 
         <Typography variant="h3" component="h2" sx={{ fontSize: '1.15rem', pt: 1 }}>Find your partner</Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary', mt: '4px !important' }}>
-          Other solo players see your answers, never your name. When you and another player both pick each other, you're a team.
+          Other solo players see your answers, never your name. Swipe right on players you'd team up with. When you both swipe right, it's a match: you see each other's names and either of you can ask to pair up. You're a team once both of you say yes.
         </Typography>
         <SoloQuestions answers={answers} onChange={setAnswers} errors={{ why: shown('why'), energy: shown('energy'), experience: shown('experience'), style: shown('style') }} />
         <WantsPicker value={wants} onChange={setWants} />

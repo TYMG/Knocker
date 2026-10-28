@@ -97,7 +97,10 @@ export const liveMiddleware: Middleware = (api) => {
       case 'setSmsOptIn': { const p = a.payload as { player: 0 | 1; optIn: boolean }; void send(() => live.setTexts(p.player, p.optIn)); return undefined; }
       case 'approveTeam': void send(() => live.approve(a.payload as string)); return undefined;
       case 'removeSignUp': { const p = a.payload as { teamId: string; reason: string }; void send(() => live.remove(p.teamId, p.reason)); return undefined; }
-      case 'pickPartner': { const p = a.payload as { toId: string; picked: boolean }; void send(() => live.pickPartner(p.toId, p.picked)); return undefined; }
+      case 'swipe': { const p = a.payload as { toId: string; like: boolean }; void send(() => live.swipe(p.toId, p.like)); return undefined; }
+      case 'askToPair': void send(() => live.askToPair((a.payload as { toId: string }).toId)); return undefined;
+      case 'cancelAsk': void send(() => live.cancelAsk()); return undefined;
+      case 'answerPair': { const p = a.payload as { fromId: string; accept: boolean }; void send(() => live.answerPair(p.fromId, p.accept)); return undefined; }
       case 'leaveWaitlist': {
         const id = a.payload as string | undefined;
         void send(() => (tokens.admin() && id ? live.removeSolo(id) : live.leaveWaitlist()));

@@ -16,6 +16,7 @@ import LineJoin from './pages/LineJoin';
 import Lines from './pages/Lines';
 import LogIn from './pages/Login';
 import Solo from './pages/Solo';
+import TeamSetup from './pages/TeamSetup';
 import Waitlist from './pages/admin/Waitlist';
 import Machine from './pages/Machine';
 import SignUp from './pages/SignUp';
@@ -144,6 +145,7 @@ export default function App() {
               <Route path="/lines/join/:machineId" element={<LineJoin />} />
               <Route path="/submit" element={<Submit />} />
             </Route>
+            <Route path="/team/setup" element={<TeamSetup />} />
             <Route path="/challenges" element={<Challenges />} />
             <Route path="/love-dr" element={<LoveDrAnalysis />} />
             <Route path="/wrapped" element={<Suspense fallback={null}><Wrapped /></Suspense>} />

@@ -107,7 +107,20 @@ export const live = {
     tokens.setSolo(r.token);
     return r;
   },
-  pickPartner: (toId: string, picked: boolean) => call<{ teamId?: string; teamName?: string }>('solo/pick', { toId, picked }),
+  swipe: (toId: string, like: boolean) => call<object>('solo/swipe', { toId, like }),
+  askToPair: (toId: string) => call<{ teamId?: string; teamName?: string }>('solo/ask', { toId }),
+  cancelAsk: () => call<object>('solo/cancel-ask', {}),
+  answerPair: (fromId: string, accept: boolean) => call<{ teamId?: string; teamName?: string }>('solo/answer', { fromId, accept }),
+  /** A team paired from the waitlist sets itself up: name, photo (uploaded first, if any) and PIN. */
+  async finishSetup(teamName: string, pin: string, photoDataUrl?: string) {
+    let photoKey: string | undefined;
+    if (photoDataUrl) {
+      const up = await call<UploadResponse>('uploads', { purpose: 'team' });
+      await upload(up.photo, await dataUrlToBlob(photoDataUrl));
+      photoKey = up.photo.key;
+    }
+    return call<{ ok: true; teamName: string }>('me/setup', { teamName, pin, photoKey });
+  },
   leaveWaitlist: () => call<{ ok: true }>('solo/leave', {}),
   removeSolo: (id: string) => call<{ ok: true }>('admin/waitlist/remove', { id }),
   pairWaitlist: (ids: [string, string]) => call<{ teamId: string; teamName: string; pin: string }>('admin/waitlist/pair', { ids }),

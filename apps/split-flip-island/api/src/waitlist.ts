@@ -1,14 +1,17 @@
 // Solo players and the matchmaker.
 //   POST /api/waitlist                 a solo player joins: name, pronouns, phone, texts, PIN, answers
 //   POST /api/solo/login               a solo player logs back in with phone number and PIN
-//   POST /api/solo/pick                a solo player would team up with another (or takes it back);
-//                                      when both have picked each other they're a team straight away
+//   POST /api/solo/swipe               {toId, like}: right (like) or left (pass); right both ways is a match
+//   POST /api/solo/ask                 {toId}: ask a match to pair up
+//   POST /api/solo/cancel-ask          take back that request
+//   POST /api/solo/answer              {fromId, accept}: answer a match who asked; yes makes the team
+//                                      (both have agreed) and texts each player who said yes to texts
 //   POST /api/solo/leave               a solo player leaves the waitlist
 //   POST /api/admin/waitlist/pair      an admin pairs two of them into an approved team
 //   POST /api/admin/waitlist/remove    an admin takes someone off the waitlist
 // A waiting player's phone, text choice and PIN are kept in their own private record
 // (WAITLIST#<id>#PRIVATE), never in the league record, with a lookup by phone (SOLOPHONE#<scrambled
-// phone>). Their answers, who they want to play with and their picks live in the league record but
+// phone>). Their answers, who they want to play with and their swipes and requests live in the league record but
 // are cut out of what anyone else is sent (leagueApi.viewFor). When two of them become a team,
 // their private details move to the team's private record, and SOLOTEAM#<id> tells each one's
 // phone which team it's on now, so it switches over by itself.
@@ -22,6 +25,8 @@ import { clearLoginStrikes, hashPin, issueSoloToken, phoneLookup, readSoloToken,
 import { ddb, keys, leagueId, table } from './db.js';
 import { privateKey } from './handlers.js';
 import { applyAction, loadLeagueState, RuleRefused, type Actor, type League } from './leagueStore.js';
+import { SMS_SAMPLE, SMS_TEMPLATES } from '../../shared/sms.js';
+import { e164, sendText, textingOn } from './textsender.js';
 import { temporaryPin } from './pin.js';
 import { HttpError, nowIso, parseBody, text } from './util.js';
 
@@ -113,34 +118,61 @@ function teamWrites(team: { teamId: string; teamName: string }, ids: [string, st
 /** The team just made from this solo player, if the rule made one (it is always added last). */
 const newTeam = (soloId: string, next: League) => (next.waitlist.some((w) => w.id === soloId) ? null : next.teams[next.teams.length - 1] ?? null);
 
-export async function pickPartner(event: APIGatewayProxyEventV2): Promise<{ teamId?: string; teamName?: string }> {
+/**
+ * A solo player's own move: swipe, ask a match to pair, take back a request, or answer one. When it
+ * makes a team (both have now agreed), their private details move to the team in the same write,
+ * and each one who said yes to texts is told they're a team. The team's players are [other, you].
+ */
+async function soloAct(event: APIGatewayProxyEventV2, type: 'swipe' | 'askToPair' | 'cancelAsk' | 'answerPair', build: (body: Record<string, unknown>) => { payload: Record<string, unknown>; otherId?: string }) {
   const { soloId } = requireSolo(event);
-  const body = parseBody<{ toId?: string; picked?: boolean }>(event);
-  const toId = text(body.toId);
+  const { payload, otherId } = build(parseBody<Record<string, unknown>>(event));
   const state = await loadLeagueState();
   if (!state?.league.waitlist.some((w) => w.id === soloId)) throw new HttpError(409, "You're not on the waitlist anymore. Refresh.");
-  const [mine, theirs] = await Promise.all([getItem<WaitPrivate>(waitKey(soloId)), getItem<WaitPrivate>(waitKey(toId))]);
-  if (!mine || !theirs) throw new HttpError(409, "That player isn't waiting anymore. Refresh.");
-  let made: { teamId: string; teamName: string } | null = null;
+  const [mine, theirs] = await Promise.all([getItem<WaitPrivate>(waitKey(soloId)), otherId ? getItem<WaitPrivate>(waitKey(otherId)) : undefined]);
+  if (!mine || (otherId && !theirs)) throw new HttpError(409, "That player isn't waiting anymore. Refresh.");
+  let made: { teamId: string; teamName: string; players: [string, string] } | null = null;
   try {
-    await applyAction({ kind: 'solo', soloId }, { type: 'pickPartner', payload: { toId, picked: body.picked !== false } }, {
-      refusal: "That player isn't waiting anymore. Refresh.",
-      // The new team's text choices come from the two private records (picker first, as the rule names them).
-      after: (draft) => { const t = newTeam(soloId, draft); if (t) t.texts = [mine.texts, theirs.texts]; },
+    await applyAction({ kind: 'solo', soloId }, { type, payload }, {
+      after: (draft) => { const t = newTeam(soloId, draft); if (t && theirs) t.texts = [theirs.texts, mine.texts]; },
       extraWrites: (next) => {
         made = newTeam(soloId, next);
-        // The team picks its own PIN together; until then nobody can log in to it with a PIN.
-        return made ? teamWrites(made, [soloId, toId], [mine, theirs], '') : [];
+        // The team picks its own PIN when it sets up; until then nobody can log in to it with a PIN.
+        return made && otherId && theirs ? teamWrites(made, [otherId, soloId], [theirs, mine], '') : [];
       }
     });
   } catch (err) {
-    // Picking someone twice, or taking back a pick that isn't there: nothing to do.
+    // Swiping the same way twice, asking twice, or an answer to a request that's gone: nothing to do.
     if (err instanceof RuleRefused) return {};
     throw err;
   }
-  const team = made as { teamId: string; teamName: string } | null;
-  return team ? { teamId: team.teamId, teamName: team.teamName } : {};
+  const team = made as { teamId: string; teamName: string; players: [string, string] } | null;
+  if (!team || !theirs) return {};
+  await textTeamMade(team.players, [theirs, mine]);
+  return { teamId: team.teamId, teamName: team.teamName };
 }
+
+/** "You and Bea are a team!" to each player who said yes to texts. A failed text never undoes the team. */
+async function textTeamMade(players: [string, string], privs: [WaitPrivate, WaitPrivate]) {
+  if (!textingOn()) return;
+  let sent = 0, failed = 0;
+  for (const i of [0, 1] as const) {
+    if (!privs[i].texts) continue;
+    try {
+      await sendText(e164(privs[i].phone), SMS_TEMPLATES.teamMade.body({ ...SMS_SAMPLE, partnerName: players[1 - i]! }));
+      sent++;
+    } catch (err) {
+      failed++;
+      console.error('Team text failed', (err as Error).name);
+    }
+  }
+  console.log('Team made texts', JSON.stringify({ sent, failed }));
+}
+
+const id = (v: unknown) => text(v);
+export const soloSwipe = (e: APIGatewayProxyEventV2) => soloAct(e, 'swipe', (b) => ({ payload: { toId: id(b.toId), like: b.like === true } }));
+export const soloAsk = (e: APIGatewayProxyEventV2) => soloAct(e, 'askToPair', (b) => ({ payload: { toId: id(b.toId) }, otherId: id(b.toId) }));
+export const soloCancelAsk = (e: APIGatewayProxyEventV2) => soloAct(e, 'cancelAsk', () => ({ payload: {} }));
+export const soloAnswer = (e: APIGatewayProxyEventV2) => soloAct(e, 'answerPair', (b) => ({ payload: { fromId: id(b.fromId), accept: b.accept === true }, otherId: id(b.fromId) }));
 
 async function leave(actor: Actor, id: string) {
   const priv = await getItem<WaitPrivate>(waitKey(id));

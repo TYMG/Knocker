@@ -104,17 +104,38 @@ export const fmt = (n: number) => n.toLocaleString('en-US');
  * The rules, ready for Redux Toolkit's createSlice or for Immer's produce.
  * fallbackTeamId: who "you" become when your own sign-up is removed (the sample's own team).
  */
+/** Two waiting solo players (the first is you unless named) who fit each other. */
+function soloPair(s: SampleState, fromId: string | undefined, toId: string): [SWaitlistEntry, SWaitlistEntry] | null {
+  const from = s.waitlist.find((w) => w.id === (fromId ?? s.mySoloId));
+  const to = s.waitlist.find((w) => w.id === toId);
+  if (!from || !to || from === to || !from.traits || !to.traits || !fits(from, to)) return null;
+  return [from, to];
+}
+const isMatch = (a: SWaitlistEntry, b: SWaitlistEntry) => !!a.likes?.includes(b.id) && !!b.likes?.includes(a.id);
+
+/** Both said yes: the asker and the one who accepted become a team, which then sets itself up. */
+function pairUpSolos(s: SampleState, asker: SWaitlistEntry, other: SWaitlistEntry) {
+  const made = soloTeam(s, [asker, other], { needsSetup: true });
+  if (!made) return;
+  addLog(s, 'league', `Two solo players paired up: ${made.teamName}`);
+  if (s.mySoloId === asker.id || s.mySoloId === other.id) { s.mySoloId = undefined; s.myTeamId = made.teamId; s.role = 'team'; }
+}
+
 /** Takes solo players off the waitlist, and out of everyone's picks. */
 function dropSolos(s: SampleState, ids: string[]) {
   s.waitlist = s.waitlist.filter((w) => !ids.includes(w.id));
-  for (const w of s.waitlist) if (w.picks?.some((x) => ids.includes(x))) w.picks = w.picks.filter((x) => !ids.includes(x));
+  for (const w of s.waitlist) {
+    if (w.likes?.some((x) => ids.includes(x))) w.likes = w.likes.filter((x) => !ids.includes(x));
+    if (w.passes?.some((x) => ids.includes(x))) w.passes = w.passes.filter((x) => !ids.includes(x));
+    if (w.asked && ids.includes(w.asked)) w.asked = undefined;
+  }
 }
 
 /**
  * Two solo players become an approved team, "Rosa & Theo" (a number added if that name is taken).
  * The server adds their phones and PIN in the same write.
  */
-export function soloTeam(s: SampleState, [one, two]: [SWaitlistEntry, SWaitlistEntry], o: { sample?: boolean; texts?: [boolean, boolean]; needsPin?: boolean }) {
+export function soloTeam(s: SampleState, [one, two]: [SWaitlistEntry, SWaitlistEntry], o: { sample?: boolean; texts?: [boolean, boolean]; needsSetup?: boolean }) {
   const base = `${one.name} & ${two.name}`;
   const taken = (n: string) => s.teams.some((t) => t.teamName.toLowerCase() === n.toLowerCase());
   let teamName = base;
@@ -125,7 +146,7 @@ export function soloTeam(s: SampleState, [one, two]: [SWaitlistEntry, SWaitlistE
     pronouns: [one.pronouns ?? '', two.pronouns ?? ''],
     phone1: o.sample ? '(202) 555-0150' : '', phone2: o.sample ? '(202) 555-0151' : '', ...(o.texts ? { texts: o.texts } : {}),
     photo: teamPhoto(teamName), status: 'approved', createdAt: s.now, firstWeek: startWeek(s),
-    ...(o.needsPin ? { needsPin: true } : {})
+    ...(o.needsSetup ? { needsSetup: true } : {})
   });
   dropSolos(s, [one.id, two.id]);
   return { teamId, teamName };
@@ -155,29 +176,45 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
         const id = nextId(s, 'w');
         s.waitlist.push({
           id, name: p.name.trim() || 'Solo player', ...(p.pronouns ? { pronouns: p.pronouns } : {}), at: s.now,
-          ...(traits ? { traits, wants: wants ?? 'anyone', picks: [] } : {})
+          ...(traits ? { traits, wants: wants ?? 'anyone', likes: [], passes: [] } : {})
         });
         // The one who joined is now that solo player (the server sets this per request instead).
         if (traits) s.mySoloId = id;
       },
-      /**
-       * A solo player would team up with another (or takes it back, picked: false). When both have
-       * picked each other, they're a team straight away. Only between players who fit each other.
-       */
-      pickPartner(s: SampleState, a: PayloadAction<{ toId: string; picked: boolean; fromId?: string }>) {
-        const fromId = a.payload.fromId ?? s.mySoloId ?? '';
-        const from = s.waitlist.find((w) => w.id === fromId);
-        const to = s.waitlist.find((w) => w.id === a.payload.toId);
-        if (!from || !to || from === to || !from.traits || !to.traits || !fits(from, to)) return;
-        const picks = from.picks ?? [];
-        if (!a.payload.picked) { if (picks.includes(to.id)) from.picks = picks.filter((x) => x !== to.id); return; }
-        if (picks.includes(to.id)) return;
-        from.picks = [...picks, to.id];
-        if (!(to.picks ?? []).includes(from.id)) return;
-        const made = soloTeam(s, [from, to], { needsPin: true });
-        if (!made) return;
-        addLog(s, 'league', `Two solo players picked each other: ${made.teamName}`);
-        if (s.mySoloId === from.id || s.mySoloId === to.id) { s.mySoloId = undefined; s.myTeamId = made.teamId; s.role = 'team'; }
+      /** Swipe right (like) or left (pass) on another solo player who fits. Right on both sides is a match. */
+      swipe(s: SampleState, a: PayloadAction<{ toId: string; like: boolean; fromId?: string }>) {
+        const pair = soloPair(s, a.payload.fromId, a.payload.toId);
+        if (!pair) return;
+        const [from, to] = pair;
+        const likes = from.likes ?? [], passes = from.passes ?? [];
+        if (a.payload.like ? likes.includes(to.id) : passes.includes(to.id)) return;
+        from.likes = a.payload.like ? [...likes, to.id] : likes.filter((x) => x !== to.id);
+        from.passes = a.payload.like ? passes.filter((x) => x !== to.id) : [...passes, to.id];
+        // Un-liking a match ends any pairing request between them.
+        if (!a.payload.like) { if (from.asked === to.id) from.asked = undefined; if (to.asked === from.id) to.asked = undefined; }
+      },
+      /** Ask a match to pair up. If they've already asked you, you've both said yes: you're a team. */
+      askToPair(s: SampleState, a: PayloadAction<{ toId: string; fromId?: string }>) {
+        const pair = soloPair(s, a.payload.fromId, a.payload.toId);
+        if (!pair || !isMatch(pair[0], pair[1]) || pair[0].asked === pair[1].id) return;
+        const [from, to] = pair;
+        from.asked = to.id;
+        if (to.asked === from.id) pairUpSolos(s, to, from);
+      },
+      /** Take back a pairing request that hasn't been answered. */
+      cancelAsk(s: SampleState, a: PayloadAction<{ fromId?: string } | undefined>) {
+        const from = s.waitlist.find((w) => w.id === (a.payload?.fromId ?? s.mySoloId));
+        if (!from?.asked) return;
+        from.asked = undefined;
+      },
+      /** Answer a match who asked to pair up: yes makes the team (both have agreed), no clears the request. */
+      answerPair(s: SampleState, a: PayloadAction<{ fromId: string; accept: boolean; meId?: string }>) {
+        const pair = soloPair(s, a.payload.meId, a.payload.fromId);
+        if (!pair) return;
+        const [me, asker] = pair;
+        if (asker.asked !== me.id || !isMatch(me, asker)) return;
+        if (a.payload.accept) pairUpSolos(s, asker, me);
+        else asker.asked = undefined;
       },
       /** A solo player leaves the waitlist (their own, or any one for an admin). */
       leaveWaitlist(s: SampleState, a: PayloadAction<string | undefined>) {
@@ -188,11 +225,19 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
         if (s.mySoloId === w.id) s.mySoloId = undefined;
         addLog(s, s.role === 'admin' ? 'admin' : 'league', s.role === 'admin' ? `Admin took ${w.name} off the waitlist` : 'A solo player left the waitlist');
       },
-      /** A team matched from the waitlist picked its PIN. */
-      teamPinSet(s: SampleState, a: PayloadAction<string | undefined>) {
-        const t = s.teams.find((x) => x.teamId === (a.payload ?? s.myTeamId));
-        if (!t?.needsPin) return;
-        t.needsPin = undefined;
+      /** A team paired from the waitlist finishes setting up: its own name (if changed) and photo. */
+      finishTeamSetup(s: SampleState, a: PayloadAction<{ teamId?: string; teamName?: string; photo?: string }>) {
+        const t = s.teams.find((x) => x.teamId === (a.payload.teamId ?? s.myTeamId));
+        if (!t?.needsSetup) return;
+        const name = a.payload.teamName?.trim().replace(/\s+/g, ' ');
+        if (name && name.toLowerCase() !== t.teamName.toLowerCase()) {
+          if (name.length < 2 || name.length > 30 || s.teams.some((x) => x !== t && x.teamName.toLowerCase() === name.toLowerCase())) return;
+          addLog(s, 'league', `${t.teamName} is now ${name}`);
+          t.teamName = name;
+          if (!a.payload.photo && t.photo.startsWith('data:')) t.photo = teamPhoto(name);
+        }
+        if (a.payload.photo) t.photo = a.payload.photo;
+        t.needsSetup = undefined;
       },
 
       // ---- Lines ----

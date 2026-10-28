@@ -4,8 +4,8 @@ import { sameSecret } from './auth.js';
 import { adminEnterScore, createUpload, login, register, submitScore } from './handlers.js';
 import { getLeague, postAction } from './leagueApi.js';
 import { setupLeague, startOver } from './leagueAdmin.js';
-import { adminRemoveSolo, joinWaitlist, pairWaitlist, pickPartner, soloLeave, soloLogin } from './waitlist.js';
-import { changePin, resetPin } from './pin.js';
+import { adminRemoveSolo, joinWaitlist, pairWaitlist, soloAnswer, soloAsk, soloCancelAsk, soloLeave, soloLogin, soloSwipe } from './waitlist.js';
+import { changePin, finishSetup, resetPin } from './pin.js';
 import { openNightIfTime, sendCheckInReminders } from './reminders.js';
 import { runTurnClock } from './turnClock.js';
 import { setTeamTexts, smsStatus, smsTest, teamTexts } from './sms.js';
@@ -34,7 +34,11 @@ const routes: Record<string, { run: Route; status?: 201 }> = {
   'POST /api/admin/waitlist/pair': { run: pairWaitlist, status: 201 },
   'POST /api/admin/waitlist/remove': { run: adminRemoveSolo },
   'POST /api/solo/login': { run: soloLogin },
-  'POST /api/solo/pick': { run: pickPartner },
+  'POST /api/me/setup': { run: finishSetup },
+  'POST /api/solo/swipe': { run: soloSwipe },
+  'POST /api/solo/ask': { run: soloAsk },
+  'POST /api/solo/cancel-ask': { run: soloCancelAsk },
+  'POST /api/solo/answer': { run: soloAnswer },
   'POST /api/solo/leave': { run: soloLeave },
   'POST /api/admin/league/start-over': { run: startOver }
 };

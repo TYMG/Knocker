@@ -3,9 +3,10 @@
 // Rules for every text: plain characters only (no emoji or curly quotes, so each stays one
 // 160-character segment), says who it's from, and ends with how to stop. Texts are opt-in.
 // Decided Oct 19: only the check-in reminder is texted for real; the rest are in-app alerts,
+// Oct 28: plus "you're a team" when two solo players have both agreed to pair up.
 // kept here so the admin can preview them and send a test.
 
-export type SmsTemplate = 'checkInReminder' | 'youreNext' | 'yourTurn' | 'forfeit' | 'noShow';
+export type SmsTemplate = 'checkInReminder' | 'teamMade' | 'youreNext' | 'yourTurn' | 'forfeit' | 'noShow';
 
 export interface SmsSample {
   teamName: string;
@@ -13,6 +14,8 @@ export interface SmsSample {
   minutes: number;
   week: number;
   noShows: number;
+  /** For "you're a team": the other player's first name. */
+  partnerName: string;
 }
 
 const SIGN_OFF = ' Reply STOP to stop.';
@@ -22,6 +25,11 @@ export const SMS_TEMPLATES: Record<SmsTemplate, { label: string; texted: boolean
     label: 'Check-in reminder',
     texted: true,
     body: (v) => `Split Flipper Island: league night starts in ${v.minutes} min. ${v.teamName}, check in on the app so you can play. Partner out? Use a sub.${SIGN_OFF}`
+  },
+  teamMade: {
+    label: "You're a team (solo players who paired up)",
+    texted: true,
+    body: (v) => `Split Flipper Island: you and ${v.partnerName} are a team! Open the app to pick your team name, photo and PIN: split-flip-island.knckr.com${SIGN_OFF}`
   },
   youreNext: {
     label: "You're next",
@@ -45,7 +53,7 @@ export const SMS_TEMPLATES: Record<SmsTemplate, { label: string; texted: boolean
   }
 };
 
-export const SMS_SAMPLE: SmsSample = { teamName: 'Left & Right', machineName: 'Godzilla', minutes: 5, week: 4, noShows: 1 };
+export const SMS_SAMPLE: SmsSample = { teamName: 'Left & Right', machineName: 'Godzilla', minutes: 5, week: 4, noShows: 1, partnerName: 'Rosa' };
 
 /** GSM-7 only and 160 characters or fewer: one segment, one charge. */
 export function smsFitsOneSegment(text: string): boolean {

@@ -76,7 +76,7 @@ export async function sendCheckInReminders(now = new Date()): Promise<ReminderRe
     const phones = [priv.smsOptIn1 ? priv.phone1 : '', priv.smsOptIn2 ? priv.phone2 : ''].filter(Boolean);
     if (phones.length === 0) continue;
     teamCount += 1;
-    const body = SMS_TEMPLATES.checkInReminder.body({ teamName: team.teamName, machineName: '', minutes: mins, week: week.week, noShows: 0 });
+    const body = SMS_TEMPLATES.checkInReminder.body({ partnerName: '', teamName: team.teamName, machineName: '', minutes: mins, week: week.week, noShows: 0 });
     for (const phone of phones) {
       try {
         await sendText(e164(phone), body);

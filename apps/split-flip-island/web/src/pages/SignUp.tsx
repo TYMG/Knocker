@@ -261,12 +261,17 @@ function PairForm() {
   );
 }
 
-/** The solo player's form: a first name and a phone, then a confirmation in its place. */
+/** The solo player's form: first name, pronouns, phone and texts, then a confirmation in its place. */
 function SoloForm() {
   const league = useLeague();
   const dispatch = useAppDispatch();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [pronouns, setPronouns] = useState('');
+  const [texts, setTexts] = useState(false);
+  const liveOn = useAppSelector((x) => x.live.on);
+  const [failed, setFailed] = useState('');
+  const [sending, setSending] = useState(false);
   const [left, setLeft] = useState<Record<string, boolean>>({});
   const [tried, setTried] = useState(false);
   const [joinedAs, setJoinedAs] = useState<string | null>(null);
@@ -288,7 +293,7 @@ function SoloForm() {
   }
 
   const firstName = tidy(name);
-  const errors = { name: firstName ? '' : 'Type your first name.', phone: phoneError(phone) };
+  const errors = { name: firstName ? '' : 'Type your first name.', pronouns: pronounsError(pronouns), phone: phoneError(phone) };
   type Field = keyof typeof errors;
   const shown = (key: Field) => (tried || left[key] ? errors[key] : '');
   const field = (key: Field) => ({ id: `solo-${key}`, error: !!shown(key), helperText: shown(key) || undefined, onBlur: () => setLeft((l) => ({ ...l, [key]: true })) });
@@ -301,7 +306,17 @@ function SoloForm() {
       focusFirst(wrong.map((key) => `solo-${key}`));
       return;
     }
-    dispatch(sample.joinWaitlist(firstName));
+    if (liveOn) {
+      // The live league: the server keeps the phone private.
+      setFailed('');
+      setSending(true);
+      live.joinWaitlist({ name: firstName, pronouns: tidy(pronouns), phone, texts })
+        .then(async () => { await refreshLive(); dispatch(showToast(`${firstName} joined the waitlist`)); setJoinedAs(firstName); })
+        .catch((err: Error) => setFailed(err.message))
+        .finally(() => setSending(false));
+      return;
+    }
+    dispatch(sample.joinWaitlist({ name: firstName, pronouns: tidy(pronouns) }));
     dispatch(showToast(`${firstName} joined the waitlist`));
     setJoinedAs(firstName);
   };
@@ -309,13 +324,23 @@ function SoloForm() {
   return (
     <Box component="form" noValidate onSubmit={submit}>
       <Stack spacing={2}>
-        <TextField label="First name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="given-name" slotProps={{ htmlInput: { maxLength: 30 } }} {...field('name')} />
+        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+          <TextField label="First name" value={name} onChange={(e) => setName(e.target.value.slice(0, PLAYER_NAME_MAX))} autoComplete="given-name" sx={{ flex: '1 1 150px' }} {...field('name')} />
+          <PronounPicker value={pronouns} onChange={setPronouns} field={field('pronouns') as { id: string; error: boolean; helperText?: string; onBlur: () => void }} />
+        </Box>
         <TextField label="Phone" type="tel" value={phone} onChange={(e) => setPhone(formatPhoneInput(e.target.value))} slotProps={phoneInput} {...field('phone')} />
+        <FormControlLabel
+          control={<Checkbox checked={texts} onChange={(e) => setTexts(e.target.checked)} />}
+          label={<Typography variant="body2">Text this phone a reminder to check in on league nights once you're on a team (about 1 text a league night). Msg &amp; data rates may apply. Reply STOP to stop, HELP for help.</Typography>}
+          sx={{ alignItems: 'flex-start', mx: 0, '& .MuiCheckbox-root': { pt: 0.25 } }}
+        />
         <Typography variant="body2" sx={{ color: 'text.secondary', mt: '8px !important' }}>
-          Your phone number stays private. It is only used to reach you about a partner.
+          Your phone number stays private. It is only used to reach you about a partner and, if you tick the box, for the reminder.{' '}
+          <Link href="https://knckr.com/sms.html" target="_blank" rel="noopener">Text terms and privacy</Link>
         </Typography>
-        <Button type="submit" variant="contained" color="secondary" size="large">
-          Join the waitlist
+        {failed && <Typography role="alert" sx={{ color: 'secondary.main', fontWeight: 700 }}>{failed}</Typography>}
+        <Button type="submit" variant="contained" color="secondary" size="large" disabled={sending}>
+          {sending ? 'Joining…' : 'Join the waitlist'}
         </Button>
       </Stack>
     </Box>

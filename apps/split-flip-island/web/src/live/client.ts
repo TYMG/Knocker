@@ -89,6 +89,9 @@ export const live = {
     return call<{ version: number }>('admin/scores', { ...p, ...keys });
   },
 
+  joinWaitlist: (body: { name: string; pronouns: string; phone: string; texts: boolean }) => call<{ ok: true; waiting: number }>('waitlist', body),
+  pairWaitlist: (ids: [string, string]) => call<{ teamId: string; teamName: string; pin: string }>('admin/waitlist/pair', { ids }),
+
   changePin: (currentPin: string, newPin: string) => call<{ ok: true }>('me/pin', { currentPin, newPin }),
   setTexts: (player: 0 | 1, optIn: boolean) => call<{ texts: [boolean, boolean] }>('me/texts', { player, optIn }),
   approve: (teamId: string) => call<{ ok: true }>(`admin/teams/${teamId}/approve`, {}),

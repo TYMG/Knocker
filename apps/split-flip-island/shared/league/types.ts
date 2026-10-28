@@ -197,6 +197,8 @@ export interface SFeedItem {
 export interface SWaitlistEntry {
   id: string;
   name: string;
+  /** As given when they joined ('' or missing when they skipped it). */
+  pronouns?: string;
   at: string;
 }
 

@@ -118,8 +118,11 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
         s.role = 'team';
         addLog(s, 'league', 'A new team signed up and is waiting for approval');
       },
-      joinWaitlist(s: SampleState, a: PayloadAction<string>) {
-        s.waitlist.push({ id: nextId(s, 'w'), name: a.payload.trim() || 'Solo player', at: s.now });
+      /** A solo player waits to be paired. Their phone stays private (on the server, in its own record). */
+      joinWaitlist(s: SampleState, a: PayloadAction<string | { name: string; pronouns?: string }>) {
+        if (s.paused) return;
+        const p = typeof a.payload === 'string' ? { name: a.payload } : a.payload;
+        s.waitlist.push({ id: nextId(s, 'w'), name: p.name.trim() || 'Solo player', ...(p.pronouns ? { pronouns: p.pronouns } : {}), at: s.now });
       },
 
       // ---- Lines ----
@@ -633,13 +636,21 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
         addLog(s, 'admin', 'Admin removed a sign-up', a.payload.reason);
       },
       /** Makes one team out of two solo players from the waitlist. */
-      pairWaitlist(s: SampleState, a: PayloadAction<[string, string]>) {
-        const pair = a.payload.map((idValue) => s.waitlist.find((w) => w.id === idValue));
+      /**
+       * Admin: two solo players become a team, approved at once. On the server their phones and
+       * text choices move to the new team's private record; here the team only gets names.
+       */
+      pairWaitlist(s: SampleState, a: PayloadAction<[string, string] | { ids: [string, string]; texts?: [boolean, boolean] }>) {
+        const p = Array.isArray(a.payload) ? { ids: a.payload, texts: undefined, sample: true } : { ...a.payload, sample: false };
+        const pair = p.ids.map((idValue) => s.waitlist.find((w) => w.id === idValue));
         const [one, two] = pair;
         if (!one || !two || one === two) return;
         const teamName = `${one.name} & ${two.name}`;
+        if (s.teams.some((t) => t.teamName.toLowerCase() === teamName.toLowerCase())) return;
         s.teams.push({
-          teamId: slug(teamName, s.teams.map((t) => t.teamId)), teamName, players: [one.name, two.name], phone1: '(202) 555-0150', phone2: '(202) 555-0151',
+          teamId: slug(teamName, s.teams.map((t) => t.teamId)), teamName, players: [one.name, two.name],
+          pronouns: [one.pronouns ?? '', two.pronouns ?? ''],
+          phone1: p.sample ? '(202) 555-0150' : '', phone2: p.sample ? '(202) 555-0151' : '', ...(p.texts ? { texts: p.texts } : {}),
           photo: teamPhoto(teamName), status: 'approved', createdAt: s.now, firstWeek: startWeek(s)
         });
         s.waitlist = s.waitlist.filter((w) => w.id !== one.id && w.id !== two.id);

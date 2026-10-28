@@ -211,3 +211,46 @@ describe('an admin entering a score for a team', () => {
   });
 });
 
+describe('solo players', () => {
+  const join = (body: Record<string, unknown>) => call('POST', '/api/waitlist', { body });
+
+  it('join the waitlist with their phone kept private, and an admin pairs them into a team', async () => {
+    expect((await join({ name: '', phone: '2025550199' })).status).toBe(400);
+    expect((await join({ name: 'Jo', phone: '555' })).status).toBe(400);
+    expect((await join({ name: 'Jo', pronouns: 'they/them', phone: '(202) 555-0199', texts: true })).status).toBe(201);
+    expect((await join({ name: 'Kai', phone: '2025550188' })).status).toBe(201);
+
+    const visitor = (await call('GET', '/api/league')).body.league;
+    expect(visitor.waitlist.map((w: any) => [w.name, w.pronouns ?? ''])).toEqual([['Jo', 'they/them'], ['Kai', '']]);
+    expect(JSON.stringify(visitor)).not.toContain('555');
+    const ids = visitor.waitlist.map((w: any) => w.id);
+
+    expect((await call('POST', '/api/admin/waitlist/pair', { body: { ids } })).status).toBe(401);
+    const admin = await asAdmin();
+    expect((await call('POST', '/api/admin/waitlist/pair', { ...admin, body: { ids: [ids[0], ids[0]] } })).status).toBe(400);
+    const paired = await call('POST', '/api/admin/waitlist/pair', { ...admin, body: { ids } });
+    expect(paired.status).toBe(201);
+    expect(paired.body.teamName).toBe('Jo & Kai');
+    expect(paired.body.pin).toMatch(/^\d{4}$/);
+
+    const l = (await loadLeagueState())!.league;
+    const team = l.teams.find((t) => t.teamName === 'Jo & Kai')!;
+    expect([team.status, team.players, team.pronouns, team.texts]).toEqual(['approved', ['Jo', 'Kai'], ['they/them', ''], [true, false]]);
+    expect(l.waitlist).toHaveLength(0);
+    const priv = fake.table.get(L, `TEAM#${team.teamId}#PRIVATE`)!;
+    expect([priv.phone1, priv.phone2, priv.smsOptIn1, priv.smsOptIn2]).toEqual(['2025550199', '2025550188', true, false]);
+    expect(fake.table.all(L).some((i) => String(i.SK).startsWith('WAITLIST#'))).toBe(false);
+    expect((await call('POST', '/api/login', { body: { teamName: 'Jo & Kai', pin: paired.body.pin } })).status).toBe(200);
+  });
+
+  it('cannot pair into a name another team already has', async () => {
+    await join({ name: 'Left', phone: '2025550101' });
+    await join({ name: 'Right', phone: '2025550102' });
+    // An existing team named "Left & Right" (aaaa1111) is in the league from the set-up.
+    const ids = (await call('GET', '/api/league')).body.league.waitlist.map((w: any) => w.id);
+    const res = await call('POST', '/api/admin/waitlist/pair', { ...(await asAdmin()), body: { ids } });
+    expect(res.status).toBe(409);
+    expect((await loadLeagueState())!.league.waitlist).toHaveLength(2);
+  });
+});
+

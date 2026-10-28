@@ -13,7 +13,13 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import SearchIcon from '@mui/icons-material/Search';
-import { useAppDispatch, useLeague } from '../../hooks';
+import { useAppDispatch, useLeague, useLiveOn } from '../../hooks';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import { live } from '../../live/client';
+import { refreshLive } from '../../live/sync';
 import { approvedTeams, currentWeek, nightStatus, pendingTeams, scoreCounts, FORFEIT_LIMIT, forfeitCounts, NO_SHOW_LIMIT, noShowCount, withdrawnTeams } from '../../sample/league';
 import { sample } from '../../sample/slice';
 import { ago } from '../../sample/time';
@@ -63,9 +69,19 @@ export default function Teams() {
     waitlist.length > 0 ? `${waitlist.length} on the waitlist.` : ''
   ].filter(Boolean).join(' ');
 
+  const liveOn = useLiveOn();
+  const [paired, setPaired] = useState<{ teamName: string; pin: string } | null>(null);
+
   const pairUp = () => {
     const [one, two] = waitlist;
     if (!one || !two) return;
+    if (liveOn) {
+      // The live league: the server makes the team and a temporary PIN, shown here once.
+      live.pairWaitlist([one.id, two.id])
+        .then(async (r) => { setPaired(r); await refreshLive(); })
+        .catch((err: Error) => dispatch(showToast(err.message)));
+      return;
+    }
     dispatch(sample.pairWaitlist([one.id, two.id]));
     // The action names the new team after its two players, the same way as here.
     dispatch(showToast(`Paired ${one.name} and ${two.name}. The new team is ${one.name} & ${two.name} and starts next week.`));
@@ -183,6 +199,20 @@ export default function Teams() {
           )}
         </Section>
       </Stack>
+      <Dialog open={!!paired} fullWidth maxWidth="xs">
+        <DialogTitle>{paired?.teamName} is a team</DialogTitle>
+        <DialogContent>
+          <Typography>Their temporary PIN:</Typography>
+          <Typography aria-label={`Temporary PIN ${paired?.pin.split('').join(' ')}`} sx={{ fontFamily: 'monospace', fontSize: '3rem', fontWeight: 700, letterSpacing: '0.3em', textAlign: 'center', my: 1 }}>
+            {paired?.pin}
+          </Typography>
+          <Typography>Tell them in person. They log in with their team name and this PIN, then pick their own in Settings, under Change PIN.</Typography>
+          <Typography variant="body2" color="textSecondary" sx={{ mt: 1.5 }}>It won't be shown again. If it's lost, reset it from the team's page.</Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button variant="contained" onClick={() => { dispatch(showToast(`${paired?.teamName} is in. They start next week.`)); setPaired(null); }}>Done</Button>
+        </DialogActions>
+      </Dialog>
     </Page>
   );
 }

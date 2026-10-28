@@ -18,8 +18,16 @@ region us-east-1 (Northern Virginia). Prereqs on the Mac: AWS CLI, Terraform 1.1
 It builds and tests the server (and stops if a test fails), then for each Terraform stack it
 plans, shows a short list of what would change and asks **Apply? [y/N]**. A stack with nothing
 to change is skipped. A plan that would **delete or replace** anything stops unless you type
-`replace`: paste `.deploy-logs/plan-<stack>.log` to Claude first. Then it publishes the web app.
-Full output of every step is saved in `.deploy-logs/`.
+`replace`: paste `.deploy-logs/plan-<stack>.log` to Claude first. Then it runs the web app's
+**browser tests** (Playwright, free, on this Mac, a few minutes) and publishes the web app only if
+they all pass; if one fails, `cd apps/split-flip-island/web && npm run test:report` shows what
+happened, with screenshots. Full output of every step is saved in `.deploy-logs/`.
+
+First time on a Mac, install the test browser once: `cd apps/split-flip-island/web && npx playwright install chromium`.
+
+**Testing (decided Oct 28):** Claude writes tests but doesn't run the browser suite; it runs here
+on every release, for free. Real checking is people clicking through the app; bugs and feedback
+go in the **Feedback** page in Notion (Split Flipper Island → Feedback).
 
 Nothing in AWS changes without your yes, and everything in AWS is Terraform.
 

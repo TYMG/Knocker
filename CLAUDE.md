@@ -371,7 +371,11 @@ The server runs the **same rules code** as the sample league, so the two can nev
 
 `scripts/release.sh` (Oct 27) runs the usual release in one go: build and test the server, plan
 each stack with a short summary and apply only after a typed yes (anything that deletes or
-replaces needs "replace"; a stack with no changes is skipped), then publish the web app.
+replaces needs "replace"; a stack with no changes is skipped), then run the Playwright browser
+tests (web `npm test`; a failure stops before publishing), then publish the web app.
+**Testing (Matt, Oct 28):** don't run the Playwright suite from Claude (it costs his tokens); write
+and update the tests so they pass, and they run free on his Mac in every release. Keep server
+(Vitest) tests current. Bugs and feedback live in Notion: Split Flipper Island → Feedback.
 `release.sh server` or `release.sh web` for part of it.
 `scripts/deploy-step.sh <step>` runs the deploy one step at a time and saves the output to
 `.deploy-logs/`. `plan-*` steps change nothing; `apply-*` applies exactly the saved plan.

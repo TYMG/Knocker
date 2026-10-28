@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # One command for the usual release: build and test the server, then each Terraform stack
-# (plan, short summary, your yes, apply), then the web app. Nothing in AWS changes without a yes.
+# (plan, short summary, your yes, apply), then the web app's browser tests, then the web app.
+# Nothing in AWS changes without a yes, and nothing is published if a test fails.
 #
 #   ./scripts/release.sh          everything: server, league stack, knckr.com stack, web app
 #   ./scripts/release.sh server   just the server: build, league stack
@@ -52,6 +53,15 @@ server() {
 }
 
 web() {
+  # The browser tests (Playwright, free, on this computer): a real browser clicks through the
+  # built app on the sample league. A few minutes. A failure stops here, before anything is published.
+  bold "Running the web app's browser tests (a few minutes)..."
+  mkdir -p "$LOGS"
+  if ! (cd "$ROOT/apps/split-flip-island/web" && npm test) > "$LOGS/web-tests.log" 2>&1; then
+    tail -40 "$LOGS/web-tests.log"
+    stop "a browser test failed, so nothing was published. See what happened: cd apps/split-flip-island/web && npm run test:report (full output: .deploy-logs/web-tests.log)."
+  fi
+  echo "$(grep -E '[0-9]+ passed' "$LOGS/web-tests.log" | tail -1 | xargs)."
   bold "Publishing the web app..."
   $STEP web > /dev/null || { tail -40 "$LOGS/web.log"; stop "publishing the web app failed (full output: .deploy-logs/web.log)."; }
   echo "Published."

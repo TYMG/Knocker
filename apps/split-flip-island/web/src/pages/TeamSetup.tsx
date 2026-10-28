@@ -35,7 +35,17 @@ export default function TeamSetup() {
   const [failed, setFailed] = useState('');
   const [sending, setSending] = useState(false);
 
-  if (!me.isTeam || !me.team.needsSetup) return <Navigate to="/" replace />;
+  if (!me.isTeam) return <Navigate to="/" replace />;
+  if (!me.team.needsSetup) {
+    return (
+      <Page title="Set up your team">
+        <Stack spacing={2}>
+          <Typography>{me.team.teamName} is all set. To change your PIN, go to Settings.</Typography>
+          <Button component={RouterLink} to="/" variant="contained">Go to team home</Button>
+        </Stack>
+      </Page>
+    );
+  }
   const team = me.team;
   const teamName = name.trim().replace(/\s+/g, ' ');
   const taken = league.teams.some((t) => t.teamId !== team.teamId && t.teamName.toLowerCase() === teamName.toLowerCase());

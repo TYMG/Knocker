@@ -22,6 +22,9 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     // A phone, because that is what players and the organizer hold on league night.
     viewport: { width: 390, height: 844 },
+    // The full Chromium build (in its new headless mode), so the separate "headless shell"
+    // download isn't needed: `npx playwright install chromium` once is enough.
+    channel: 'chromium',
     colorScheme: 'dark',
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure'

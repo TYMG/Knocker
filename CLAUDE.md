@@ -198,6 +198,16 @@ The server runs the **same rules code** as the sample league, so the two can nev
   `/api/admin/teams` are gone. Team ids are slugs from the name ("left-and-right").
 - **The league clock** (every 5 minutes): opens tonight's night from 30 minutes before its
   start (rule `openNight`), then the check-in reminder. Closing the night is still the admin's.
+- **The turn clock** (Oct 28, `api/src/turnClock.ts`): a team that's up has 5 minutes to start.
+  The server forfeits run-out turns (rule `forfeitTurn` by `clock`) whenever anyone loads the
+  league or posts an action, and the league clock checks too. Stops while paused; resume gives a
+  waiting team a fresh 5 minutes. The web never sends clock forfeits in live mode.
+- **Admin enters a score** (Oct 28): `POST /api/admin/scores` {teamId, machineId, score, photo?}
+  (rule `adminEnterScore`; photo upload via `/api/uploads` with purpose score and teamId).
+- **Solo waitlist** (Oct 28, `api/src/waitlist.ts`): `POST /api/waitlist` {name, pronouns, phone,
+  texts} (public; phone and texts choice kept in `WAITLIST#<id>#PRIVATE`). The admin pairs the
+  first two with `POST /api/admin/waitlist/pair` {ids}; the server makes the team, carries the
+  private details over and returns a temporary PIN, shown once on the admin Teams page.
 - **Season setup:** `./scripts/league.sh setup --first-night YYYY-MM-DD --opens 19:00 --closes
   21:00 --machines "A,B"`; `show`; `clear` (typed confirmation; for clearing the demo).
 - **Admin League setup page** (`/admin/league`, Oct 27): the season's dates and times; **Pause**

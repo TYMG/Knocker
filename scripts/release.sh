@@ -11,7 +11,8 @@
 # .deploy-logs/ (see deploy-step.sh), so you can paste it to Claude.
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-STEP="$ROOT/scripts/deploy-step.sh"
+# Run through bash, so a missing "executable" flag on the file can never stop a release.
+STEP="bash $ROOT/scripts/deploy-step.sh"
 LOGS="$ROOT/.deploy-logs"
 WHAT="${1:-all}"
 
@@ -22,7 +23,8 @@ stop() { bold "Stopped: $*"; exit 1; }
 stack() {
   local name="$1" log="$LOGS/plan-$1.log"
   bold "Planning the $name stack..."
-  "$STEP" "plan-$name" > /dev/null || { tail -40 "$log"; stop "the $name plan failed (full output: .deploy-logs/plan-$name.log)."; }
+  rm -f "$log"
+  $STEP "plan-$name" > /dev/null || { tail -40 "$log"; stop "the $name plan failed (full output: .deploy-logs/plan-$name.log)."; }
   if grep -q 'No changes\.' "$log"; then
     echo "Nothing to change in the $name stack."
     return 0
@@ -37,20 +39,21 @@ stack() {
     read -r -p "Apply this to the $name stack? [y/N] " answer
     case "$answer" in y | Y | yes | YES) ;; *) stop "nothing applied to the $name stack." ;; esac
   fi
-  "$STEP" "apply-$name" > /dev/null || { tail -40 "$LOGS/apply-$name.log"; stop "applying the $name stack failed (full output: .deploy-logs/apply-$name.log)."; }
+  $STEP "apply-$name" > /dev/null || { tail -40 "$LOGS/apply-$name.log"; stop "applying the $name stack failed (full output: .deploy-logs/apply-$name.log)."; }
   echo "Applied: $(grep -E '^Apply complete' "$LOGS/apply-$name.log")"
 }
 
 server() {
   bold "Building and testing the server..."
-  "$STEP" build-api > /dev/null || { tail -40 "$LOGS/build-api.log"; stop "the server build or a test failed (full output: .deploy-logs/build-api.log)."; }
+  rm -f "$LOGS/build-api.log"
+  $STEP build-api > /dev/null || { tail -40 "$LOGS/build-api.log"; stop "the server build or a test failed (full output: .deploy-logs/build-api.log)."; }
   echo "$(grep -E 'Tests +[0-9]+ passed' "$LOGS/build-api.log" | tail -1 | sed 's/\x1b\[[0-9;]*m//g' | xargs). Built."
   stack league
 }
 
 web() {
   bold "Publishing the web app..."
-  "$STEP" web > /dev/null || { tail -40 "$LOGS/web.log"; stop "publishing the web app failed (full output: .deploy-logs/web.log)."; }
+  $STEP web > /dev/null || { tail -40 "$LOGS/web.log"; stop "publishing the web app failed (full output: .deploy-logs/web.log)."; }
   echo "Published."
 }
 

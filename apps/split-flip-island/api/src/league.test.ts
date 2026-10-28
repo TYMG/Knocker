@@ -188,3 +188,26 @@ describe('league setup, pause and start over', () => {
   });
 });
 
+describe('an admin entering a score for a team', () => {
+  it('works with a reason, with or without a photo, only on an open night', async () => {
+    const admin = await asAdmin();
+    const body = { teamId: 'aaaa1111', machineId: 'godzilla', score: 1_250_000, reason: 'phone died', noPhoto: true };
+    expect((await call('POST', '/api/admin/scores', { ...admin, body })).status).toBe(409); // night not open yet
+    await act('openNight', undefined, admin);
+    expect((await call('POST', '/api/admin/scores', { ...admin, body: { ...body, reason: 'x' } })).status).toBe(400);
+    expect((await call('POST', '/api/admin/scores', { ...admin, body: { ...body, teamId: 'cccc3333' } })).status).toBe(400); // pending team
+    expect((await call('POST', '/api/admin/scores', { ...admin, body: { ...body, noPhoto: false } })).status).toBe(400); // photo needed
+    expect((await call('POST', '/api/admin/scores', { ...asTeam('aaaa1111'), body })).status).toBe(401);
+    expect((await call('POST', '/api/admin/scores', { ...admin, body })).status).toBe(201);
+
+    const key = 'leagues/sfi-s1/scores/2026-11-05/aaaa1111-abc';
+    fake.bucket.objects.set(`${key}.jpg`, new Uint8Array([1]));
+    fake.bucket.objects.set(`${key}-thumb.jpg`, new Uint8Array([1]));
+    expect((await call('POST', '/api/admin/scores', { ...admin, body: { ...body, score: 900, noPhoto: false, photoKey: `${key}.jpg`, thumbKey: `${key}-thumb.jpg` } })).status).toBe(201);
+
+    const scores = (await loadLeagueState())!.league.scores;
+    expect(scores.map((x) => [x.score, x.enteredBy, x.photo ?? null, x.check])).toEqual([[1_250_000, 'admin', null, 'checked'], [900, 'admin', `${key}.jpg`, 'checked']]);
+    expect((await call('GET', '/api/league')).body.league.scores[1].photo).toBe(`/${key}.jpg`);
+  });
+});
+

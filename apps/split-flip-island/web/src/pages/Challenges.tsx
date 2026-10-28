@@ -19,7 +19,7 @@ import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useAppDispatch, useLeague, useMe } from '../hooks';
+import { useAppDispatch, useLeague, useMe, useLiveOn } from '../hooks';
 import { alreadyChallenged, approvedTeams, challenges, countedMachines, machine as machineOf, maxStake, nightStatus, weekLabel, type ChallengeView, currentWeek } from '../sample/league';
 import { sample } from '../sample/slice';
 import { ago, clock } from '../sample/time';
@@ -104,6 +104,7 @@ export default function Challenges() {
   const league = useLeague();
   const me = useMe();
   const dispatch = useAppDispatch();
+  const liveOn = useLiveOn();
   const [params, setParams] = useSearchParams();
 
   const myTeamId = me.team.teamId;
@@ -240,7 +241,7 @@ export default function Challenges() {
                     </Box>
                   </Box>
                   {/* Nobody is on the other phone in the sample, so this stands in for their answer. */}
-                  <Button
+                  {!liveOn && <Button
                     size="small"
                     sx={{ mt: 1, ml: -0.5, minHeight: 44 }}
                     onClick={() => {
@@ -249,7 +250,7 @@ export default function Challenges() {
                     }}
                   >
                     Pretend they accepted (sample)
-                  </Button>
+                  </Button>}
                 </Card>
               ))}
             </Stack>

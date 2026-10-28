@@ -12,7 +12,8 @@ import { pinProblem } from '../../shared/pin.js';
 import { canPlayTonight, currentWeek, findTeamByName, pendingTeams } from '../../shared/league/league.js';
 import type { STeam } from '../../shared/league/types.js';
 import { ddb, keys, leagueId, queryAll, s3, table } from './db.js';
-import { clearLoginStrikes, hashPin, issueToken, requireTeam, takeLoginStrike, verifyPin } from './auth.js';
+import { clearLoginStrikes, hashPin, issueToken, readAdminToken, requireTeam, takeLoginStrike, verifyPin } from './auth.js';
+import { requireAdmin } from './admin.js';
 import { applyAction, loadLeagueState, RuleRefused, type League } from './leagueStore.js';
 import { env, HttpError, nowIso, parseBody, photoUrl, text } from './util.js';
 
@@ -96,7 +97,9 @@ export async function createUpload(event: APIGatewayProxyEventV2): Promise<Uploa
     return { photo: await presign(`leagues/${l}/pending/${randomUUID()}.jpg`) };
   }
   if (purpose === 'score') {
-    const { teamId } = requireTeam(event);
+    // A team uploads its own score photo; an admin entering a score uploads one for that team.
+    const admin = readAdminToken(event) ? await requireAdmin(event) : null;
+    const teamId = admin ? text(parseBody<{ teamId?: string }>(event).teamId) : requireTeam(event).teamId;
     const s = await league();
     const team = s.teams.find((t) => t.teamId === teamId);
     if (!team) throw new HttpError(401, 'Your team was not found. Log in again.');
@@ -229,6 +232,43 @@ export async function submitScore(event: APIGatewayProxyEventV2): Promise<{ vers
   }
   const saved = await applyAction({ kind: 'team', teamId }, {
     type: 'submitScore', payload: { machineId: body.machineId, score, photoSource: 'camera', photo: photoKey, thumb: thumbKey }
+  });
+  return { version: saved.version };
+}
+
+// ---------- POST /api/admin/scores (an admin enters a score for a team) ----------
+
+export interface AdminScoreRequest { teamId: string; machineId: string; score: number; reason: string; noPhoto: boolean; photoKey?: string; thumbKey?: string }
+
+/** For when a team's phone dies: the admin types the score in, with a reason, photo or not. */
+export async function adminEnterScore(event: APIGatewayProxyEventV2): Promise<{ version: number }> {
+  const admin = await requireAdmin(event);
+  const body = parseBody<AdminScoreRequest>(event);
+  const s = await league();
+  const teamId = text(body.teamId);
+  const machineId = text(body.machineId);
+  const team = s.teams.find((t) => t.teamId === teamId);
+  if (!team || team.status !== 'approved') throw new HttpError(400, 'Pick an approved team.');
+  const week = currentWeek(s);
+  if (week.state !== 'open') throw new HttpError(409, 'Scores can only be entered during league night.');
+  if (!week.machineIds.includes(machineId) || week.out[machineId]) throw new HttpError(400, "That machine isn't in play tonight.");
+  const score = Number(body.score);
+  if (!Number.isSafeInteger(score) || score <= 0) throw new HttpError(400, 'Enter the score as a whole number.');
+  const reason = text(body.reason).trim().replace(/\s+/g, ' ');
+  if (reason.length < 3 || reason.length > 200) throw new HttpError(400, 'Say why in a few words. The reason goes in the league log.');
+  const noPhoto = body.noPhoto === true;
+  let photo: string | undefined;
+  let thumb: string | undefined;
+  if (!noPhoto) {
+    const prefix = `leagues/${leagueId()}/scores/${week.date}/${teamId}-`;
+    photo = text(body.photoKey);
+    thumb = text(body.thumbKey);
+    if (!photo.startsWith(prefix) || !thumb.startsWith(prefix) || !(await photoExists(photo))) {
+      throw new HttpError(400, 'Add a photo of the score, or say there is none.');
+    }
+  }
+  const saved = await applyAction({ kind: 'admin', name: admin.name }, {
+    type: 'adminEnterScore', payload: { teamId, machineId, score, reason, noPhoto, photo, thumb, photoSource: noPhoto ? undefined : 'camera' }
   });
   return { version: saved.version };
 }

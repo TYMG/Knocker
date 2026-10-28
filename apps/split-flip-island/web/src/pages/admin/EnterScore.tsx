@@ -3,6 +3,8 @@
 // right away and shows in the public log with the reason.
 
 import { useState, type FormEvent } from 'react';
+import { live } from '../../live/client';
+import { refreshLive } from '../../live/sync';
 import { Link as RouterLink } from 'react-router';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -14,7 +16,7 @@ import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useAppDispatch, useLeague } from '../../hooks';
+import { useAppDispatch, useLeague, useLiveOn } from '../../hooks';
 import { formatScore, formatScoreInput } from '../../lib/format';
 import { countedMachines, machine, nightStatus, teamsIn } from '../../sample/league';
 import { sample } from '../../sample/slice';
@@ -46,6 +48,9 @@ export default function EnterScore() {
   const [tried, setTried] = useState(false);
   /** What was just entered, shown above the cleared form. */
   const [done, setDone] = useState<string | null>(null);
+  const liveOn = useLiveOn();
+  const [failed, setFailed] = useState('');
+  const [sending, setSending] = useState(false);
 
   if (!night.open) {
     return (
@@ -68,9 +73,27 @@ export default function EnterScore() {
     if (!teamOk || !machineOk || value === null || !reasonOk) return;
     const who = picked!.teamName;
     const what = machine(league, machineId).name;
+    const finished = () => {
+      dispatch(showToast(`Entered ${formatScore(value)} for ${who} on ${what}`));
+      setDone(`${formatScore(value)} for ${who} on ${what} is in and counts now.`);
+    };
+    if (liveOn) {
+      // The live league: the photo (if any) uploads, then the server saves the score.
+      if (!noPhoto && !photo?.photo) { setFailed('Add a real photo of the score, or tick that there is none.'); return; }
+      setFailed('');
+      setSending(true);
+      live.adminEnterScore({ teamId, machineId, score: value, reason: reason.trim(), noPhoto }, photo?.photo)
+        .then(async () => {
+          await refreshLive();
+          finished();
+          setTeamId(''); setMachineId(''); setScore(''); setReason(''); setNoPhoto(false); setPhoto(null); setTried(false);
+        })
+        .catch((err: Error) => setFailed(err.message))
+        .finally(() => setSending(false));
+      return;
+    }
     dispatch(sample.adminEnterScore({ teamId, machineId, score: value, reason: reason.trim(), noPhoto, photo: noPhoto ? undefined : photo?.photo, photoSource: photo?.source }));
-    dispatch(showToast(`Entered ${formatScore(value)} for ${who} on ${what}`));
-    setDone(`${formatScore(value)} for ${who} on ${what} is in and counts now.`);
+    finished();
     setTeamId('');
     setMachineId('');
     setScore('');
@@ -176,8 +199,9 @@ export default function EnterScore() {
               </Typography>
             </Box>
 
-            <Button type="submit" variant="contained" color="secondary" size="large">
-              Enter score
+            {failed && <Typography role="alert" sx={{ color: 'secondary.main', fontWeight: 700 }}>{failed}</Typography>}
+            <Button type="submit" variant="contained" color="secondary" size="large" disabled={sending}>
+              {sending ? 'Saving…' : 'Enter score'}
             </Button>
           </>
         )}

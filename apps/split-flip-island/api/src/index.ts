@@ -1,7 +1,7 @@
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from 'aws-lambda';
 import { adminLogin, approveTeam, purgeExpired, removeTeam } from './admin.js';
 import { sameSecret } from './auth.js';
-import { createUpload, login, register, submitScore } from './handlers.js';
+import { adminEnterScore, createUpload, login, register, submitScore } from './handlers.js';
 import { getLeague, postAction } from './leagueApi.js';
 import { setupLeague, startOver } from './leagueAdmin.js';
 import { changePin, resetPin } from './pin.js';
@@ -27,6 +27,7 @@ const routes: Record<string, { run: Route; status?: 201 }> = {
   'GET /api/league': { run: getLeague },
   'POST /api/league/action': { run: postAction },
   'POST /api/admin/league/setup': { run: setupLeague, status: 201 },
+  'POST /api/admin/scores': { run: adminEnterScore, status: 201 },
   'POST /api/admin/league/start-over': { run: startOver }
 };
 

@@ -293,11 +293,11 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
         }
       },
       /** Admin: a team's phone died, so the admin types the score in for them. */
-      adminEnterScore(s: SampleState, a: PayloadAction<{ teamId: string; machineId: string; score: number; reason: string; noPhoto: boolean; photo?: string; photoSource?: 'camera' | 'library' }>) {
+      adminEnterScore(s: SampleState, a: PayloadAction<{ teamId: string; machineId: string; score: number; reason: string; noPhoto: boolean; photo?: string; thumb?: string; photoSource?: 'camera' | 'library' }>) {
         const { teamId, machineId, score, reason, noPhoto } = a.payload;
         const { who, what } = names(s, a.payload);
         s.scores.push({
-          scoreId: nextId(s, 's'), week: currentWeek(s).week, teamId, machineId, score, at: s.now, enteredBy: 'admin', photoSource: noPhoto ? 'none' : (a.payload.photoSource ?? 'camera'), photo: noPhoto ? undefined : a.payload.photo,
+          scoreId: nextId(s, 's'), week: currentWeek(s).week, teamId, machineId, score, at: s.now, enteredBy: 'admin', photoSource: noPhoto ? 'none' : (a.payload.photoSource ?? 'camera'), photo: noPhoto ? undefined : a.payload.photo, thumb: noPhoto ? undefined : a.payload.thumb,
           check: 'checked', checkedBy: s.adminName, status: 'active', reason,
           history: [{ at: s.now, text: `Entered by ${s.adminName} for ${who}: ${fmt(score)}. ${reason}` }]
         });

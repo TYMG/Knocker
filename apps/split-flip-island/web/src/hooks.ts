@@ -42,3 +42,6 @@ export function useMe() {
     myTeamId: isTeam ? team.teamId : undefined
   };
 }
+
+/** True while the app runs on the live league from the server (the Live switch). */
+export const useLiveOn = () => useAppSelector((s) => s.live.on);

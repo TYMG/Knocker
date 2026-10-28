@@ -7,7 +7,7 @@ import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { useAppDispatch, useLeague } from '../../hooks';
+import { useAppDispatch, useLeague, useLiveOn } from '../../hooks';
 import { linesView, nightStatus, type LineView } from '../../sample/league';
 import { sample } from '../../sample/slice';
 import { clock, ordinal } from '../../sample/time';
@@ -75,6 +75,7 @@ function BlipSwitch() {
 function TurnStatus({ machineId, teamName, teamId }: { machineId: string; teamName: string; teamId: string }) {
   const league = useLeague();
   const dispatch = useAppDispatch();
+  const liveOn = useLiveOn();
   const raw = league.lines.find((l) => l.machineId === machineId);
   const waiting = !!raw && raw.started === false && !!raw.upAt;
   const now = useNow(waiting);
@@ -97,9 +98,11 @@ function TurnStatus({ machineId, teamName, teamId }: { machineId: string; teamNa
         >
           Forfeit now
         </Button>
-        <Button size="small" onClick={() => dispatch(sample.sampleSkipTurnClock({ machineId, ms: 60_000 }))}>
-          Sample: skip 1 minute
-        </Button>
+        {!liveOn && (
+          <Button size="small" onClick={() => dispatch(sample.sampleSkipTurnClock({ machineId, ms: 60_000 }))}>
+            Sample: skip 1 minute
+          </Button>
+        )}
       </Stack>
     </Box>
   );

@@ -76,6 +76,19 @@ export const live = {
     return call<{ version: number }>('scores', { machineId, score, photoKey: up.photo.key, thumbKey: up.thumb!.key });
   },
 
+  /** An admin enters a score for a team: the photo (if any) uploads first. */
+  async adminEnterScore(p: { teamId: string; machineId: string; score: number; reason: string; noPhoto: boolean }, photoDataUrl?: string) {
+    let keys: { photoKey?: string; thumbKey?: string } = {};
+    if (!p.noPhoto && photoDataUrl) {
+      const up = await call<UploadResponse>('uploads', { purpose: 'score', teamId: p.teamId });
+      const photo = await dataUrlToBlob(photoDataUrl);
+      await upload(up.photo, photo);
+      await upload(up.thumb!, await resizeImage(photo, 320, 0.75));
+      keys = { photoKey: up.photo.key, thumbKey: up.thumb!.key };
+    }
+    return call<{ version: number }>('admin/scores', { ...p, ...keys });
+  },
+
   changePin: (currentPin: string, newPin: string) => call<{ ok: true }>('me/pin', { currentPin, newPin }),
   setTexts: (player: 0 | 1, optIn: boolean) => call<{ texts: [boolean, boolean] }>('me/texts', { player, optIn }),
   approve: (teamId: string) => call<{ ok: true }>(`admin/teams/${teamId}/approve`, {}),

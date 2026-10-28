@@ -254,3 +254,55 @@ describe('solo players', () => {
   });
 });
 
+
+describe('the turn clock on the server', () => {
+  const at = (iso: string) => vi.setSystemTime(new Date(iso));
+  async function bothInLine() {
+    const admin = await asAdmin();
+    await act('openNight', undefined, admin);
+    await act('checkIn', 'aaaa1111', admin);
+    await act('checkIn', 'bbbb2222', admin);
+    await act('joinLine', { machineId: 'godzilla', notify: false }, asTeam('aaaa1111'));
+    await act('joinLine', { machineId: 'godzilla', notify: false }, asTeam('bbbb2222'));
+    return admin;
+  }
+  const godzilla = (body: Record<string, any>) => body.league.lines.find((l: any) => l.machineId === 'godzilla');
+
+  it('forfeits a turn not started within 5 minutes, the next time anyone looks', async () => {
+    await bothInLine();
+    at('2026-11-05T23:44:30.000Z'); // 4.5 minutes in
+    expect(godzilla((await call('GET', '/api/league')).body).teamIds[0]).toBe('aaaa1111');
+    at('2026-11-05T23:45:01.000Z');
+    const seen = await call('GET', '/api/league');
+    expect(godzilla(seen.body).teamIds).toEqual(['bbbb2222']);
+    expect(seen.body.league.forfeits).toMatchObject([{ teamId: 'aaaa1111', machineId: 'godzilla', by: 'clock' }]);
+    // Looking again forfeits nothing more: the next team has its own 5 minutes.
+    expect((await call('GET', '/api/league')).body.league.forfeits).toHaveLength(1);
+  });
+
+  it("won't let a team start a turn that already ran out", async () => {
+    await bothInLine();
+    at('2026-11-05T23:46:00.000Z');
+    expect((await act('startTurn', 'godzilla', asTeam('aaaa1111'))).status).toBe(409);
+    expect(godzilla((await call('GET', '/api/league')).body).teamIds).toEqual(['bbbb2222']);
+  });
+
+  it('stops while the league is paused, and gives a fresh 5 minutes on resume', async () => {
+    const admin = await bothInLine();
+    await act('setPaused', true, admin);
+    at('2026-11-05T23:55:00.000Z'); // well past 5 minutes, but paused
+    expect(godzilla((await call('GET', '/api/league')).body).teamIds[0]).toBe('aaaa1111');
+    await act('setPaused', false, admin);
+    at('2026-11-05T23:59:00.000Z');
+    expect(godzilla((await call('GET', '/api/league')).body).teamIds[0]).toBe('aaaa1111');
+    at('2026-11-06T00:00:01.000Z');
+    expect(godzilla((await call('GET', '/api/league')).body).teamIds).toEqual(['bbbb2222']);
+  });
+
+  it('is checked by the 5-minute league clock too', async () => {
+    await bothInLine();
+    at('2026-11-05T23:46:00.000Z');
+    await handler({ task: 'reminders' } as never);
+    expect((await loadLeagueState())!.league.forfeits).toHaveLength(1);
+  });
+});

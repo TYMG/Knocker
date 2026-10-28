@@ -13,6 +13,7 @@ import { readAdminToken, readToken } from './auth.js';
 import { teamPhoto } from '../../shared/league/art.js';
 import { loadPrivates } from './handlers.js';
 import { applyAction, loadLeagueState, type Actor, type League } from './leagueStore.js';
+import { runTurnClock } from './turnClock.js';
 import { HttpError, nowIso, parseBody, photoUrl } from './util.js';
 
 /** A saved photo path becomes the address the pages load it from (through the site's front door). */
@@ -66,7 +67,9 @@ export interface NoLeague { version: 0; league: null; viewer: { role: 'visitor' 
 
 export async function getLeague(event: APIGatewayProxyEventV2): Promise<{ version: number; league: League } | NoLeague> {
   const who = await viewer(event);
-  const state = await loadLeagueState();
+  let state = await loadLeagueState();
+  // Turns that ran out are forfeited before anyone sees the league.
+  if (state && (await runTurnClock(state.league))) state = await loadLeagueState();
   if (!state) {
     return {
       version: 0, league: null,
@@ -99,6 +102,8 @@ export async function postAction(event: APIGatewayProxyEventV2): Promise<{ versi
   const who = await viewer(event);
   if (!who) throw new HttpError(401, 'Log in first.');
   let payload = body.payload;
+  // A team can't start a turn that already ran out.
+  await runTurnClock();
   if (who.kind === 'team' && TEAM_ACTIONS.has(type)) {
     // forTeam needs the league to check ownership; the store re-reads it when applying.
     const state = await loadLeagueState();

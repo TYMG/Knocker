@@ -162,7 +162,8 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
         const { machineId, teamId, by } = a.payload;
         const line = lineOf(s, machineId);
         if (line.teamIds[0] !== teamId) return;
-        if (by === 'clock' && (line.started || !line.upAt || Date.now() - line.upAt < TURN_MS)) return;
+        // The clock stops while the league is paused.
+        if (by === 'clock' && (s.paused || line.started || !line.upAt || Date.now() - line.upAt < TURN_MS)) return;
         const week = currentWeek(s).week;
         s.forfeits = [...(s.forfeits ?? []), { id: nextId(s, 'x'), teamId, machineId, week, at: s.now, by }];
         lineEvent(s, 'forfeit', teamId, machineId);
@@ -536,6 +537,8 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
       setPaused(s: SampleState, a: PayloadAction<boolean>) {
         if (!!s.paused === a.payload) return;
         s.paused = a.payload;
+        // Back from a pause: a team waiting to start gets a fresh 5 minutes.
+        if (!a.payload) for (const line of s.lines) if (line.teamIds[0] && line.upAt && !line.started) line.upAt = Date.now();
         addLog(s, 'admin', a.payload ? 'Admin paused the league' : 'Admin resumed the league');
       },
       /** For a night closed by mistake. Only when no other night is open. */

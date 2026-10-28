@@ -7,6 +7,7 @@ import { setupLeague, startOver } from './leagueAdmin.js';
 import { joinWaitlist, pairWaitlist } from './waitlist.js';
 import { changePin, resetPin } from './pin.js';
 import { openNightIfTime, sendCheckInReminders } from './reminders.js';
+import { runTurnClock } from './turnClock.js';
 import { setTeamTexts, smsStatus, smsTest, teamTexts } from './sms.js';
 import { env, HttpError, json } from './util.js';
 
@@ -62,6 +63,9 @@ export async function handler(event: APIGatewayProxyEventV2 | ScheduledTask): Pr
     if (event.task === 'reminders') {
       // The league clock: open tonight's night when it's time, then the check-in reminder.
       if (await openNightIfTime()) console.log('Opened tonight\'s league night');
+      // Backstop for the turn clock, in case nobody has the app open.
+      const forfeits = await runTurnClock();
+      if (forfeits) console.log('Turn clock forfeits', forfeits);
       const sent = await sendCheckInReminders();
       if (!sent.skipped) console.log('Check-in reminders', JSON.stringify(sent));
       return { ...sent };

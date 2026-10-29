@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { defineConfig } from '@playwright/test';
 
 // Scenario tests: a real browser clicks through the built app and checks what a person would see.
@@ -22,9 +23,9 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     // A phone, because that is what players and the organizer hold on league night.
     viewport: { width: 390, height: 844 },
-    // The full Chromium build (in its new headless mode), so the separate "headless shell"
-    // download isn't needed: `npx playwright install chromium` once is enough.
-    channel: 'chromium',
+    // Google Chrome when this Mac has it (nothing to download), otherwise Playwright's own
+    // Chromium (`npx playwright install chromium` once), in its new headless mode.
+    channel: existsSync('/Applications/Google Chrome.app') ? 'chrome' : 'chromium',
     colorScheme: 'dark',
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure'

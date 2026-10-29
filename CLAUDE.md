@@ -219,7 +219,7 @@ The server runs the **same rules code** as the sample league, so the two can nev
   another source). Texts: 3 per phone a day and `SMS_DAILY_CAP` (200) a day, in `sendText`. The
   league record refuses changes over 300 KB compressed (logs `LEAGUE_RECORD_LARGE` from 150 KB) and
   keeps the newest 4000 log / 1000 feed entries. Start over makes a DynamoDB backup first.
-  Lambda `reserved_concurrent_executions` = `api_max_concurrency` (10, Matt's call). Bill alerts at $25/$50/$100
+  Lambda `reserved_concurrent_executions` = `api_max_concurrency` (20, Matt's call). Bill alerts at $25/$50/$100
   (+ forecast) in `infra/foundation/billing.tf`; the email is in the ignored
   `infra/foundation/alerts.auto.tfvars`. Tests give each call its own `x-viewer-ip`.
 - **Admin input checks in the rules** (Oct 29): message 1–280 characters; machine and location

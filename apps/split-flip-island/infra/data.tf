@@ -3,6 +3,11 @@
 resource "aws_dynamodb_table" "main" {
   name                        = local.name
   billing_mode                = "PAY_PER_REQUEST"
+  # Records with an expireAt (seconds) delete themselves: per-person limit counters (limits.ts).
+  ttl {
+    attribute_name = "expireAt"
+    enabled        = true
+  }
   hash_key                    = "PK"
   range_key                   = "SK"
   deletion_protection_enabled = true

@@ -27,6 +27,7 @@ class ConditionFailed extends Error {
 
 export class FakeTable {
   items = new Map<string, Item>();
+  backups: string[] = [];
 
   private id = (k: { PK: unknown; SK: unknown }) => `${String(k.PK)}|${String(k.SK)}`;
   get = (PK: string, SK: string) => this.items.get(this.id({ PK, SK }));
@@ -121,6 +122,9 @@ export class FakeTable {
         this.put(this.applyUpdate(existing, w));
         return {};
       }
+      case 'CreateBackupCommand':
+        this.backups.push(String(input.BackupName));
+        return { BackupDetails: { BackupName: input.BackupName } };
       case 'DeleteCommand': {
         const w = input as Write;
         if (!this.passes(this.items.get(this.id(w.Key!)), w)) throw new ConditionFailed('The conditional request failed');

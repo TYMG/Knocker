@@ -28,6 +28,13 @@ export interface LeagueAction { type: LeagueActionName; payload?: unknown }
 
 const rules = makeLeagueRules(current as Current);
 
+/** Sizes of the stored (compressed) league record: warn, then refuse. DynamoDB's limit is 400 KB. */
+export const RECORD_WARN_BYTES = 150_000;
+export const RECORD_REFUSE_BYTES = 300_000;
+/** The newest entries kept in the record; older ones stay in the league's history (HISTORY#). */
+const KEEP_LOG = 4000;
+const KEEP_FEED = 1000;
+
 const stateKey = () => ({ PK: keys.league(leagueId()), SK: 'STATE' });
 const historyKey = (version: number) => ({ PK: `HISTORY#${leagueId()}`, SK: String(version).padStart(10, '0') });
 
@@ -52,7 +59,11 @@ function withActor(league: League, actor: Actor, now: string): League {
 }
 
 /** Saved leagues never keep a viewer: those fields are set per request. */
-const neutral = (league: League): League => ({ ...league, role: 'visitor', myTeamId: '', mySoloId: undefined, adminName: '', adminOnTeam: false });
+const neutral = (league: League): League => ({
+  ...league, role: 'visitor', myTeamId: '', mySoloId: undefined, adminName: '', adminOnTeam: false,
+  log: league.log.length > KEEP_LOG ? league.log.slice(0, KEEP_LOG) : league.log,
+  feed: league.feed.length > KEEP_FEED ? league.feed.slice(0, KEEP_FEED) : league.feed
+});
 
 /**
  * Saves a league for the first time (season setup). Refuses if one already exists, so a setup
@@ -104,13 +115,22 @@ export async function applyAction(
     if (ruled === base) throw new RuleRefused(options.refusal);
     const next = options.after ? produce(ruled, (draft) => { options.after!(draft as League); }) : ruled;
     const version = loaded.version + 1;
+    const data = gzipSync(JSON.stringify(neutral(next)));
+    // The league is one record, and DynamoDB records stop at 400 KB. A season is about 25 KB, so
+    // this only trips if something is badly wrong (spam, a bug): refuse new changes long before the
+    // limit, and shout in the logs well before that (an alarm watches for LEAGUE_RECORD_LARGE).
+    if (data.length > RECORD_REFUSE_BYTES) {
+      console.error('LEAGUE_RECORD_TOO_BIG', data.length, action.type);
+      throw new HttpError(503, 'The league record is full. The league admin needs to sort it out before anything else can change.');
+    }
+    if (data.length > RECORD_WARN_BYTES) console.warn('LEAGUE_RECORD_LARGE', data.length);
     try {
       await ddb.send(new TransactWriteCommand({
         TransactItems: [
           {
             Put: {
               TableName: table(),
-              Item: { ...stateKey(), type: 'state', version, data: gzipSync(JSON.stringify(neutral(next))), updatedAt: now },
+              Item: { ...stateKey(), type: 'state', version, data, updatedAt: now },
               ConditionExpression: 'version = :v',
               ExpressionAttributeValues: { ':v': loaded.version }
             }

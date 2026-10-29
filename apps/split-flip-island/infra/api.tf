@@ -43,6 +43,11 @@ data "aws_iam_policy_document" "api" {
     ]
     resources = [aws_dynamodb_table.main.arn, "${aws_dynamodb_table.main.arn}/index/*"]
   }
+  # A full backup before Start over (leagueAdmin.ts).
+  statement {
+    actions   = ["dynamodb:CreateBackup"]
+    resources = [aws_dynamodb_table.main.arn]
+  }
   statement {
     actions   = ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"]
     resources = ["${aws_s3_bucket.photos.arn}/*"]
@@ -73,6 +78,9 @@ resource "aws_lambda_function" "api" {
   source_code_hash = data.archive_file.api.output_base64sha256
   memory_size      = 512
   timeout          = 30 # Start over deletes a whole season in batches
+  # A ceiling on copies of the server running at once: a flood of requests is turned away
+  # (the site says to try again) instead of being run, and billed, all at once.
+  reserved_concurrent_executions = var.api_max_concurrency
 
   environment {
     variables = {
@@ -89,6 +97,8 @@ resource "aws_lambda_function" "api" {
       # Texting (sms.tf). Empty when texting is turned off.
       SMS_ORIGINATION = var.sms_enabled ? aws_pinpointsmsvoicev2_phone_number.sms[0].arn : ""
       SMS_CONFIG_SET  = var.sms_enabled ? aws_pinpointsmsvoicev2_configuration_set.sms[0].name : ""
+      # The most texts in a day, whatever happens (textsender.ts). Plus 3 per phone a day.
+      SMS_DAILY_CAP = tostring(var.sms_daily_cap)
     }
   }
 

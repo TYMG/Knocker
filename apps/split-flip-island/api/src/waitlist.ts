@@ -16,6 +16,7 @@
 // their private details move to the team's private record, and SOLOTEAM#<id> tells each one's
 // phone which team it's on now, so it switches over by itself.
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
+import { limit, limitAddress } from './limits.js';
 import { GetCommand } from '@aws-sdk/lib-dynamodb';
 import { pinProblem } from '../../shared/pin.js';
 import { PRONOUNS_MAX, PLAYER_NAME_MAX } from '../../shared/types.js';
@@ -46,6 +47,7 @@ export function requireSolo(event: APIGatewayProxyEventV2): { soloId: string } {
 }
 
 export async function joinWaitlist(event: APIGatewayProxyEventV2): Promise<{ ok: true; waiting: number; soloId: string; token: string }> {
+  await limitAddress(event, 'signUp');
   const body = parseBody<{ name?: string; pronouns?: string; phone?: string; texts?: boolean; pin?: string; traits?: unknown; wants?: unknown }>(event);
   const name = text(body.name).trim().replace(/\s+/g, ' ');
   const pronouns = text(body.pronouns).trim().replace(/\s+/g, ' ');
@@ -85,6 +87,7 @@ export async function joinWaitlist(event: APIGatewayProxyEventV2): Promise<{ ok:
 }
 
 export async function soloLogin(event: APIGatewayProxyEventV2): Promise<{ soloId: string; token: string }> {
+  await limitAddress(event, 'login');
   const body = parseBody<{ phone?: string; pin?: string }>(event);
   const phone = text(body.phone).replace(/\D/g, '');
   const wrong = new HttpError(401, "That phone number and PIN don't match anyone on the waitlist.");
@@ -125,6 +128,8 @@ const newTeam = (soloId: string, next: League) => (next.waitlist.some((w) => w.i
  */
 async function soloAct(event: APIGatewayProxyEventV2, type: 'swipe' | 'askToPair' | 'cancelAsk' | 'answerPair', build: (body: Record<string, unknown>) => { payload: Record<string, unknown>; otherId?: string }) {
   const { soloId } = requireSolo(event);
+  await limit('actions', `solo:${soloId}`);
+  await limitAddress(event, 'addressActions');
   const { payload, otherId } = build(parseBody<Record<string, unknown>>(event));
   const state = await loadLeagueState();
   if (!state?.league.waitlist.some((w) => w.id === soloId)) throw new HttpError(409, "You're not on the waitlist anymore. Refresh.");

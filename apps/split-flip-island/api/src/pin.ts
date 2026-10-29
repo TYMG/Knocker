@@ -3,6 +3,7 @@
 //   POST /api/me/setup                       a team paired from the waitlist picks its name, photo and PIN
 //   POST /api/admin/teams/{teamId}/reset-pin  an admin sets a temporary PIN, shown once
 import { randomInt } from 'node:crypto';
+import { limit } from './limits.js';
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { pinProblem, type ChangePinRequest, type ResetPinResponse } from '../../shared/pin.js';
@@ -19,6 +20,7 @@ const privKey = (teamId: string) => ({ PK: keys.league(leagueId()), SK: keys.tea
 
 export async function changePin(event: APIGatewayProxyEventV2): Promise<{ ok: true }> {
   const { teamId } = requireTeam(event);
+  await limit('actions', `team:${teamId}`);
   const body = parseBody<ChangePinRequest>(event);
   const current = text(body.currentPin);
   const next = text(body.newPin);
@@ -82,6 +84,7 @@ export async function resetPin(event: APIGatewayProxyEventV2, teamId: string): P
  */
 export async function finishSetup(event: APIGatewayProxyEventV2): Promise<{ ok: true; teamName: string }> {
   const { teamId } = requireTeam(event);
+  await limit('actions', `team:${teamId}`);
   const body = parseBody<{ teamName?: string; photoKey?: string; pin?: string }>(event);
   const pin = text(body.pin);
   const problem = pinProblem(pin);

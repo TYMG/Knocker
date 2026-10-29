@@ -36,8 +36,10 @@ const JPEG = new Uint8Array([0xff, 0xd8, 0xff]);
 
 interface Res { status: number; body: Record<string, any> }
 
+let addressCounter = 0;
 async function call(method: string, path: string, opts: { body?: unknown; headers?: Record<string, string>; origin?: string | null } = {}): Promise<Res> {
-  const headers: Record<string, string> = { ...opts.headers };
+  // Each call from its own address unless a test says so (per-address limits are tested on their own).
+  const headers: Record<string, string> = { 'x-viewer-ip': `10.0.1.${++addressCounter}`, ...opts.headers };
   if (opts.origin !== null) headers['x-origin-verify'] = opts.origin ?? 'test-origin-secret';
   const event = {
     rawPath: path, headers, isBase64Encoded: false,

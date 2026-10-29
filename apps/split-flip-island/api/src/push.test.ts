@@ -28,9 +28,10 @@ const { createLeagueState, applyAction } = await import('./leagueStore.js');
 const { newLeague } = await import('../../shared/league/new.js');
 const { encryptPayload, resetVapidCache, vapidAuthorization } = await import('./webpush.js');
 
+let addressCounter = 0;
 async function call(method: string, path: string, opts: { body?: unknown; headers?: Record<string, string> } = {}) {
   const event = {
-    rawPath: path, headers: { 'x-origin-verify': 'test-origin-secret', ...opts.headers }, isBase64Encoded: false,
+    rawPath: path, headers: { 'x-origin-verify': 'test-origin-secret', 'x-viewer-ip': `10.0.0.${++addressCounter}`, ...opts.headers }, // each call from its own address unless a test says so isBase64Encoded: false,
     body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
     requestContext: { http: { method } }
   } as unknown as APIGatewayProxyEventV2;

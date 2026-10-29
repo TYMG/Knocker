@@ -6,6 +6,7 @@
 // deleted by purgeExpired, which a schedule runs every 15 minutes. The teams themselves live in
 // the league record (leagueStore.ts); their name claim and private item are deleted with them.
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
+import { limitAddress } from './limits.js';
 import { GetCommand } from '@aws-sdk/lib-dynamodb';
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import type { AdminAuthResponse, AdminLoginRequest, RemoveTeamRequest } from '../../shared/types.js';
@@ -48,6 +49,7 @@ export async function requireAdmin(event: APIGatewayProxyEventV2): Promise<Admin
 const DECOY_HASH = hashPassword('no such admin');
 
 export async function adminLogin(event: APIGatewayProxyEventV2): Promise<AdminAuthResponse> {
+  await limitAddress(event, 'adminLogin');
   const body = parseBody<AdminLoginRequest>(event);
   const name = text(body.name);
   const password = text(body.password);

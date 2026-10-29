@@ -6,6 +6,7 @@
 // settings, removing a sign-up, pairing solo players) are not allowed here: they have their own
 // endpoints, which save the private part and then apply the same rule.
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
+import { limit, limitAddress } from './limits.js';
 import type { LeagueActionName } from '../../shared/league/rules.js';
 import { ADMIN_ACTIONS, TEAM_ACTIONS } from '../../shared/league/permissions.js';
 import { requireAdmin } from './admin.js';
@@ -152,6 +153,8 @@ export async function postAction(event: APIGatewayProxyEventV2): Promise<{ versi
   const type = body.type as LeagueActionName;
   const who = await viewer(event);
   if (!who) throw new HttpError(401, 'Log in first.');
+  await limit('actions', who.kind === 'team' ? `team:${who.teamId}` : who.kind === 'admin' ? `admin:${who.name}` : 'other');
+  await limitAddress(event, 'addressActions');
   let payload = body.payload;
   // The clock first: a team can't start a turn that already ran out, or act on a night that has closed.
   await runLeagueClock();

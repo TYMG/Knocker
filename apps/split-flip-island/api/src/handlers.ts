@@ -2,6 +2,7 @@
 // photo uploads, sign-up, log-in and posting a score. Each saves its private part (PIN hash,
 // phone numbers, the name claim) in its own items and applies the same rule the pages use.
 import { randomUUID } from 'node:crypto';
+import { limit, limitAddress } from './limits.js';
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { GetCommand } from '@aws-sdk/lib-dynamodb';
 import { HeadObjectCommand } from '@aws-sdk/client-s3';
@@ -93,6 +94,7 @@ export async function createUpload(event: APIGatewayProxyEventV2): Promise<Uploa
   const { purpose } = parseBody<{ purpose: 'team' | 'score' }>(event);
   const l = leagueId();
   if (purpose === 'team') {
+    await limitAddress(event, 'photoUpload');
     // Sign-up photos wait under pending/, which the bucket empties on its own after a few
     // days. Approving a team moves its photo to teams/.
     return { photo: await presign(`leagues/${l}/pending/${randomUUID()}.jpg`) };
@@ -101,6 +103,7 @@ export async function createUpload(event: APIGatewayProxyEventV2): Promise<Uploa
     // A team uploads its own score photo; an admin entering a score uploads one for that team.
     const admin = readAdminToken(event) ? await requireAdmin(event) : null;
     const teamId = admin ? text(parseBody<{ teamId?: string }>(event).teamId) : requireTeam(event).teamId;
+    if (!admin) await limit('scoreUpload', `team:${teamId}`);
     const s = await league();
     const team = s.teams.find((t) => t.teamId === teamId);
     if (!team) throw new HttpError(401, 'Your team was not found. Log in again.');
@@ -129,6 +132,7 @@ function cleanPlayers(raw: unknown): [Player, Player] {
 }
 
 export async function register(event: APIGatewayProxyEventV2): Promise<AuthResponse> {
+  await limitAddress(event, 'signUp');
   const body = parseBody<RegisterRequest>(event);
   const l = leagueId();
   const teamName = text(body.teamName).trim().replace(/\s+/g, ' ');
@@ -184,6 +188,7 @@ export async function register(event: APIGatewayProxyEventV2): Promise<AuthRespo
 // ---------- POST /api/login ----------
 
 export async function login(event: APIGatewayProxyEventV2): Promise<AuthResponse> {
+  await limitAddress(event, 'login');
   const body = parseBody<LoginRequest>(event);
   const teamName = text(body.teamName);
   const pin = text(body.pin);

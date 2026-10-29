@@ -3,6 +3,7 @@
 //   POST /api/admin/league/start-over  the owner only, with the words START OVER: deletes it all
 // Pausing is an ordinary admin rule (setPaused) through POST /api/league/action.
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
+import { CreateBackupCommand } from '@aws-sdk/client-dynamodb';
 import { BatchWriteCommand } from '@aws-sdk/lib-dynamodb';
 import { newLeague } from '../../shared/league/new.js';
 import { requireAdmin } from './admin.js';
@@ -72,7 +73,22 @@ export async function startOver(event: APIGatewayProxyEventV2): Promise<{ delete
   if (text(parseBody<{ confirm?: string }>(event).confirm).trim().toUpperCase() !== START_OVER_WORDS) {
     throw new HttpError(400, `Type ${START_OVER_WORDS} to confirm.`);
   }
+  // A full backup of the table first, kept in AWS (DynamoDB backups), so a mistaken Start over
+  // can be undone. If the backup can't be made, nothing is deleted.
+  const backup = await backupTable(`before-start-over-${admin.name}`);
   const deleted = await clearLeague();
-  console.log('League started over', JSON.stringify({ by: admin.name, deleted }));
+  console.log('League started over', JSON.stringify({ by: admin.name, deleted, backup }));
   return { deleted };
+}
+
+/** An on-demand backup of the whole table. Returns its name. */
+export async function backupTable(reason: string): Promise<string> {
+  const name = `${table()}-${reason}-${new Date().toISOString().replace(/[:.]/g, '-')}`.replace(/[^A-Za-z0-9_.-]/g, '-').slice(0, 255);
+  try {
+    await ddb.send(new CreateBackupCommand({ TableName: table(), BackupName: name }));
+  } catch (err) {
+    console.error('Backup failed', (err as Error).name);
+    throw new HttpError(503, "Couldn't make a backup first, so nothing was deleted. Try again in a minute.");
+  }
+  return name;
 }

@@ -36,9 +36,10 @@ const { newLeague } = await import('../../shared/league/new.js');
 
 const L = 'LEAGUE#sfi-s1';
 
+let addressCounter = 0;
 async function call(method: string, path: string, opts: { body?: unknown; headers?: Record<string, string> } = {}) {
   const event = {
-    rawPath: path, headers: { 'x-origin-verify': 'test-origin-secret', ...opts.headers }, isBase64Encoded: false,
+    rawPath: path, headers: { 'x-origin-verify': 'test-origin-secret', 'x-viewer-ip': `10.0.0.${++addressCounter}`, ...opts.headers }, // each call from its own address unless a test says so isBase64Encoded: false,
     body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
     requestContext: { http: { method } }
   } as unknown as APIGatewayProxyEventV2;
@@ -493,5 +494,47 @@ describe('a whole night on the server (weeks 3 and 4)', () => {
     expect(after.noShows?.map((n) => n.teamId)).toEqual(['bbbb2222']);
     // A no-show can be excused by an admin.
     expect((await act('excuseNoShow', after.noShows![0]!.id, admin)).status).toBe(200);
+  });
+});
+
+describe('security, phase 1', () => {
+  const from = (ip: string) => ({ headers: { 'x-viewer-ip': ip } });
+
+  it('limits log-in tries and sign-ups from one address', async () => {
+    for (let i = 0; i < 20; i++) expect((await call('POST', '/api/login', { ...from('203.0.113.9'), body: { teamName: 'Nobody', pin: '1111' } })).status).toBe(401);
+    expect((await call('POST', '/api/login', { ...from('203.0.113.9'), body: { teamName: 'Nobody', pin: '1111' } })).status).toBe(429);
+    expect((await call('POST', '/api/login', { ...from('203.0.113.10'), body: { teamName: 'Nobody', pin: '1111' } })).status).toBe(401); // another address is fine
+    const traits = { why: 'win', energy: 'loud', experience: 'some', style: 'coach' };
+    for (let i = 0; i < 5; i++) {
+      expect((await call('POST', '/api/waitlist', { ...from('198.51.100.7'), body: { name: `P${i}`, phone: `20255501${10 + i}`, pin: '4826', traits, wants: 'anyone' } })).status).toBe(201);
+    }
+    expect((await call('POST', '/api/waitlist', { ...from('198.51.100.7'), body: { name: 'P9', phone: '2025550199', pin: '4826', traits, wants: 'anyone' } })).status).toBe(429);
+    // Counters are kept under scrambled names: no addresses or phone numbers in the table.
+    expect(JSON.stringify(fake.table.all('RATE#sfi-s1'))).not.toContain('198.51');
+  });
+
+  it('caps texts per phone per day', async () => {
+    const { take, LIMITS } = await import('./limits.js');
+    for (let i = 0; i < 3; i++) expect(await take('textsPerPhone', '+12025550101', LIMITS.textsPerPhone)).toBe(true);
+    expect(await take('textsPerPhone', '+12025550101', LIMITS.textsPerPhone)).toBe(false);
+    expect(await take('textsPerPhone', '+12025550102', LIMITS.textsPerPhone)).toBe(true);
+  });
+
+  it('backs the table up before Start over', async () => {
+    fake.table.put({ PK: 'ADMIN#sfi-s1', SK: 'ADMIN#owner', type: 'admin', name: 'Owner', passHash: hashPassword('correct horse battery'), tokenVersion: 1, owner: true, createdAt: '2026-10-06T00:00:00.000Z' });
+    const login = await call('POST', '/api/admin/login', { body: { name: 'Owner', password: 'correct horse battery' } });
+    fake.table.backups.length = 0;
+    expect((await call('POST', '/api/admin/league/start-over', { headers: { 'x-admin-token': login.body.token }, body: { confirm: 'START OVER' } })).status).toBe(200);
+    expect(fake.table.backups).toHaveLength(1);
+    expect(fake.table.backups[0]).toMatch(/^test-before-start-over-Owner-/);
+  });
+
+  it('refuses changes once the league record is near its size limit', async () => {
+    const { randomBytes } = await import('node:crypto');
+    const state = (await loadLeagueState())!.league;
+    state.log = Array.from({ length: 4000 }, (_, i) => ({ id: `x${i}`, at: state.now, kind: 'league' as const, action: randomBytes(120).toString('base64') }));
+    fake.table.items.delete(`${L}|STATE`);
+    await createLeagueState(state, 'test');
+    expect((await act('postMessage', 'hello', await asAdmin())).status).toBe(503);
   });
 });

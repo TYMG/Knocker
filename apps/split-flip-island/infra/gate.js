@@ -95,6 +95,9 @@ async function handler(event) {
 
   var isApi = uri.indexOf('/api/') === 0;
   var isPhoto = uri.indexOf('/leagues/') === 0;
+  // The server limits how often one address can try things (log-ins, sign-ups). It can only trust
+  // an address that comes from here: anything a visitor sent in this header is replaced.
+  if (isApi && event.viewer && event.viewer.ip) request.headers['x-viewer-ip'] = { value: event.viewer.ip };
 
   if (gate && hasPass(request, gate, now)) {
     // App routes have no file extension: serve the app shell so refreshes don't 404.

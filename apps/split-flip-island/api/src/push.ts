@@ -13,6 +13,7 @@
 //   challenge, checked in, tonight's night opening, a message from the league, and for solo
 //   players a match, a request to pair up and "you're a team".
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
+import { limit } from './limits.js';
 import { GetCommand, PutCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { readSoloToken, readToken } from './auth.js';
 import { ddb, leagueId, queryAll, table } from './db.js';
@@ -49,6 +50,7 @@ const write = async (owner: Owner, subs: PushItem['subs']) => {
 
 export async function subscribe(event: APIGatewayProxyEventV2): Promise<{ ok: true }> {
   const owner = who(event);
+  await limit('pushSubscribe', owner);
   const body = parseBody<{ endpoint?: string; keys?: { p256dh?: string; auth?: string } }>(event);
   const endpoint = text(body.endpoint);
   const p256dh = text(body.keys?.p256dh);

@@ -38,6 +38,18 @@ variable "league_id" {
   default = "sfi-s1"
 }
 
+variable "api_max_concurrency" {
+  description = "Most copies of the server running at once (a ceiling on cost). -1 means no ceiling."
+  type        = number
+  default     = 20
+}
+
+variable "sms_daily_cap" {
+  description = "Most texts the league sends in a day, whatever happens."
+  type        = number
+  default     = 200
+}
+
 variable "pending_team_hours" {
   description = "Hours a new sign-up waits for an admin before it is deleted."
   type        = number

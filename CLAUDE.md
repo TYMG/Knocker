@@ -212,6 +212,16 @@ The server runs the **same rules code** as the sample league, so the two can nev
   Web: `public/sw.js`, `public/manifest.webmanifest` (fetched with credentials for the gate),
   `src/live/push.ts`, `ui/PushToggle.tsx` (Settings, solo page). iPhones need Add to Home Screen.
   `deploy-web.sh` uploads sw.js and the manifest with no-cache. Bar TV: `/tv?live` switches itself to live.
+- **Security phase 1 (Oct 29; plan in Notion: Web App → Security Plan):** per-person limits
+  (`api/src/limits.ts`, counters `RATE#<league>` with scrambled names that expire via the table's
+  `expireAt` TTL) on log-ins, admin log-in, sign-ups/waitlist, photo uploads, actions, solo moves,
+  push subscribe; the visitor's address comes from `x-viewer-ip`, set by gate.js (never trust
+  another source). Texts: 3 per phone a day and `SMS_DAILY_CAP` (200) a day, in `sendText`. The
+  league record refuses changes over 300 KB compressed (logs `LEAGUE_RECORD_LARGE` from 150 KB) and
+  keeps the newest 4000 log / 1000 feed entries. Start over makes a DynamoDB backup first.
+  Lambda `reserved_concurrent_executions` = `api_max_concurrency` (20). Bill alerts at $25/$50/$100
+  (+ forecast) in `infra/foundation/billing.tf`; the email is in the ignored
+  `infra/foundation/alerts.auto.tfvars`. Tests give each call its own `x-viewer-ip`.
 - **Admin input checks in the rules** (Oct 29): message 1–280 characters; machine and location
   names up to 40 and no duplicates; night times HH:MM with opening before closing; add minutes
   1–60 at a time, 2 hours max, only while open; corrections and voids need a reason (up to 200).

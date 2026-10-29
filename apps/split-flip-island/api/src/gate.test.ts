@@ -97,6 +97,14 @@ describe('demo password gate', () => {
     expect((photo as Request).uri).toBe('/leagues/sfi-s1/teams/x.jpg');
   });
 
+  it("tells the server the visitor's real address, replacing anything they sent", async () => {
+    const handler = load(record);
+    const cookies = { sfi_gate: { value: (await enter(handler, PASSWORD)).cookies!.sfi_gate.value } };
+    const event = { ...req('/api/login', { cookies, headers: { 'x-viewer-ip': { value: '1.2.3.4' } } }), viewer: { ip: '203.0.113.5' } };
+    const out = (await handler(event as never)) as Request;
+    expect(out.headers['x-viewer-ip']).toEqual({ value: '203.0.113.5' });
+  });
+
   it('refuses a forged, altered or expired cookie', async () => {
     const handler = load(record);
     const good = (await enter(handler, PASSWORD)).cookies!.sfi_gate.value;

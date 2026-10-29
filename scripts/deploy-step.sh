@@ -148,7 +148,7 @@ run() {
     plan-state | plan-foundation | plan-league) plan "${STEP#plan-}" ;;
     apply-state | apply-foundation | apply-league) apply "${STEP#apply-}" ;;
     build-api) build_api ;;
-    web) "$ROOT/scripts/deploy-web.sh" ;;
+    web) bash "$ROOT/scripts/deploy-web.sh" ;;  # through bash, so a lost "executable" flag can never stop it
     check-gate) check_gate ;;
     diagnose-gate) diagnose_gate ;;
     api-logs) api_logs ;;

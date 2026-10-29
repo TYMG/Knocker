@@ -74,12 +74,14 @@ function Detail({ score }: { score: SScore }) {
   // The correction starts as the current number: most fixes are one wrong or missing digit.
   const [draft, setDraft] = useState(() => formatScore(score.score));
   const [reason, setReason] = useState('');
+  const [hidingPhoto, setHidingPhoto] = useState(false);
 
   // Times from an earlier week also say the date, so "7:40 PM" is never mistaken for tonight.
   const older = score.week !== currentWeek(league).week;
   const when = (iso: string) => (older && week ? `${shortDate(week.date)}, ${clock(iso)}` : clock(iso));
 
-  const photo = scorePhotoSrc(score, what, 'full');
+  const photo = scorePhotoSrc(score, what, 'full', { evenTakenDown: true });
+  const reports = score.reportedBy?.length ?? 0;
   const opensAt = week ? at(week.date, league.night.opensAt) : undefined;
   const out = week?.out[score.machineId];
 
@@ -196,6 +198,20 @@ function Detail({ score }: { score: SScore }) {
               </Stack>
             </Section>
 
+            {score.photoHidden ? (
+              <Alert severity="info">You took this photo down. Only admins can still see it.</Alert>
+            ) : photo && score.photoSource !== 'none' && (
+              <Box>
+                {reports > 0 && <Typography sx={attention({ mb: 1 })}>{reports === 1 ? 'A team reported' : `${reports} teams reported`} this photo.</Typography>}
+                <Button variant="outlined" size="large" fullWidth onClick={() => setHidingPhoto(true)}>
+                  Take the photo down
+                </Button>
+                <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                  For a photo that's offensive or isn't a score. The score itself stays; void it too if it shouldn't count.
+                </Typography>
+              </Box>
+            )}
+
             <Box>
               <Button variant="outlined" color="secondary" size="large" fullWidth onClick={() => setVoiding(true)}>
                 Void this score
@@ -226,6 +242,19 @@ function Detail({ score }: { score: SScore }) {
       </Stack>
 
       <PhotoViewer src={viewing && photo ? photo : null} onClose={() => setViewing(false)} alt={`Photo of the ${what} score display`} />
+
+      <ReasonDialog
+        open={hidingPhoto}
+        title="Take this photo down?"
+        body="Nobody but admins will see it. The score stays, and the reason goes in the public log."
+        confirmLabel="Take it down"
+        onClose={() => setHidingPhoto(false)}
+        onConfirm={(why) => {
+          dispatch(sample.hideScorePhoto({ scoreId: score.scoreId, reason: why }));
+          dispatch(showToast('Photo taken down.'));
+          setHidingPhoto(false);
+        }}
+      />
 
       <ReasonDialog
         open={voiding}

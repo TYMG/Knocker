@@ -16,8 +16,9 @@ export class TextLimitReached extends Error { name = 'TextLimitReached'; }
 export async function sendText(to: string, body: string): Promise<void> {
   // Caps before every text: a few a day per phone, and a ceiling for the whole league.
   const { LIMITS, take } = await import('./limits.js');
-  if (!(await take('textsPerPhone', to, LIMITS.textsPerPhone))) throw new TextLimitReached('That phone has had its texts for today.');
-  if (!(await take('textsTotal', 'league', { max: dailyCap(), seconds: 24 * 60 * 60 }))) throw new TextLimitReached("The league's texts for today are used up.");
+  // The log line (never the number) is what the texts-capped alarm watches for.
+  if (!(await take('textsPerPhone', to, LIMITS.textsPerPhone))) { console.warn('TextLimitReached', 'per phone'); throw new TextLimitReached('That phone has had its texts for today.'); }
+  if (!(await take('textsTotal', 'league', { max: dailyCap(), seconds: 24 * 60 * 60 }))) { console.warn('TextLimitReached', 'daily total'); throw new TextLimitReached("The league's texts for today are used up."); }
   await client.send(new SendTextMessageCommand({
     DestinationPhoneNumber: to,
     OriginationIdentity: process.env.SMS_ORIGINATION,

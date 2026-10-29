@@ -3,6 +3,7 @@
 //   POST /api/me/setup                       a team paired from the waitlist picks its name, photo and PIN
 //   POST /api/admin/teams/{teamId}/reset-pin  an admin sets a temporary PIN, shown once
 import { randomInt } from 'node:crypto';
+import { nameProblem } from '../../shared/moderation.js';
 import { limit } from './limits.js';
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
@@ -96,6 +97,7 @@ export async function finishSetup(event: APIGatewayProxyEventV2): Promise<{ ok: 
   if (!team.needsSetup) throw new HttpError(409, 'Your team is already set up. Change the PIN in Settings.');
   const teamName = text(body.teamName).trim().replace(/\s+/g, ' ') || team.teamName;
   if (teamName.length < 2 || teamName.length > 30) throw new HttpError(400, 'Team name must be 2 to 30 characters.');
+  if (nameProblem(teamName)) throw new HttpError(400, nameProblem(teamName));
   const renamed = teamName.toLowerCase() !== team.teamName.toLowerCase();
   const photoKey = text(body.photoKey);
   let photo = '';

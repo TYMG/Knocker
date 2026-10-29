@@ -1,5 +1,5 @@
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from 'aws-lambda';
-import { adminLogin, approveTeam, purgeExpired, removeTeam } from './admin.js';
+import { adminLogin, approveTeam, purgeExpired, removeTeam, renameTeam } from './admin.js';
 import { sameSecret } from './auth.js';
 import { adminEnterScore, createUpload, login, register, submitScore } from './handlers.js';
 import { getLeague, postAction } from './leagueApi.js';
@@ -50,7 +50,7 @@ const routes: Record<string, { run: Route; status?: 201 }> = {
 
 // POST /api/admin/teams/{teamId}/approve, /remove and /reset-pin. Team IDs are short slugs
 // made from the team name ("left-and-right").
-const TEAM_ACTION = /^POST \/api\/admin\/teams\/([a-z0-9-]{1,40})\/(approve|remove|reset-pin)$/;
+const TEAM_ACTION = /^POST \/api\/admin\/teams\/([a-z0-9-]{1,40})\/(approve|remove|reset-pin|rename)$/;
 
 /** Schedules invoke the function with one of these instead of a web request (see infra). */
 interface ScheduledTask { task: 'purge' | 'reminders' }
@@ -96,6 +96,7 @@ export async function handler(event: APIGatewayProxyEventV2 | ScheduledTask): Pr
     if (action) {
       const [, teamId, verb] = action;
       if (verb === 'reset-pin') return json(200, await resetPin(event, teamId));
+      if (verb === 'rename') return json(200, await renameTeam(event, teamId));
       return json(200, verb === 'approve' ? await approveTeam(event, teamId) : await removeTeam(event, teamId));
     }
     return json(404, { error: 'Not found.' });

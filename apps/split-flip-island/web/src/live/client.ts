@@ -136,6 +136,7 @@ export const live = {
   approve: (teamId: string) => call<{ ok: true }>(`admin/teams/${teamId}/approve`, {}),
   remove: (teamId: string, reason: string) => call<{ ok: true }>(`admin/teams/${teamId}/remove`, { reason }),
   resetPin: (teamId: string) => call<{ pin: string }>(`admin/teams/${teamId}/reset-pin`, {}),
+  renameTeam: (teamId: string, teamName: string, reason: string) => call<{ ok: true; teamName: string }>(`admin/teams/${teamId}/rename`, { teamName, reason }),
   setupLeague: (body: { firstNight: string; opensAt: string; closesAt: string; machines: string[]; teamCap: number }) => call<{ ok: true }>('admin/league/setup', body),
   startOver: (confirm: string) => call<{ deleted: number }>('admin/league/start-over', { confirm })
 };

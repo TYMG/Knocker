@@ -16,6 +16,7 @@
 // their private details move to the team's private record, and SOLOTEAM#<id> tells each one's
 // phone which team it's on now, so it switches over by itself.
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
+import { nameProblem } from '../../shared/moderation.js';
 import { limit, limitAddress } from './limits.js';
 import { GetCommand } from '@aws-sdk/lib-dynamodb';
 import { pinProblem } from '../../shared/pin.js';
@@ -56,6 +57,7 @@ export async function joinWaitlist(event: APIGatewayProxyEventV2): Promise<{ ok:
   const traits = readTraits(body.traits);
   const wants = readWants(body.wants);
   if (name.length < 1 || name.length > PLAYER_NAME_MAX) throw new HttpError(400, `Enter your first name (up to ${PLAYER_NAME_MAX} characters).`);
+  if (nameProblem(name, 'person')) throw new HttpError(400, nameProblem(name, 'person'));
   if (pronouns.length > PRONOUNS_MAX) throw new HttpError(400, `Pronouns can be up to ${PRONOUNS_MAX} characters.`);
   if (phone.length !== 10) throw new HttpError(400, 'Enter all 10 digits of your phone number.');
   const problem = pinProblem(pin);

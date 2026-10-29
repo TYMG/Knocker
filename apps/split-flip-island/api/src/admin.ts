@@ -198,3 +198,32 @@ export async function purgeExpired(now = Date.now()): Promise<{ purged: number; 
   }
   return { purged, failed };
 }
+
+// ---------- POST /api/admin/teams/{teamId}/rename ----------
+
+/** An admin renames a team (an unkind name that got through, or at the team's request). The name claim moves in the same write. */
+export async function renameTeam(event: APIGatewayProxyEventV2, teamId: string): Promise<{ ok: true; teamName: string }> {
+  const admin = await requireAdmin(event);
+  const body = parseBody<{ teamName?: string; reason?: string }>(event);
+  const teamName = text(body.teamName).trim().replace(/\s+/g, ' ');
+  const reason = text(body.reason).trim();
+  if (teamName.length < 2 || teamName.length > 30) throw new HttpError(400, 'Team name must be 2 to 30 characters.');
+  if (reason.length < 3) throw new HttpError(400, 'Say why in a few words. The reason goes in the league log.');
+  const state = await loadLeagueState();
+  const team = state?.league.teams.find((t) => t.teamId === teamId);
+  if (!team) throw new HttpError(404, 'That team was not found.');
+  const l = keys.league(leagueId());
+  try {
+    await applyAction({ kind: 'admin', name: admin.name }, { type: 'renameTeam', payload: { teamId, teamName, reason } }, {
+      refusal: 'Another team already has that name, or nothing changed.',
+      extraWrites: () => team.teamName.toLowerCase() === teamName.toLowerCase() ? [] : [
+        { Put: { TableName: table(), Item: { PK: l, SK: keys.teamName(teamName), type: 'teamName', teamId }, ConditionExpression: 'attribute_not_exists(PK)' } },
+        { Delete: { TableName: table(), Key: { PK: l, SK: keys.teamName(team.teamName) } } }
+      ]
+    });
+  } catch (err) {
+    if (err instanceof RuleRefused) throw new HttpError(409, err.message);
+    throw err;
+  }
+  return { ok: true, teamName };
+}

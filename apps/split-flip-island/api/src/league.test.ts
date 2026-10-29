@@ -566,3 +566,40 @@ describe('security, phase 1', () => {
     expect((await act('postMessage', 'hello', await asAdmin())).status).toBe(503);
   });
 });
+
+describe('moderation', () => {
+  it('refuses unkind names at sign-up and on the waitlist', async () => {
+    const traits = { why: 'win', energy: 'loud', experience: 'some', style: 'coach' };
+    const res = await call('POST', '/api/waitlist', { body: { name: 'f4ggot', phone: '2025550177', pin: '4826', traits, wants: 'anyone' } });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/isn't allowed/);
+  });
+
+  it('an admin renames a team (the old name is free again) and takes photos down; a team reports a photo', async () => {
+    const admin = await asAdmin();
+    expect((await call('POST', '/api/admin/teams/aaaa1111/rename', { ...admin, body: { teamName: 'Left Right Left', reason: 'asked' } })).status).toBe(200);
+    expect((await call('POST', '/api/admin/teams/aaaa1111/rename', { ...admin, body: { teamName: 'Tilt Me Tender', reason: 'oops' } })).status).toBe(409);
+    expect((await call('POST', '/api/admin/teams/aaaa1111/rename', asTeam('aaaa1111'))).status).toBe(401);
+    const l = (await loadLeagueState())!.league;
+    expect(l.teams.find((t) => t.teamId === 'aaaa1111')!.teamName).toBe('Left Right Left');
+    expect(fake.table.get(L, 'TEAMNAME#left & right')).toBeUndefined();
+
+    // A score with a photo, reported by another team, then taken down.
+    await act('openNight', { by: 'admin' }, admin);
+    await act('checkIn', 'aaaa1111', admin);
+    const uuid = '0f8fad5b-d9cb-469f-a165-70867728950e';
+    const base = 'leagues/sfi-s1/scores/2026-11-05/aaaa1111-';
+    fake.bucket.objects.set(`${base}${uuid}.jpg`, new Uint8Array(10));
+    await call('POST', '/api/scores', { ...asTeam('aaaa1111'), body: { machineId: 'godzilla', score: 1000, photoKey: `${base}${uuid}.jpg`, thumbKey: `${base}${uuid}-thumb.jpg` } });
+    const scoreId = (await loadLeagueState())!.league.scores.at(-1)!.scoreId;
+    expect((await act('reportScorePhoto', scoreId, asTeam('bbbb2222'))).status).toBe(200);
+    expect((await act('reportScorePhoto', scoreId, asTeam('bbbb2222'))).status).toBe(409); // once per team
+    const seenByTeam = (await call('GET', '/api/league', asTeam('aaaa1111'))).body.league.scores.at(-1);
+    expect(seenByTeam.reportedBy).toBeUndefined(); // nobody but admins learns who reported
+    expect((await call('GET', '/api/league', admin)).body.league.scores.at(-1).reportedBy).toEqual(['bbbb2222']);
+    expect((await act('hideScorePhoto', { scoreId, reason: 'not a score' }, admin)).status).toBe(200);
+    const visitor = (await call('GET', '/api/league')).body.league.scores.at(-1);
+    expect([visitor.photo, visitor.thumb, visitor.photoSource]).toEqual([undefined, undefined, 'none']);
+    expect((await call('GET', '/api/league', admin)).body.league.scores.at(-1).photo).toContain(uuid);
+  });
+});

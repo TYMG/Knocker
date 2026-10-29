@@ -8,6 +8,7 @@
 // use for it, and a PIN must never be kept or sent anywhere it does not need to go.
 
 import { useState, type FormEvent, type ReactNode } from 'react';
+import { nameProblem } from '../../../shared/moderation';
 import { Link as RouterLink, useNavigate } from 'react-router';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -42,7 +43,7 @@ import type { SoloTraits, Wants } from '../../../shared/league/match';
 type Mode = 'pair' | 'solo';
 
 const digitsIn = (text: string) => text.replace(/\D/g, '');
-const nameError = (name: string, n: number) => (tidy(name).length >= 1 ? '' : `Enter Player ${n}'s first name.`);
+const nameError = (name: string, n: number) => (tidy(name).length >= 1 ? nameProblem(tidy(name), 'person') : `Enter Player ${n}'s first name.`);
 const pronounsError = (p: string) => (tidy(p).length <= PRONOUNS_MAX ? '' : `Up to ${PRONOUNS_MAX} characters.`);
 
 const OTHER = 'other';
@@ -138,7 +139,7 @@ function PairForm() {
         ? 'A team name is 2 to 30 characters.'
         : findTeamByName(league, teamName)
           ? 'That name is taken. Pick another one.'
-          : '',
+          : nameProblem(teamName),
     name1: nameError(name1, 1),
     pronouns1: pronounsError(pronouns1),
     phone1: phoneError(phone1),
@@ -287,7 +288,7 @@ function SoloForm() {
   const firstName = tidy(name);
   const pick = 'Pick one.';
   const errors = {
-    name: firstName ? '' : 'Type your first name.', pronouns: pronounsError(pronouns), phone: phoneError(phone),
+    name: firstName ? nameProblem(firstName, 'person') : 'Type your first name.', pronouns: pronounsError(pronouns), phone: phoneError(phone),
     pin: pinProblem(pin), pinAgain: !pinAgain ? 'Type the PIN again.' : pinAgain !== pin ? 'The two PINs do not match.' : '',
     why: answers.why ? '' : pick, energy: answers.energy ? '' : pick, experience: answers.experience ? '' : pick, style: answers.style ? '' : pick
   };

@@ -458,6 +458,45 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
         x.checkedBy = s.adminName;
         addLog(s, 'admin', `Admin changed ${who}'s ${what} score`, reason);
       },
+      /** A team reports a score's photo (offensive, or not a score). It goes on the admin's needs-a-look list. */
+      reportScorePhoto(s: SampleState, a: PayloadAction<string>) {
+        const x = s.scores.find((y) => y.scoreId === a.payload);
+        if (!x || x.photoHidden || !s.myTeamId || (x.reportedBy ?? []).includes(s.myTeamId)) return;
+        x.reportedBy = [...(x.reportedBy ?? []), s.myTeamId];
+        x.check = 'flagged';
+        x.flag = 'A team reported the photo';
+        x.history.push({ at: s.now, text: 'A team reported the photo' });
+      },
+      /** Admin: take a score's photo down. The score itself stays (void it separately if needed). */
+      hideScorePhoto(s: SampleState, a: PayloadAction<{ scoreId: string; reason: string }>) {
+        const x = s.scores.find((y) => y.scoreId === a.payload.scoreId);
+        const reason = String(a.payload.reason ?? '').trim();
+        if (!x || x.photoHidden || !reason || reason.length > REASON_MAX) return;
+        x.photoHidden = true;
+        x.history.push({ at: s.now, text: `Photo taken down by ${s.adminName}: ${reason}` });
+        const { who, what } = names(s, x);
+        addLog(s, 'admin', `Admin took down the photo of ${who}'s ${what} score`, reason);
+      },
+      /** Admin: take a team's photo down; the drawn stand-in shows instead. */
+      hideTeamPhoto(s: SampleState, a: PayloadAction<{ teamId: string; reason: string }>) {
+        const t = s.teams.find((x) => x.teamId === a.payload.teamId);
+        const reason = String(a.payload.reason ?? '').trim();
+        if (!t || !reason || reason.length > REASON_MAX || t.photo === teamPhoto(t.teamName)) return;
+        t.photo = teamPhoto(t.teamName);
+        addLog(s, 'admin', `Admin took down ${t.teamName}'s photo`, reason);
+      },
+      /** Admin: rename a team (the server moves its name claim in the same write). */
+      renameTeam(s: SampleState, a: PayloadAction<{ teamId: string; teamName: string; reason: string }>) {
+        const t = s.teams.find((x) => x.teamId === a.payload.teamId);
+        const name = String(a.payload.teamName ?? '').trim().replace(/\s+/g, ' ');
+        const reason = String(a.payload.reason ?? '').trim();
+        if (!t || !reason || reason.length > REASON_MAX || name.length < 2 || name.length > 30 || name === t.teamName) return;
+        if (s.teams.some((x) => x !== t && x.teamName.toLowerCase() === name.toLowerCase())) return;
+        const old = t.teamName;
+        if (t.photo === teamPhoto(old)) t.photo = teamPhoto(name);
+        t.teamName = name;
+        addLog(s, 'admin', `Admin renamed ${old} to ${name}`, reason);
+      },
       /** A voided score stays on record and stops counting. Nothing is ever deleted. */
       voidScore(s: SampleState, a: PayloadAction<{ scoreId: string; reason: string }>) {
         const x = s.scores.find((y) => y.scoreId === a.payload.scoreId);

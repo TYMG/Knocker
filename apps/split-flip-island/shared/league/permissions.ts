@@ -6,7 +6,7 @@ import type { LeagueActionName } from './rules.js';
 /** A logged-in team, always for its own team. */
 export const TEAM_ACTIONS: ReadonlySet<LeagueActionName> = new Set<LeagueActionName>([
   'joinLine', 'leaveLine', 'startTurn', 'requestCheckIn', 'cancelCheckInRequest', 'challenge', 'answerChallenge',
-  'forgivenSeen', 'forfeitSeen', 'noShowSeen', 'eliminatedSeen', 'answerSeasonTexts'
+  'forgivenSeen', 'forfeitSeen', 'noShowSeen', 'eliminatedSeen', 'answerSeasonTexts', 'reportScorePhoto'
 ]);
 
 /** An admin. Admins may also use the team actions (naming the team). */
@@ -16,7 +16,8 @@ export const ADMIN_ACTIONS: ReadonlySet<LeagueActionName> = new Set<LeagueAction
   'markChecked', 'markAllChecked', 'correctScore', 'voidScore',
   'checkIn', 'declineCheckIn', 'undoCheckIn', 'excuseNoShow', 'recalculateSeason', 'withdrawTeam', 'reinstateTeam',
   'postMessage', 'takeDownMessage', 'addMinutes', 'setNightTimes', 'openNight', 'closeNight', 'reopenNight', 'skipWeek',
-  'setMachineInPlay', 'addMachine', 'removeMachine', 'restoreMachine', 'addLocation', 'setPaused'
+  'setMachineInPlay', 'addMachine', 'removeMachine', 'restoreMachine', 'addLocation', 'setPaused',
+  'hideScorePhoto', 'hideTeamPhoto'
 ]);
 
 /**
@@ -26,5 +27,5 @@ export const ADMIN_ACTIONS: ReadonlySet<LeagueActionName> = new Set<LeagueAction
  */
 export const SERVER_ONLY: ReadonlySet<LeagueActionName> = new Set<LeagueActionName>([
   'signUp', 'joinWaitlist', 'submitScore', 'adminEnterScore', 'approveTeam', 'removeSignUp', 'pairWaitlist',
-  'resetPin', 'setSmsOptIn', 'leagueNote', 'expireSignUp', 'swipe', 'askToPair', 'cancelAsk', 'answerPair', 'leaveWaitlist', 'finishTeamSetup'
+  'resetPin', 'setSmsOptIn', 'leagueNote', 'expireSignUp', 'swipe', 'askToPair', 'cancelAsk', 'answerPair', 'leaveWaitlist', 'finishTeamSetup', 'renameTeam'
 ]);

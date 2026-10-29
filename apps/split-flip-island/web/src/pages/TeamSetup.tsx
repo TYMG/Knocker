@@ -2,6 +2,7 @@
 // yes. Together they pick the team name (or keep "Bea & Ana"), a photo if they want one, and the
 // PIN they'll share to log in on another phone. Done once; after that the PIN changes in Settings.
 import { useState, type FormEvent } from 'react';
+import { nameProblem } from '../../../shared/moderation';
 import { Link as RouterLink, Navigate, useNavigate } from 'react-router';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -50,7 +51,7 @@ export default function TeamSetup() {
   const teamName = name.trim().replace(/\s+/g, ' ');
   const taken = league.teams.some((t) => t.teamId !== team.teamId && t.teamName.toLowerCase() === teamName.toLowerCase());
   const errors = {
-    name: teamName.length < 2 || teamName.length > 30 ? 'Team name must be 2 to 30 characters.' : taken ? 'Another team already has that name.' : '',
+    name: teamName.length < 2 || teamName.length > 30 ? 'Team name must be 2 to 30 characters.' : taken ? 'Another team already has that name.' : nameProblem(teamName),
     pin: pinProblem(pin),
     again: !again ? 'Type the PIN again.' : again !== pin ? 'The two PINs do not match.' : ''
   };

@@ -20,6 +20,7 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useAppDispatch, useAppSelector, useLeague } from '../../hooks';
 import { currentWeek, FORFEIT_LIMIT, forfeitCounts, NO_SHOW_LIMIT, noShowCount, subsUsed, findTeam, machine, scoreCounts, scoreList, seasonLine, teamTonight, weekLabel, weekOf } from '../../sample/league';
@@ -73,6 +74,11 @@ export default function TeamDetail() {
   // The temporary PIN, shown once in the dialog right after the reset.
   const [tempPin, setTempPin] = useState('');
   const liveOn = useAppSelector((x) => x.live.on);
+  const [renaming, setRenaming] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [renameWhy, setRenameWhy] = useState('');
+  const [renameFailed, setRenameFailed] = useState('');
+  const [hidingPhoto, setHidingPhoto] = useState(false);
 
   const team = findTeam(league, teamId);
   if (!team) {
@@ -148,6 +154,14 @@ export default function TeamDetail() {
               <PhoneLinks team={team} />
             </Box>
           )}
+          <Stack direction="row" spacing={1.5} sx={{ mt: 1.5 }}>
+            <Button variant="outlined" color="inherit" onClick={() => { setNewName(team.teamName); setRenameWhy(''); setRenameFailed(''); setRenaming(true); }} sx={{ minHeight: 44, flex: '1 1 auto', whiteSpace: 'nowrap' }}>
+              Rename team
+            </Button>
+            <Button variant="outlined" color="inherit" disabled={!team.photo || team.photo.startsWith('data:')} onClick={() => setHidingPhoto(true)} sx={{ minHeight: 44, flex: '1 1 auto', whiteSpace: 'nowrap' }}>
+              Take photo down
+            </Button>
+          </Stack>
           <Forfeits league={league} teamId={team.teamId} />
           <NoShows teamId={team.teamId} />
           <Subs league={league} teamId={team.teamId} />
@@ -236,6 +250,49 @@ export default function TeamDetail() {
           </>
         )}
       </Dialog>
+      <Dialog open={renaming} onClose={() => setRenaming(false)} fullWidth maxWidth="xs">
+        <DialogTitle>Rename {team.teamName}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField label="New team name" value={newName} onChange={(e) => setNewName(e.target.value.slice(0, 30))} autoFocus />
+            <TextField label="Reason, shown in the public log" value={renameWhy} onChange={(e) => setRenameWhy(e.target.value.slice(0, 120))} />
+            {renameFailed && <Typography role="alert" sx={{ color: 'secondary.main', fontWeight: 700 }}>{renameFailed}</Typography>}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setRenaming(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            disabled={newName.trim().length < 2 || renameWhy.trim().length < 3 || newName.trim() === team.teamName}
+            onClick={() => {
+              const name = newName.trim().replace(/\s+/g, ' ');
+              const done = () => { dispatch(showToast(`Renamed to ${name}.`)); setRenaming(false); };
+              if (liveOn) {
+                live.renameTeam(team.teamId, name, renameWhy.trim()).then(async () => { await refreshLive(); done(); }).catch((err: Error) => setRenameFailed(err.message));
+                return;
+              }
+              if (league.teams.some((t) => t.teamId !== team.teamId && t.teamName.toLowerCase() === name.toLowerCase())) { setRenameFailed('Another team already has that name.'); return; }
+              dispatch(sample.renameTeam({ teamId: team.teamId, teamName: name, reason: renameWhy.trim() }));
+              done();
+            }}
+          >
+            Rename
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <ReasonDialog
+        open={hidingPhoto}
+        title={`Take down ${team.teamName}'s photo?`}
+        body="The drawn picture shows instead, everywhere. The reason goes in the public log."
+        confirmLabel="Take it down"
+        onClose={() => setHidingPhoto(false)}
+        onConfirm={(why) => {
+          dispatch(sample.hideTeamPhoto({ teamId: team.teamId, reason: why }));
+          dispatch(showToast('Photo taken down.'));
+          setHidingPhoto(false);
+        }}
+      />
     </Page>
   );
 }

@@ -92,7 +92,10 @@ export function viewFor(league: League, who: (Actor & { owner?: boolean }) | nul
       const seesPrivate = admin || t.teamId === mine;
       return { ...t, photo: photoSrc(t.photo) || teamPhoto(t.teamName), phone1: p?.phone1 ?? '', phone2: p?.phone2 ?? '', texts: seesPrivate ? t.texts : undefined };
     }),
-    scores: league.scores.map((x) => ({ ...x, photo: photoSrc(x.photo), thumb: photoSrc(x.thumb) })),
+    // A photo an admin took down is gone for everyone but admins; who reported one is for admins only.
+    scores: league.scores.map(({ reportedBy, ...x }) => (x.photoHidden && !admin
+      ? { ...x, photo: undefined, thumb: undefined, photoSource: 'none' as const }
+      : { ...x, photo: photoSrc(x.photo), thumb: photoSrc(x.thumb), ...(admin && reportedBy ? { reportedBy } : {}) })),
     pendingSubs: Object.fromEntries(Object.entries(league.pendingSubs ?? {}).filter(([teamId]) => admin || teamId === mine))
   };
 }

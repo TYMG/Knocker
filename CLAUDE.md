@@ -229,6 +229,13 @@ The server runs the **same rules code** as the sample league, so the two can nev
   sets `STeam.signedOutAt`, and `session.ts` (`stillSignedIn`, `requireTeamSession`) refuses older
   tokens everywhere a team acts. Score photo keys must be exactly `<team>-<uuid>.jpg` and its
   `-thumb.jpg`. Request bodies over 32 KB get 413. The admin test text goes through the text caps.
+- **Moderation and alarms (Oct 29):** `shared/moderation.ts` `nameProblem(name, 'team'|'person')`
+  (team names: swearing and slurs; first names: slurs only) on sign-up, waitlist and team setup.
+  Rules `reportScorePhoto` (team; `reportedBy` admin-only), `hideScorePhoto`, `hideTeamPhoto`
+  (admin), `renameTeam` (`POST /api/admin/teams/{id}/rename`, moves the name claim). Hidden score
+  photos are stripped for non-admins in viewFor. `infra/alarms.tf`: SNS email (alert_email in the
+  ignored `alerts.auto.tfvars`), alarms on server errors, throttles, an hourly traffic flood, and
+  log lines LEAGUE_RECORD_LARGE / LEAGUE_RECORD_TOO_BIG / "Push delivery failed" / TextLimitReached.
 - **Admin input checks in the rules** (Oct 29): message 1–280 characters; machine and location
   names up to 40 and no duplicates; night times HH:MM with opening before closing; add minutes
   1–60 at a time, 2 hours max, only while open; corrections and voids need a reason (up to 200).

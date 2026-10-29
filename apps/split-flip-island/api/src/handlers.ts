@@ -2,6 +2,7 @@
 // photo uploads, sign-up, log-in and posting a score. Each saves its private part (PIN hash,
 // phone numbers, the name claim) in its own items and applies the same rule the pages use.
 import { randomUUID } from 'node:crypto';
+import { nameProblem } from '../../shared/moderation.js';
 import { SIGNED_OUT, stillSignedIn } from './session.js';
 import { limit, limitAddress } from './limits.js';
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
@@ -147,6 +148,8 @@ export async function register(event: APIGatewayProxyEventV2): Promise<AuthRespo
   const texts: [boolean, boolean] = [body.texts?.[0] === true, body.texts?.[1] === true];
 
   if (teamName.length < 2 || teamName.length > 30) throw new HttpError(400, 'Team name must be 2 to 30 characters.');
+  const unkind = nameProblem(teamName) || players.map((p) => nameProblem(p.name, 'person')).find(Boolean);
+  if (unkind) throw new HttpError(400, unkind);
   if (phone1.length < 10 || phone2.length < 10) throw new HttpError(400, 'Enter a 10-digit phone number for both players.');
   if (phone1 === phone2) throw new HttpError(400, 'Each player needs their own phone number.');
   const badPin = pinProblem(pin);

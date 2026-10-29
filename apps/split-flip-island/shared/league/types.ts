@@ -85,6 +85,10 @@ export interface SScore {
   /** Why an admin changed or voided it. */
   reason?: string;
   history: { at: string; text: string }[];
+  /** An admin took the photo down (it stays in storage as evidence; nobody else sees it). */
+  photoHidden?: boolean;
+  /** Teams that reported the photo. Only admins are told who. */
+  reportedBy?: string[];
 }
 
 /** One machine's line: the first team is playing, the rest wait in order. */

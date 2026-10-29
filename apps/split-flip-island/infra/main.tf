@@ -41,7 +41,9 @@ variable "league_id" {
 variable "api_max_concurrency" {
   description = "Most copies of the server running at once (a ceiling on cost). -1 means no ceiling."
   type        = number
-  default     = 20
+  # Matt, Oct 29: 3. Each copy answers several requests a second, so 3 covers a normal league
+  # night. Raise it if phones start seeing "try again" during the busiest moments.
+  default     = 3
 }
 
 variable "sms_daily_cap" {

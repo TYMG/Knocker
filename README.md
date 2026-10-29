@@ -31,6 +31,15 @@ go in the **Feedback** page in Notion (Split Flipper Island → Feedback).
 
 Nothing in AWS changes without your yes, and everything in AWS is Terraform.
 
+## Phone notifications and the bar TV
+
+- **Phone notifications** are free (Web Push, no texts). Each person turns them on in **Settings →
+  Alerts** (solo players also on their partner page). On an iPhone, add the app to the Home Screen
+  first (Share → Add to Home Screen) and open it from there. The server's signing key is made by
+  Terraform (`tls_private_key.vapid`); the first league plan after Oct 29 adds the `tls` provider.
+- **Bar TV:** open `https://split-flip-island.knckr.com/tv?live` on the bar's screen (after the demo
+  password). It switches itself to the live league and stays there.
+
 ## The league
 
 The whole league (teams, nights, scores, lines, the league log) lives in one record on the

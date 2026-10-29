@@ -318,6 +318,7 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
 
       /** Lock in the four teams for a final, seeded from the season standings. */
       finalsLock(s: SampleState, a: PayloadAction<{ bracket: Bracket; option: SeasonOption }>) {
+        if (!(a.payload.bracket in s.finals) || (a.payload.option !== 'option1' && a.payload.option !== 'option2')) return;
         const rows = season(current(s))[a.payload.option].filter((r) => inTheRunning(r.team));
         const [from, to] = a.payload.bracket === 'championship' ? [0, 4] : [4, 8];
         const teamIds = rows.slice(from, to).map((r) => r.team.teamId);
@@ -361,6 +362,8 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
         const f = s.finals[a.payload.bracket];
         const g = f.games[f.games.length - 1];
         if (!f.locked || !g || g.places || !g.order) return;
+        // Only a team playing this game, and a real score.
+        if (!g.order.includes(a.payload.teamId) || !Number.isSafeInteger(a.payload.score) || a.payload.score < 0) return;
         g.scores = { ...(g.scores ?? {}), [a.payload.teamId]: a.payload.score };
         const snap = current(s);
         if (g.order.every((id) => g.scores![id] !== undefined)) {

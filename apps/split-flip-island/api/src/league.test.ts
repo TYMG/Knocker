@@ -465,3 +465,33 @@ describe('the night opens and closes on its own', () => {
     expect(log.some((l) => l.startsWith('Admin set league nights to run 6:30'))).toBe(true);
   });
 });
+
+describe('a whole night on the server (weeks 3 and 4)', () => {
+  it('check-in with a sub, a line and a turn; closing counts the no-show, which an admin can excuse', async () => {
+    const admin = await asAdmin();
+    await act('openNight', { by: 'admin' }, admin);
+    // Left & Right ask to check in with a sub; the sub's name stays private to them and admins.
+    expect((await act('requestCheckIn', null, asTeam('bbbb2222'))).status).toBe(200); // a bad payload is just "no subs"
+    await act('cancelCheckInRequest', undefined, asTeam('bbbb2222'));
+    expect((await act('requestCheckIn', { subs: [{ outPlayer: 1, subName: 'Jo' }] }, asTeam('aaaa1111'))).status).toBe(200);
+    expect(JSON.stringify((await call('GET', '/api/league', asTeam('bbbb2222'))).body.league.pendingSubs)).not.toContain('Jo');
+    expect((await act('checkIn', 'aaaa1111', admin)).status).toBe(200);
+    // Tilt Me Tender never shows up.
+    await act('joinLine', { machineId: 'godzilla', notify: true }, asTeam('aaaa1111'));
+    // A team can only act for itself, whatever team id it sends.
+    await act('leaveLine', 'aaaa1111', asTeam('bbbb2222')); // only takes Tilt Me Tender off lines (they're on none)
+    expect((await loadLeagueState())!.league.lines.find((l) => l.machineId === 'godzilla')!.teamIds).toEqual(['aaaa1111']);
+    expect((await act('startTurn', 'aaaa1111', asTeam('bbbb2222'))).status).toBe(409);
+    expect((await act('challenge', { toTeamId: 'aaaa1111', machineId: 'godzilla', stake: 'lots' }, asTeam('aaaa1111'))).status).toBe(409);
+    expect((await act('startTurn', undefined, asTeam('aaaa1111'))).status).toBe(200);
+    expect((await act('leaveLine', undefined, asTeam('aaaa1111'))).status).toBe(200);
+    const night = (await loadLeagueState())!.league;
+    expect(night.lines.find((l) => l.machineId === 'godzilla')!.teamIds).toEqual([]);
+    expect((await act('closeNight', undefined, admin)).status).toBe(200);
+    const after = (await loadLeagueState())!.league;
+    expect(after.weeks[0]!.state).toBe('final');
+    expect(after.noShows?.map((n) => n.teamId)).toEqual(['bbbb2222']);
+    // A no-show can be excused by an admin.
+    expect((await act('excuseNoShow', after.noShows![0]!.id, admin)).status).toBe(200);
+  });
+});

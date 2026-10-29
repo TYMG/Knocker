@@ -472,13 +472,16 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
       /** A team taps "I'm here". It waits on the admin's Check In page until confirmed. */
       /** A team taps "I'm here", saying which partner (if any) has a sub tonight. */
       requestCheckIn(s: SampleState, a: PayloadAction<string | { teamId?: string; subs?: { outPlayer: 0 | 1; subName: string }[] } | undefined>) {
-        const p = typeof a.payload === 'object' ? a.payload : { teamId: a.payload };
+        const p = a.payload && typeof a.payload === 'object' ? a.payload : { teamId: a.payload || undefined };
         const teamId = p.teamId ?? s.myTeamId;
-        if (s.checkIns[teamId]) return;
+        if (s.checkIns[teamId] || !s.teams.some((t) => t.teamId === teamId)) return;
         const snap = current(s);
         const used = subsUsed(snap, teamId);
         // One sub per player per season, at most one partner out, and never someone in the league.
-        const subs = (p.subs ?? []).filter((x) => !used[x.outPlayer] && !subProblem(snap, x.subName)).slice(0, 1);
+        const asked = Array.isArray(p.subs) ? p.subs : [];
+        const subs = asked
+          .filter((x) => x && (x.outPlayer === 0 || x.outPlayer === 1) && typeof x.subName === 'string' && x.subName.trim().length <= 20)
+          .filter((x) => !used[x.outPlayer] && !subProblem(snap, x.subName)).slice(0, 1);
         (s.checkInRequests ??= {})[teamId] = s.now;
         if (subs.length) (s.pendingSubs ??= {})[teamId] = subs.map((x) => ({ outPlayer: x.outPlayer, subName: x.subName.trim() }));
         else delete s.pendingSubs?.[teamId];
@@ -825,6 +828,8 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
        * Two teams get one challenge a night between them; they can go again next week.
        */
       challenge(s: SampleState, a: PayloadAction<{ toTeamId: string; machineId: string; stake: number }>) {
+        if (a.payload.toTeamId === s.myTeamId || !Number.isFinite(Number(a.payload.stake))) return;
+        if (!s.machines.some((m) => m.machineId === a.payload.machineId)) return;
         if (alreadyChallenged(s, s.myTeamId, a.payload.toTeamId)) return;
         // An eliminated team is out of the running: no challenges either way.
         const pair = [s.myTeamId, a.payload.toTeamId].map((id) => s.teams.find((t) => t.teamId === id));

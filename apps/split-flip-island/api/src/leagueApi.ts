@@ -131,12 +131,13 @@ export async function getLeague(event: APIGatewayProxyEventV2): Promise<{ versio
 
 /** Makes a team's action act for that team only, whatever the request says. */
 function forTeam(league: League, teamId: string, type: LeagueActionName, payload: unknown): unknown {
-  const p = (payload && typeof payload === 'object' ? { ...(payload as Record<string, unknown>) } : payload) as Record<string, unknown> | string | undefined;
+  const p = (payload && typeof payload === 'object' ? { ...(payload as Record<string, unknown>) } : payload ?? undefined) as Record<string, unknown> | string | undefined;
   const mustOwn = (ok: boolean) => { if (!ok) throw new HttpError(403, "That isn't your team's."); };
   switch (type) {
     case 'joinLine': if (typeof p === 'object') delete p.teamId; return p;
     case 'requestCheckIn': return typeof p === 'object' ? { subs: p.subs } : undefined;
-    case 'leaveLine': case 'startTurn': case 'cancelCheckInRequest': return typeof p === 'string' ? p : undefined;
+    // These take a team id; a team can only ever act for itself (the rule uses the caller's own).
+    case 'leaveLine': case 'startTurn': case 'cancelCheckInRequest': return undefined;
     case 'answerChallenge': mustOwn(league.challenges.some((c) => c.id === (p as Record<string, unknown>)?.id && c.toTeamId === teamId)); return p;
     case 'forfeitSeen': case 'forgivenSeen': mustOwn((league.forfeits ?? []).some((f) => f.id === p && f.teamId === teamId)); return p;
     case 'noShowSeen': mustOwn((league.noShows ?? []).some((n) => n.id === p && n.teamId === teamId)); return p;

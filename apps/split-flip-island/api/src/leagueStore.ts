@@ -89,7 +89,17 @@ export async function applyAction(
     if (!loaded) throw new HttpError(409, 'The league has not been set up yet.');
     const now = nowIso();
     const base = withActor(loaded.league, actor, now);
-    const ruled = produce(base, (draft) => rule(draft as League, { payload: action.payload }));
+    let ruled: League;
+    try {
+      ruled = produce(base, (draft) => rule(draft as League, { payload: action.payload }));
+    } catch (err) {
+      // A rule that trips over a request it didn't expect: the request was bad, not the server.
+      if (err instanceof TypeError || err instanceof RangeError) {
+        console.error('Rule refused a malformed request', action.type, err.message);
+        throw new HttpError(400, "That request didn't make sense. Refresh and try again.");
+      }
+      throw err;
+    }
     // A rule that changes nothing was refused (not allowed now, or already done).
     if (ruled === base) throw new RuleRefused(options.refusal);
     const next = options.after ? produce(ruled, (draft) => { options.after!(draft as League); }) : ruled;

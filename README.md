@@ -13,6 +13,7 @@ region us-east-1 (Northern Virginia). Prereqs on the Mac: AWS CLI, Terraform 1.1
 ./scripts/release.sh          # server, league stack, knckr.com stack, web app
 ./scripts/release.sh server   # just the server and the league stack
 ./scripts/release.sh web      # just the web app
+./scripts/release.sh web --skip-tests   # publish without the browser tests (only when you must)
 ```
 
 It builds and tests the server (and stops if a test fails), then for each Terraform stack it
@@ -21,7 +22,8 @@ to change is skipped. A plan that would **delete or replace** anything stops unl
 `replace`: paste `.deploy-logs/plan-<stack>.log` to Claude first. Then it runs the web app's
 **browser tests** (Playwright, free, on this Mac, a few minutes) and publishes the web app only if
 they all pass; if one fails, `cd apps/split-flip-island/web && npm run test:report` shows what
-happened, with screenshots. Full output of every step is saved in `.deploy-logs/`.
+happened, with screenshots. While they run, each test prints a line as it finishes (a check
+mark or an X). Full output of every step is saved in `.deploy-logs/`.
 
 First time on a Mac, install the test browser once: `cd apps/split-flip-island/web && npx playwright install chromium`.
 

@@ -6,6 +6,7 @@
 #   ./scripts/release.sh          everything: server, league stack, knckr.com stack, web app
 #   ./scripts/release.sh server   just the server: build, league stack
 #   ./scripts/release.sh web      just the web app
+#   add --skip-tests to publish the web app without the browser tests (only when you must)
 #
 # A stack with nothing to change is skipped. A plan that would delete or replace anything is
 # shown in full and needs you to type "replace". Each step still saves its full output in
@@ -15,7 +16,14 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # Run through bash, so a missing "executable" flag on the file can never stop a release.
 STEP="bash $ROOT/scripts/deploy-step.sh"
 LOGS="$ROOT/.deploy-logs"
-WHAT="${1:-all}"
+WHAT=all
+SKIP_TESTS=no
+for arg in "$@"; do
+  case "$arg" in
+    --skip-tests) SKIP_TESTS=yes ;;
+    *) WHAT="$arg" ;;
+  esac
+done
 
 bold() { printf '\n\033[1m%s\033[0m\n' "$*"; }
 stop() { bold "Stopped: $*"; exit 1; }
@@ -55,13 +63,21 @@ server() {
 web() {
   # The browser tests (Playwright, free, on this computer): a real browser clicks through the
   # built app on the sample league. A few minutes. A failure stops here, before anything is published.
-  bold "Running the web app's browser tests (a few minutes)..."
   mkdir -p "$LOGS"
-  if ! (cd "$ROOT/apps/split-flip-island/web" && npm test) > "$LOGS/web-tests.log" 2>&1; then
-    tail -40 "$LOGS/web-tests.log"
-    stop "a browser test failed, so nothing was published. See what happened: cd apps/split-flip-island/web && npm run test:report (full output: .deploy-logs/web-tests.log)."
+  if [ "$SKIP_TESTS" = yes ]; then
+    bold "SKIPPING the browser tests (--skip-tests). Nothing checks this web app before it goes live."
+  else
+    bold "Running the web app's browser tests (a few minutes)..."
+    echo "Building the app for the tests first (about a minute)..."
+    # Each test prints one line as it finishes: a check mark when it passes, an X when it fails.
+    # The full output still goes to .deploy-logs/web-tests.log.
+    (cd "$ROOT/apps/split-flip-island/web" && FORCE_COLOR=0 npm test) 2>&1 | tee "$LOGS/web-tests.log" \
+      | grep --line-buffered -E 'Running [0-9]+ tests|✓|✘|^ *[0-9]+ (passed|failed|flaky|skipped)'
+    status=${PIPESTATUS[0]}
+    if [ "$status" != 0 ]; then
+      stop "a browser test failed, so nothing was published. See what happened: cd apps/split-flip-island/web && npm run test:report (full output: .deploy-logs/web-tests.log)."
+    fi
   fi
-  echo "$(grep -E '[0-9]+ passed' "$LOGS/web-tests.log" | tail -1 | xargs)."
   bold "Publishing the web app..."
   $STEP web > /dev/null || { tail -40 "$LOGS/web.log"; stop "publishing the web app failed (full output: .deploy-logs/web.log)."; }
   echo "Published."

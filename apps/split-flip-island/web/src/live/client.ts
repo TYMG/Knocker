@@ -55,6 +55,7 @@ export const live = {
   async logIn(teamName: string, pin: string) {
     const r = await call<AuthResponse>('login', { teamName, pin });
     tokens.setTeam(r.token);
+    void import('./push').then((p) => p.resendPush());
     return r;
   },
   async adminLogIn(name: string, password: string) {
@@ -105,6 +106,7 @@ export const live = {
     const r = await call<{ soloId: string; token: string }>('solo/login', { phone, pin });
     tokens.clear();
     tokens.setSolo(r.token);
+    void import('./push').then((p) => p.resendPush());
     return r;
   },
   swipe: (toId: string, like: boolean) => call<object>('solo/swipe', { toId, like }),
@@ -124,6 +126,10 @@ export const live = {
   leaveWaitlist: () => call<{ ok: true }>('solo/leave', {}),
   removeSolo: (id: string) => call<{ ok: true }>('admin/waitlist/remove', { id }),
   pairWaitlist: (ids: [string, string]) => call<{ teamId: string; teamName: string; pin: string }>('admin/waitlist/pair', { ids }),
+
+  pushKey: () => call<{ publicKey: string }>('push/key'),
+  pushSubscribe: (sub: PushSubscriptionJSON) => call<{ ok: true }>('push/subscribe', sub),
+  pushUnsubscribe: (endpoint: string) => call<{ ok: true }>('push/unsubscribe', { endpoint }),
 
   changePin: (currentPin: string, newPin: string) => call<{ ok: true }>('me/pin', { currentPin, newPin }),
   setTexts: (player: 0 | 1, optIn: boolean) => call<{ texts: [boolean, boolean] }>('me/texts', { player, optIn }),

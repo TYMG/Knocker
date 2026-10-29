@@ -10,6 +10,10 @@ import { ThemeProvider } from '@mui/material/styles';
 import App from './App';
 import { store } from './store';
 import { theme } from './theme';
+import { registerWorker } from './live/push';
+
+// Phone notifications need the service worker running (public/sw.js).
+registerWorker();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

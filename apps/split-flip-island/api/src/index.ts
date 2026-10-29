@@ -8,6 +8,7 @@ import { adminRemoveSolo, joinWaitlist, pairWaitlist, soloAnswer, soloAsk, soloC
 import { changePin, finishSetup, resetPin } from './pin.js';
 import { sendCheckInReminders } from './reminders.js';
 import { runLeagueClock } from './leagueClock.js';
+import { pushKey, subscribe, unsubscribe } from './push.js';
 import { setTeamTexts, smsStatus, smsTest, teamTexts } from './sms.js';
 import { env, HttpError, json } from './util.js';
 
@@ -34,6 +35,9 @@ const routes: Record<string, { run: Route; status?: 201 }> = {
   'POST /api/admin/waitlist/pair': { run: pairWaitlist, status: 201 },
   'POST /api/admin/waitlist/remove': { run: adminRemoveSolo },
   'POST /api/solo/login': { run: soloLogin },
+  'GET /api/push/key': { run: pushKey },
+  'POST /api/push/subscribe': { run: subscribe },
+  'POST /api/push/unsubscribe': { run: unsubscribe },
   'POST /api/me/setup': { run: finishSetup },
   'POST /api/solo/swipe': { run: soloSwipe },
   'POST /api/solo/ask': { run: soloAsk },

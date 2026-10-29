@@ -29,6 +29,7 @@ import TextField from '@mui/material/TextField';
 import { useState } from 'react';
 import { pinProblem } from '../../../shared/pin';
 import { live } from '../live/client';
+import PushToggle from '../ui/PushToggle';
 
 export default function Settings() {
   const me = useMe();
@@ -38,9 +39,11 @@ export default function Settings() {
       <Stack spacing={4}>
         <LookSection />
         <MotionSection />
-        {(me.isTeam || me.isAdmin) && (
+        {(me.isTeam || me.isAdmin || !!league.mySoloId) && (
           <Section title="Alerts">
             <Stack spacing={1.5}>
+              {me.isTeam && <PushToggle what="Your turn on a machine, a challenge, being checked in, the night opening and messages from the league." />}
+              {!!league.mySoloId && !me.isTeam && <PushToggle what="A match, a request to pair up, and when you're a team." />}
               {me.isTeam && <TextsSetting team={me.team} />}
               {me.isTeam && <DrPopupsSetting />}
               {me.isAdmin && <BlipsSetting />}

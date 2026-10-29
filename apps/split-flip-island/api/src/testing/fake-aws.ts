@@ -121,6 +121,12 @@ export class FakeTable {
         this.put(this.applyUpdate(existing, w));
         return {};
       }
+      case 'DeleteCommand': {
+        const w = input as Write;
+        if (!this.passes(this.items.get(this.id(w.Key!)), w)) throw new ConditionFailed('The conditional request failed');
+        this.items.delete(this.id(w.Key!));
+        return {};
+      }
       case 'BatchWriteCommand': {
         const requests = Object.values(input.RequestItems as Record<string, Array<{ DeleteRequest?: { Key: { PK: string; SK: string } }; PutRequest?: { Item: Item } }>>).flat();
         for (const r of requests) {

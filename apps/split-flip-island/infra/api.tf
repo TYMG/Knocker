@@ -5,6 +5,15 @@ resource "random_password" "token_secret" {
   special = false
 }
 
+# Phone notifications (Web Push): the league's VAPID key. Push services check that every
+# notification is signed with it; phones subscribe with its public half (GET /api/push/key).
+# Made once and kept in Terraform's state, like the token secret. Replacing it would turn off
+# every phone's notifications until they turn them on again.
+resource "tls_private_key" "vapid" {
+  algorithm   = "ECDSA"
+  ecdsa_curve = "P256"
+}
+
 data "archive_file" "api" {
   type        = "zip"
   source_dir  = "${path.module}/../api/dist"
@@ -72,6 +81,8 @@ resource "aws_lambda_function" "api" {
       LEAGUE_ID     = var.league_id
       TOKEN_SECRET  = random_password.token_secret.result
       ORIGIN_SECRET = random_password.origin_secret.result
+      # Phone notifications (push.ts, webpush.ts).
+      VAPID_PRIVATE_KEY = tls_private_key.vapid.private_key_pem
       # Sign-up approval: how long a team waits, and how many can wait at once.
       PENDING_TEAM_HOURS = tostring(var.pending_team_hours)
       MAX_PENDING_TEAMS  = tostring(var.max_pending_teams)

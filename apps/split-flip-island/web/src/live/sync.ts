@@ -44,7 +44,11 @@ export function refreshLive(): Promise<void> {
         return;
       }
       // A solo player's phone moves to their new team, or back to visiting if they left.
-      if (r.teamToken) { tokens.clear(); tokens.setTeam(r.teamToken); }
+      if (r.teamToken) {
+        tokens.clear();
+        tokens.setTeam(r.teamToken);
+        void import('./push').then((p) => p.resendPush());
+      }
       else if (r.soloGone) tokens.setSolo('');
       d(sample.loadLeague(r.league));
       d(liveActions.loaded(r.version));

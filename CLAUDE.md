@@ -202,6 +202,16 @@ The server runs the **same rules code** as the sample league, so the two can nev
   every league action and score post, and by the 5-minute schedule (which also sends the
   check-in reminder). Nothing automatic while paused. An admin can open tonight's night early
   (`openNight` {by: 'admin'}, same date only) or close it any time from Night settings.
+- **Phone notifications (Web Push, Oct 29):** `api/src/webpush.ts` (aes128gcm + VAPID with Node
+  crypto, no library), `api/src/push.ts` (`GET /api/push/key`, `POST /api/push/subscribe|unsubscribe`;
+  phones stored per owner at `PUSH#<league>` / `team:<id>` or `solo:<id>`, max 6; only known push
+  hosts accepted). `newsFor(before, after)` runs after every saved change (leagueStore) and sends:
+  your turn, you're next (if asked), clock forfeit, challenge, checked in, night open (all teams),
+  league message (all teams), solo match / pair request / you're a team (phones then move to the
+  team). The VAPID key is `tls_private_key.vapid` (infra/api.tf) passed as `VAPID_PRIVATE_KEY`.
+  Web: `public/sw.js`, `public/manifest.webmanifest` (fetched with credentials for the gate),
+  `src/live/push.ts`, `ui/PushToggle.tsx` (Settings, solo page). iPhones need Add to Home Screen.
+  `deploy-web.sh` uploads sw.js and the manifest with no-cache. Bar TV: `/tv?live` switches itself to live.
 - **Admin input checks in the rules** (Oct 29): message 1–280 characters; machine and location
   names up to 40 and no duplicates; night times HH:MM with opening before closing; add minutes
   1–60 at a time, 2 hours max, only while open; corrections and voids need a reason (up to 200).

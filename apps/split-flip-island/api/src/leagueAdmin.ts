@@ -51,7 +51,7 @@ export async function clearLeague(league = leagueId()): Promise<number> {
   const all = (pk: string) => queryAll<{ PK: string; SK: string; type?: string; date?: string }>({ KeyConditionExpression: 'PK = :pk', ExpressionAttributeValues: { ':pk': pk } });
   const mine = await all(keys.league(league));
   const oldNights = mine.filter((i) => i.type === 'night' && i.date).map((i) => `NIGHT#${league}#${i.date}`);
-  const doomed = [...mine, ...(await all(`HISTORY#${league}`)), ...(await all(`AUDIT#${league}`))];
+  const doomed = [...mine, ...(await all(`HISTORY#${league}`)), ...(await all(`AUDIT#${league}`)), ...(await all(`PUSH#${league}`))];
   for (const pk of oldNights) doomed.push(...(await all(pk)));
   for (let i = 0; i < doomed.length; i += 25) {
     let requests: Record<string, unknown> | undefined = { [table()]: doomed.slice(i, i + 25).map((k) => ({ DeleteRequest: { Key: { PK: k.PK, SK: k.SK } } })) };

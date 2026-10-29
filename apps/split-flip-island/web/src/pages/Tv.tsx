@@ -4,7 +4,7 @@
 // It shows the time left, the league message, tonight's points, one machine's board at a time
 // (changing every 15 seconds), who is up on every machine, and a code to scan.
 //
-// Two things are different from every other page:
+// Three things are different from every other page:
 //   1. It is always dark, whatever theme the browser is in. A TV in a bar should not turn pale
 //      yellow because of a setting. The "dark" class on the outer box makes every theme color
 //      inside it resolve to its dark value.
@@ -12,13 +12,16 @@
 //      "--u" unit below, one hundredth of the space under the sample strip). The page then
 //      looks the same at 1600 x 900 and 1920 x 1080. Below 900 px wide the three columns stack
 //      and the page scrolls like any other.
+//   3. Open it as /tv?live on the bar's screen and it switches itself to the live league (no
+//      tapping needed), and stays there.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link as RouterLink } from 'react-router';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import { keyframes } from '@mui/material/styles';
-import { useLeague } from '../hooks';
+import { useLeague, useLiveOn } from '../hooks';
+import { setLive } from '../live/sync';
 import { SAMPLE_BAR_HEIGHT } from '../layout/SampleBar';
 import { countedMachines, lineCount, linesView, location, machine as machineOf, machineBoard, nightStatus, tonightRows, weekLabel, type LineView, type TonightRow } from '../sample/league';
 import { longDate } from '../sample/time';
@@ -43,6 +46,10 @@ const fadeIn = keyframes({ from: { opacity: 0 }, to: { opacity: 1 } });
 
 export default function Tv() {
   const league = useLeague();
+  const liveOn = useLiveOn();
+  useEffect(() => {
+    if (!liveOn && new URLSearchParams(window.location.search).has('live')) void setLive(true);
+  }, [liveOn]);
   const night = nightStatus(league);
   const week = night.week;
   const label = weekLabel(week.week);

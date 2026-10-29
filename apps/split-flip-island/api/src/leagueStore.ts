@@ -13,6 +13,7 @@ import { makeLeagueRules, type Current, type LeagueActionName } from '../../shar
 import type { SampleState } from '../../shared/league/types.js';
 import { ddb, keys, leagueId, table } from './db.js';
 import { HttpError, nowIso } from './util.js';
+import { deliver } from './push.js';
 
 export type League = SampleState;
 
@@ -114,6 +115,8 @@ export async function applyAction(
           ...((options.extraWrites?.(next) ?? []) as never[])
         ]
       }));
+      // Phone notifications for whatever this change means to people (never throws).
+      await deliver(loaded.league, neutral(next));
       return { version, league: neutral(next) };
     } catch (err) {
       if ((err as Error).name === 'TransactionCanceledException') {

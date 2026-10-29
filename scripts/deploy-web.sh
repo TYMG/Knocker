@@ -10,9 +10,14 @@ DIST_ID="$(terraform -chdir="$INFRA" output -raw distribution_id)"
 
 cd "$ROOT/apps/split-flip-island/web"
 npm ci && npm run build
-# Hashed files can be cached forever. The app shell and the demo password page must always be fresh.
-aws s3 sync dist "s3://$BUCKET" --delete --cache-control "public,max-age=31536000,immutable" --exclude index.html --exclude gate.html
-aws s3 cp dist/index.html "s3://$BUCKET/index.html" --cache-control "no-cache"
-aws s3 cp dist/gate.html "s3://$BUCKET/gate.html" --cache-control "no-cache"
-aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/index.html" "/gate.html" > /dev/null
+# Hashed files can be cached forever. The app shell, the demo password page, the phone
+# notifications worker (sw.js) and the app manifest must always be fresh.
+FRESH=(index.html gate.html sw.js manifest.webmanifest)
+aws s3 sync dist "s3://$BUCKET" --delete --cache-control "public,max-age=31536000,immutable" $(printf -- '--exclude %s ' "${FRESH[@]}")
+for f in "${FRESH[@]}"; do
+  type=()
+  [ "$f" = manifest.webmanifest ] && type=(--content-type application/manifest+json)
+  [ -f "dist/$f" ] && aws s3 cp "dist/$f" "s3://$BUCKET/$f" --cache-control "no-cache" ${type[@]+"${type[@]}"}
+done
+aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths $(printf '/%s ' "${FRESH[@]}") > /dev/null
 echo "Deployed: $(terraform -chdir="$INFRA" output -raw app_url)"

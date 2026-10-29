@@ -184,6 +184,20 @@ export default function PlayerLayout() {
                   <LogoutIcon />
                 </IconButton>
               </Tooltip>
+            ) : league.mySoloId ? (
+              // A solo player on the waitlist: their partner page, and a way to log out.
+              <>
+                {pathname !== '/solo' && (
+                  <Button component={RouterLink} to="/solo" color="inherit" size="small" sx={{ flexShrink: 0 }}>
+                    Find a partner
+                  </Button>
+                )}
+                <Tooltip title="Log out">
+                  <IconButton color="inherit" aria-label="Log out" onClick={() => { navigate('/'); dispatch(sample.logOut()); }}>
+                    <LogoutIcon />
+                  </IconButton>
+                </Tooltip>
+              </>
             ) : (
               <>
                 {pathname !== '/standings' && (

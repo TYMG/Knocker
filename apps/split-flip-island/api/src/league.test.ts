@@ -69,7 +69,7 @@ async function setUp() {
 
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
-  vi.setSystemTime(new Date('2026-11-05T23:40:00.000Z')); // 6:40 PM, check-in is open
+  vi.setSystemTime(new Date('2026-11-05T23:20:00.000Z')); // 6:20 PM, before the night opens on its own
   fake.table.items.clear();
   fake.table.put({ PK: 'ADMIN#sfi-s1', SK: 'ADMIN#matt', type: 'admin', name: 'Matt', passHash: hashPassword('correct horse battery'), tokenVersion: 1, createdAt: '2026-10-06T00:00:00.000Z' });
   await setUp();
@@ -96,7 +96,7 @@ describe('the league on the server', () => {
 
   it('applies a rule as the logged-in team, saves it in order, and refuses one that breaks the rules', async () => {
     const admin = await asAdmin();
-    expect((await act('openNight', undefined, admin)).body.version).toBe(2);
+    expect((await act('openNight', { by: 'admin' }, admin)).body.version).toBe(2);
     const asked = await act('requestCheckIn', { teamId: 'bbbb2222' }, asTeam('aaaa1111')); // teamId is ignored: always your own team
     expect(asked.status).toBe(200);
     expect(Object.keys(asked.body.league.checkInRequests)).toEqual(['aaaa1111']);
@@ -120,7 +120,7 @@ describe('the league on the server', () => {
   });
 
   it('never loses a change when two phones save at the same moment', async () => {
-    await applyAction({ kind: 'admin', name: 'Matt' }, { type: 'openNight' });
+    await applyAction({ kind: 'admin', name: 'Matt' }, { type: 'openNight', payload: { by: 'admin' } });
     await Promise.all([
       applyAction({ kind: 'team', teamId: 'aaaa1111' }, { type: 'requestCheckIn' }),
       applyAction({ kind: 'team', teamId: 'bbbb2222' }, { type: 'requestCheckIn' })
@@ -155,6 +155,7 @@ describe('league setup, pause and start over', () => {
     expect((await act('setPaused', true, admin)).status).toBe(409); // already paused
     expect((await act('setPaused', false, asTeam('aaaa1111'))).status).toBe(403);
     expect((await act('setPaused', false, admin)).status).toBe(200);
+    vi.setSystemTime(new Date('2026-11-05T23:31:00.000Z'));
     expect((await applyAction({ kind: 'league' }, { type: 'openNight' })).league.weeks[0]!.state).toBe('open');
     const log = (await loadLeagueState())!.league.log.map((l) => l.action);
     expect(log).toEqual(expect.arrayContaining(['Admin paused the league', 'Admin resumed the league']));
@@ -199,7 +200,7 @@ describe('an admin entering a score for a team', () => {
     const admin = await asAdmin();
     const body = { teamId: 'aaaa1111', machineId: 'godzilla', score: 1_250_000, reason: 'phone died', noPhoto: true };
     expect((await call('POST', '/api/admin/scores', { ...admin, body })).status).toBe(409); // night not open yet
-    await act('openNight', undefined, admin);
+    await act('openNight', { by: 'admin' }, admin);
     expect((await call('POST', '/api/admin/scores', { ...admin, body: { ...body, reason: 'x' } })).status).toBe(400);
     expect((await call('POST', '/api/admin/scores', { ...admin, body: { ...body, teamId: 'cccc3333' } })).status).toBe(400); // pending team
     expect((await call('POST', '/api/admin/scores', { ...admin, body: { ...body, noPhoto: false } })).status).toBe(400); // photo needed
@@ -358,7 +359,7 @@ describe('the turn clock on the server', () => {
   const at = (iso: string) => vi.setSystemTime(new Date(iso));
   async function bothInLine() {
     const admin = await asAdmin();
-    await act('openNight', undefined, admin);
+    await act('openNight', { by: 'admin' }, admin);
     await act('checkIn', 'aaaa1111', admin);
     await act('checkIn', 'bbbb2222', admin);
     await act('joinLine', { machineId: 'godzilla', notify: false }, asTeam('aaaa1111'));
@@ -369,9 +370,9 @@ describe('the turn clock on the server', () => {
 
   it('forfeits a turn not started within 5 minutes, the next time anyone looks', async () => {
     await bothInLine();
-    at('2026-11-05T23:44:30.000Z'); // 4.5 minutes in
+    at('2026-11-05T23:24:30.000Z'); // 4.5 minutes in
     expect(godzilla((await call('GET', '/api/league')).body).teamIds[0]).toBe('aaaa1111');
-    at('2026-11-05T23:45:01.000Z');
+    at('2026-11-05T23:25:01.000Z');
     const seen = await call('GET', '/api/league');
     expect(godzilla(seen.body).teamIds).toEqual(['bbbb2222']);
     expect(seen.body.league.forfeits).toMatchObject([{ teamId: 'aaaa1111', machineId: 'godzilla', by: 'clock' }]);
@@ -381,7 +382,7 @@ describe('the turn clock on the server', () => {
 
   it("won't let a team start a turn that already ran out", async () => {
     await bothInLine();
-    at('2026-11-05T23:46:00.000Z');
+    at('2026-11-05T23:26:00.000Z');
     expect((await act('startTurn', 'godzilla', asTeam('aaaa1111'))).status).toBe(409);
     expect(godzilla((await call('GET', '/api/league')).body).teamIds).toEqual(['bbbb2222']);
   });
@@ -389,19 +390,78 @@ describe('the turn clock on the server', () => {
   it('stops while the league is paused, and gives a fresh 5 minutes on resume', async () => {
     const admin = await bothInLine();
     await act('setPaused', true, admin);
-    at('2026-11-05T23:55:00.000Z'); // well past 5 minutes, but paused
+    at('2026-11-05T23:35:00.000Z'); // well past 5 minutes, but paused
     expect(godzilla((await call('GET', '/api/league')).body).teamIds[0]).toBe('aaaa1111');
     await act('setPaused', false, admin);
-    at('2026-11-05T23:59:00.000Z');
+    at('2026-11-05T23:39:00.000Z');
     expect(godzilla((await call('GET', '/api/league')).body).teamIds[0]).toBe('aaaa1111');
-    at('2026-11-06T00:00:01.000Z');
+    at('2026-11-05T23:40:01.000Z');
     expect(godzilla((await call('GET', '/api/league')).body).teamIds).toEqual(['bbbb2222']);
   });
 
   it('is checked by the 5-minute league clock too', async () => {
     await bothInLine();
-    at('2026-11-05T23:46:00.000Z');
+    at('2026-11-05T23:26:00.000Z');
     await handler({ task: 'reminders' } as never);
     expect((await loadLeagueState())!.league.forfeits).toHaveLength(1);
+  });
+});
+
+describe('the night opens and closes on its own', () => {
+  const at = (iso: string) => vi.setSystemTime(new Date(iso));
+  const week1 = async () => (await loadLeagueState())!.league.weeks[0]!;
+
+  it('opens the next time anyone looks, from 30 minutes before; an admin can open it early that day', async () => {
+    at('2026-11-05T22:00:00.000Z'); // 5 PM: too early on its own
+    await call('GET', '/api/league');
+    expect((await week1()).state).toBe('upcoming');
+    expect((await act('openNight', { by: 'admin' }, await asAdmin())).status).toBe(200);
+    expect((await week1()).state).toBe('open');
+    expect((await loadLeagueState())!.league.log[0]!.action).toBe('Admin opened week 1');
+  });
+
+  it('closes on its own at closing time (plus added minutes), but not while paused', async () => {
+    at('2026-11-05T23:35:00.000Z');
+    await call('GET', '/api/league'); // opens on its own
+    expect((await week1()).state).toBe('open');
+    const admin = await asAdmin();
+    expect((await act('addMinutes', 15, admin)).status).toBe(200);
+    expect((await act('addMinutes', 500, admin)).status).toBe(409);
+    at('2026-11-06T02:05:00.000Z'); // 9:05 PM: past 9, but 15 minutes were added
+    await call('GET', '/api/league');
+    expect((await week1()).state).toBe('open');
+    await act('setPaused', true, admin);
+    at('2026-11-06T02:20:00.000Z');
+    await call('GET', '/api/league');
+    expect((await week1()).state).toBe('open'); // paused: nothing happens on its own
+    await act('setPaused', false, admin);
+    // A late score is refused: the night closes first.
+    const late = await call('POST', '/api/scores', { ...asTeam('aaaa1111'), body: { machineId: 'godzilla', score: 1000 } });
+    expect(late.status).toBe(409);
+    expect((await week1()).state).toBe('final');
+    expect((await loadLeagueState())!.league.log.some((l) => l.action.startsWith('Week 1 closed'))).toBe(true);
+  });
+
+  it('is checked by the 5-minute league clock too', async () => {
+    at('2026-11-05T23:31:00.000Z');
+    await handler({ task: 'reminders' } as never);
+    expect((await week1()).state).toBe('open');
+    at('2026-11-06T02:01:00.000Z');
+    await handler({ task: 'reminders' } as never);
+    expect((await week1()).state).toBe('final');
+  });
+
+  it('refuses admin input that makes no sense', async () => {
+    const admin = await asAdmin();
+    expect((await act('postMessage', '   ', admin)).status).toBe(409);
+    expect((await act('postMessage', 'x'.repeat(281), admin)).status).toBe(409);
+    expect((await act('setNightTimes', { opensAt: '21:00', closesAt: '19:00' }, admin)).status).toBe(409);
+    expect((await act('setNightTimes', { opensAt: '25:00' }, admin)).status).toBe(409);
+    expect((await act('setNightTimes', { opensAt: '18:30' }, admin)).status).toBe(200);
+    expect((await act('addMachine', { name: 'Godzilla', locationId: 'main' }, admin)).status).toBe(409); // already there
+    expect((await act('addMachine', { name: 'Jaws', locationId: 'nowhere' }, admin)).status).toBe(409);
+    expect((await act('addLocation', 'x'.repeat(41), admin)).status).toBe(409);
+    const log = (await loadLeagueState())!.league.log.map((l) => l.action);
+    expect(log.some((l) => l.startsWith('Admin set league nights to run 6:30'))).toBe(true);
   });
 });

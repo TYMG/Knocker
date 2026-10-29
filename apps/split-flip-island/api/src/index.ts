@@ -6,8 +6,8 @@ import { getLeague, postAction } from './leagueApi.js';
 import { setupLeague, startOver } from './leagueAdmin.js';
 import { adminRemoveSolo, joinWaitlist, pairWaitlist, soloAnswer, soloAsk, soloCancelAsk, soloLeave, soloLogin, soloSwipe } from './waitlist.js';
 import { changePin, finishSetup, resetPin } from './pin.js';
-import { openNightIfTime, sendCheckInReminders } from './reminders.js';
-import { runTurnClock } from './turnClock.js';
+import { sendCheckInReminders } from './reminders.js';
+import { runLeagueClock } from './leagueClock.js';
 import { setTeamTexts, smsStatus, smsTest, teamTexts } from './sms.js';
 import { env, HttpError, json } from './util.js';
 
@@ -69,11 +69,10 @@ function cameThroughFrontDoor(event: APIGatewayProxyEventV2): boolean {
 export async function handler(event: APIGatewayProxyEventV2 | ScheduledTask): Promise<APIGatewayProxyStructuredResultV2 | Record<string, unknown>> {
   if (isTask(event)) {
     if (event.task === 'reminders') {
-      // The league clock: open tonight's night when it's time, then the check-in reminder.
-      if (await openNightIfTime()) console.log('Opened tonight\'s league night');
-      // Backstop for the turn clock, in case nobody has the app open.
-      const forfeits = await runTurnClock();
-      if (forfeits) console.log('Turn clock forfeits', forfeits);
+      // The league clock (a backstop, in case nobody has the app open): open or close tonight's
+      // night and forfeit run-out turns when they're due, then the check-in reminder.
+      const changes = await runLeagueClock();
+      if (changes) console.log('League clock changes', changes);
       const sent = await sendCheckInReminders();
       if (!sent.skipped) console.log('Check-in reminders', JSON.stringify(sent));
       return { ...sent };

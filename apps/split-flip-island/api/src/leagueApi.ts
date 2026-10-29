@@ -18,7 +18,7 @@ import { soloTeamKey } from './waitlist.js';
 import { teamPhoto } from '../../shared/league/art.js';
 import { loadPrivates } from './handlers.js';
 import { applyAction, loadLeagueState, type Actor, type League } from './leagueStore.js';
-import { runTurnClock } from './turnClock.js';
+import { runLeagueClock } from './leagueClock.js';
 import { HttpError, nowIso, parseBody, photoUrl } from './util.js';
 
 /** A saved photo path becomes the address the pages load it from (through the site's front door). */
@@ -104,8 +104,8 @@ export interface NoLeague { version: 0; league: null; viewer: { role: 'visitor' 
 export async function getLeague(event: APIGatewayProxyEventV2): Promise<{ version: number; league: League; teamToken?: string; soloGone?: boolean } | NoLeague> {
   let who = await viewer(event);
   let state = await loadLeagueState();
-  // Turns that ran out are forfeited before anyone sees the league.
-  if (state && (await runTurnClock(state.league))) state = await loadLeagueState();
+  // Whatever the league clock has due (open or close the night, run-out turns) happens first.
+  if (state && (await runLeagueClock(state.league))) state = await loadLeagueState();
   if (!state) {
     return {
       version: 0, league: null,
@@ -152,8 +152,8 @@ export async function postAction(event: APIGatewayProxyEventV2): Promise<{ versi
   const who = await viewer(event);
   if (!who) throw new HttpError(401, 'Log in first.');
   let payload = body.payload;
-  // A team can't start a turn that already ran out.
-  await runTurnClock();
+  // The clock first: a team can't start a turn that already ran out, or act on a night that has closed.
+  await runLeagueClock();
   if (who.kind === 'team' && TEAM_ACTIONS.has(type)) {
     // forTeam needs the league to check ownership; the store re-reads it when applying.
     const state = await loadLeagueState();

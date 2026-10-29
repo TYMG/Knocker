@@ -34,6 +34,11 @@ export const slug = (name: string, taken: string[]) => {
 
 /** A team at the front of a line has this long to start its game. */
 export const TURN_MS = 5 * 60 * 1000;
+/** The longest message to everyone, and the longest machine or location name. */
+export const MESSAGE_MAX = 280;
+export const NAME_MAX = 40;
+/** The longest reason an admin gives for a change. */
+export const REASON_MAX = 200;
 
 /**
  * Starts the clock for whoever is now at the front of each line. Lines from the seed have no
@@ -439,24 +444,27 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
       },
       correctScore(s: SampleState, a: PayloadAction<{ scoreId: string; score: number; reason: string }>) {
         const x = s.scores.find((y) => y.scoreId === a.payload.scoreId);
-        if (!x) return;
+        const reason = String(a.payload.reason ?? '').trim();
+        // Always with a reason, and a real score.
+        if (!x || !reason || reason.length > REASON_MAX || !Number.isSafeInteger(a.payload.score) || a.payload.score <= 0) return;
         const { who, what } = names(s, x);
-        x.history.push({ at: s.now, text: `Changed by ${s.adminName} from ${fmt(x.score)} to ${fmt(a.payload.score)}: ${a.payload.reason}` });
+        x.history.push({ at: s.now, text: `Changed by ${s.adminName} from ${fmt(x.score)} to ${fmt(a.payload.score)}: ${reason}` });
         x.score = a.payload.score;
-        x.reason = a.payload.reason;
+        x.reason = reason;
         x.check = 'checked';
         x.checkedBy = s.adminName;
-        addLog(s, 'admin', `Admin changed ${who}'s ${what} score`, a.payload.reason);
+        addLog(s, 'admin', `Admin changed ${who}'s ${what} score`, reason);
       },
       /** A voided score stays on record and stops counting. Nothing is ever deleted. */
       voidScore(s: SampleState, a: PayloadAction<{ scoreId: string; reason: string }>) {
         const x = s.scores.find((y) => y.scoreId === a.payload.scoreId);
-        if (!x || x.status === 'voided') return;
+        const reason = String(a.payload.reason ?? '').trim();
+        if (!x || x.status === 'voided' || !reason || reason.length > REASON_MAX) return;
         const { who, what } = names(s, x);
         x.status = 'voided';
-        x.reason = a.payload.reason;
-        x.history.push({ at: s.now, text: `Voided by ${s.adminName}: ${a.payload.reason}` });
-        addLog(s, 'admin', `Admin voided ${who}'s ${what} score`, a.payload.reason);
+        x.reason = reason;
+        x.history.push({ at: s.now, text: `Voided by ${s.adminName}: ${reason}` });
+        addLog(s, 'admin', `Admin voided ${who}'s ${what} score`, reason);
       },
 
       // ---- Running the night ----
@@ -565,7 +573,9 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
         delete s.checkIns[a.payload];
       },
       postMessage(s: SampleState, a: PayloadAction<string>) {
-        s.message = { text: a.payload.trim(), postedAt: s.now, by: s.adminName };
+        const text = String(a.payload ?? '').trim();
+        if (!text || text.length > MESSAGE_MAX) return;
+        s.message = { text, postedAt: s.now, by: s.adminName };
         addLog(s, 'admin', 'Admin posted a message to everyone');
       },
       takeDownMessage(s: SampleState) {
@@ -574,19 +584,35 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
         addLog(s, 'admin', 'Admin took down the message');
       },
       addMinutes(s: SampleState, a: PayloadAction<number>) {
-        s.night.extraMinutes += a.payload;
+        // Only while a night is open, a few minutes at a time, and never more than 2 hours in all.
+        const n = Number(a.payload);
+        if (!s.weeks.some((w) => w.state === 'open') || !Number.isInteger(n) || n < 1 || n > 60 || s.night.extraMinutes + n > 120) return;
+        s.night.extraMinutes += n;
         addLog(s, 'admin', `Admin added ${a.payload} minutes to tonight`);
       },
       /** Opening and closing times for every league night, as "19:00". */
       setNightTimes(s: SampleState, a: PayloadAction<{ opensAt?: string; closesAt?: string }>) {
-        if (a.payload.opensAt) s.night.opensAt = a.payload.opensAt;
-        if (a.payload.closesAt) s.night.closesAt = a.payload.closesAt;
+        const clockTime = /^([01]\d|2[0-3]):[0-5]\d$/;
+        const opensAt = a.payload.opensAt ?? s.night.opensAt;
+        const closesAt = a.payload.closesAt ?? s.night.closesAt;
+        // "19:00" style times compare correctly as text. Opening stays before closing.
+        if (!clockTime.test(opensAt) || !clockTime.test(closesAt) || opensAt >= closesAt) return;
+        if (opensAt === s.night.opensAt && closesAt === s.night.closesAt) return;
+        s.night.opensAt = opensAt;
+        s.night.closesAt = closesAt;
         addLog(s, 'admin', `Admin set league nights to run ${clockLabel(s.night.opensAt)} to ${clockLabel(s.night.closesAt)}`);
       },
       /** Locks in the open week's points, empties the lines and settles tonight's challenges. */
-      closeNight(s: SampleState) {
+      closeNight(s: SampleState, a: PayloadAction<{ by?: 'league' } | undefined>) {
         const week = s.weeks.find((w) => w.state === 'open');
         if (!week) return;
+        // On its own (the league clock), only once its closing time, plus any added minutes, has
+        // passed, and never while the league is paused. An admin can close it any time.
+        if (a?.payload?.by === 'league') {
+          if (s.paused) return;
+          const closesAt = Date.parse(at(week.date, s.night.closesAt)) + s.night.extraMinutes * 60_000;
+          if (Date.parse(s.now) < closesAt) return;
+        }
         const snapshot = current(s);
         const settledNow: string[] = [];
         for (const c of s.challenges) {
@@ -638,15 +664,18 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
        * it starts, and only when no other night is open. The server does this by itself at the
        * opening time; an admin can also do it.
        */
-      openNight(s: SampleState) {
+      openNight(s: SampleState, a: PayloadAction<{ by?: 'admin' } | undefined>) {
         if (s.paused) return;
         const week = s.weeks.find((w) => w.state === 'upcoming');
         if (!week || s.weeks.some((w) => w.state === 'open')) return;
         if (easternDate(s.now) !== week.date) return;
-        if (Date.parse(s.now) < Date.parse(at(week.date, s.night.opensAt)) - 30 * 60_000) return;
+        // An admin may open it early (any time that day); on its own it opens 30 minutes before.
+        const early = Date.parse(s.now) < Date.parse(at(week.date, s.night.opensAt)) - 30 * 60_000;
+        const byAdmin = a?.payload?.by === 'admin';
+        if (early && !byAdmin) return;
         week.state = 'open';
         s.night.extraMinutes = 0;
-        addLog(s, 'league', `Week ${week.week} opened`);
+        addLog(s, byAdmin ? 'admin' : 'league', byAdmin ? `Admin opened week ${week.week}` : `Week ${week.week} opened`);
       },
       /** Admin: pause or resume the league (see SampleState.paused). */
       setPaused(s: SampleState, a: PayloadAction<boolean>) {
@@ -711,25 +740,32 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
         }
       },
       addMachine(s: SampleState, a: PayloadAction<{ name: string; locationId: string }>) {
-        const name = a.payload.name.trim();
-        if (!name) return;
+        const name = String(a.payload.name ?? '').trim().replace(/\s+/g, ' ');
+        if (!name || name.length > NAME_MAX || !s.locations.some((l) => l.locationId === a.payload.locationId)) return;
+        if (s.machines.some((m) => !m.removed && m.name.toLowerCase() === name.toLowerCase())) return;
         s.machines.push({ machineId: slug(name, s.machines.map((m) => m.machineId)), name, locationId: a.payload.locationId, removed: false });
+        addLog(s, 'admin', `Admin added ${name} to the machines`);
       },
       /** Keeps the machine's old scores. It just can't be picked for a week any more. */
       removeMachine(s: SampleState, a: PayloadAction<string>) {
         const m = s.machines.find((x) => x.machineId === a.payload);
         if (!m) return;
+        if (m.removed) return;
         m.removed = true;
         for (const w of s.weeks) if (w.state === 'upcoming') w.machineIds = w.machineIds.filter((id) => id !== m.machineId);
+        addLog(s, 'admin', `Admin took ${m.name} off the machine list`);
       },
       restoreMachine(s: SampleState, a: PayloadAction<string>) {
         const m = s.machines.find((x) => x.machineId === a.payload);
-        if (m) m.removed = false;
+        if (!m?.removed) return;
+        m.removed = false;
+        addLog(s, 'admin', `Admin put ${m.name} back on the machine list`);
       },
       addLocation(s: SampleState, a: PayloadAction<string>) {
-        const name = a.payload.trim();
-        if (!name) return;
+        const name = String(a.payload ?? '').trim().replace(/\s+/g, ' ');
+        if (!name || name.length > NAME_MAX || s.locations.some((l) => l.name.toLowerCase() === name.toLowerCase())) return;
         s.locations.push({ locationId: slug(name, s.locations.map((l) => l.locationId)), name });
+        addLog(s, 'admin', `Admin added the location ${name}`);
       },
 
       // ---- Teams ----

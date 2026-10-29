@@ -12,6 +12,7 @@ import { pinProblem } from '../../shared/pin.js';
 import { canPlayTonight, currentWeek, findTeamByName, pendingTeams } from '../../shared/league/league.js';
 import type { STeam } from '../../shared/league/types.js';
 import { ddb, keys, leagueId, queryAll, s3, table } from './db.js';
+import { runLeagueClock } from './leagueClock.js';
 import { clearLoginStrikes, hashPin, issueToken, readAdminToken, requireTeam, takeLoginStrike, verifyPin } from './auth.js';
 import { requireAdmin } from './admin.js';
 import { applyAction, loadLeagueState, RuleRefused, type League } from './leagueStore.js';
@@ -210,6 +211,8 @@ export async function login(event: APIGatewayProxyEventV2): Promise<AuthResponse
 // ---------- POST /api/scores ----------
 
 export async function submitScore(event: APIGatewayProxyEventV2): Promise<{ version: number }> {
+  // A night past its closing time closes first, so a late score is refused.
+  await runLeagueClock();
   const { teamId } = requireTeam(event);
   const body = parseBody<SubmitScoreRequest>(event);
   const s = await league();
@@ -242,6 +245,8 @@ export interface AdminScoreRequest { teamId: string; machineId: string; score: n
 
 /** For when a team's phone dies: the admin types the score in, with a reason, photo or not. */
 export async function adminEnterScore(event: APIGatewayProxyEventV2): Promise<{ version: number }> {
+  // A night past its closing time closes first, so a late score is refused.
+  await runLeagueClock();
   const admin = await requireAdmin(event);
   const body = parseBody<AdminScoreRequest>(event);
   const s = await league();

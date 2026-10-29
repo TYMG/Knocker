@@ -1,7 +1,8 @@
-// Night settings: rarely needed, because a league night opens and closes on its own. This is where
-// an admin changes those two times for every league night, gives tonight 15 more minutes, or
-// closes the night early. Closing locks in the points, so it asks first. A night closed by
-// mistake can be reopened from here.
+// Night settings: rarely needed, because a league night opens and closes on its own (the server
+// opens it 30 minutes before the start and closes it at closing time, plus any added minutes).
+// This is where an admin changes those two times for every league night, opens tonight's night
+// early, gives tonight 15 more minutes, or closes the night early. Closing locks in the points, so
+// it asks first. A night closed by mistake can be reopened from here.
 
 import { useState } from 'react';
 import Box from '@mui/material/Box';
@@ -18,7 +19,7 @@ import Typography from '@mui/material/Typography';
 import { useAppDispatch, useLeague } from '../../hooks';
 import { nightStatus, scoreCounts } from '../../sample/league';
 import { sample } from '../../sample/slice';
-import { addMinutes, clock, clockLabel } from '../../sample/time';
+import { addMinutes, at, clock, clockLabel, easternDate, longDate } from '../../sample/time';
 import { showToast } from '../../store';
 import Page from '../../ui/Page';
 import Section from '../../ui/Section';
@@ -39,6 +40,9 @@ export default function NightSettings() {
   const week = night.week.week;
   const settings = league.night;
   const flagged = scoreCounts(league, week).flagged;
+  // The next night, and whether it's today (then it can be opened early).
+  const next = league.weeks.find((w) => w.state === 'upcoming');
+  const nextIsToday = !!next && next.date === easternDate(league.now);
 
   const [changing, setChanging] = useState<Which | null>(null);
   const [draft, setDraft] = useState('');
@@ -128,22 +132,48 @@ export default function NightSettings() {
               </Typography>
             </Stack>
           </Section>
+        ) : nextIsToday && next ? (
+          <Section title="Tonight">
+            <Stack spacing={1.5}>
+              <Typography>Week {next.week} opens on its own at {clock(addMinutes(at(next.date, league.night.opensAt), -30))}, 30 minutes before it starts.</Typography>
+              <Button
+                variant="contained"
+                color="secondary"
+                size="large"
+                disabled={!!league.paused}
+                onClick={() => {
+                  dispatch(sample.openNight({ by: 'admin' }));
+                  dispatch(showToast(`Week ${next.week} is open`));
+                }}
+              >
+                Open week {next.week} now
+              </Button>
+              <Typography variant="body2" color="textSecondary">
+                {league.paused ? 'The league is paused. Resume it on League setup first.' : 'Teams can check in and submit scores as soon as it opens.'}
+              </Typography>
+            </Stack>
+          </Section>
         ) : (
           <Stack spacing={1.5}>
-            <Button
-              variant="contained"
-              color="secondary"
-              size="large"
-              onClick={() => {
-                dispatch(sample.reopenNight(week));
-                dispatch(showToast(`Week ${week} is open again`));
-              }}
-            >
-              Reopen week {week}
-            </Button>
-            <Typography variant="body2" color="textSecondary">
-              For a night closed by mistake. Teams can submit scores again. The lines stay empty and challenges that were settled stay settled.
-            </Typography>
+            {next && <Typography>Next league night: week {next.week}, {longDate(next.date)}. It opens on its own.</Typography>}
+            {league.weeks.some((w) => w.week === week && w.state === 'final') && (
+              <>
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  size="large"
+                  onClick={() => {
+                    dispatch(sample.reopenNight(week));
+                    dispatch(showToast(`Week ${week} is open again`));
+                  }}
+                >
+                  Reopen week {week}
+                </Button>
+                <Typography variant="body2" color="textSecondary">
+                  For a night closed by mistake. Teams can submit scores again. The lines stay empty and challenges that were settled stay settled.
+                </Typography>
+              </>
+            )}
           </Stack>
         )}
       </Stack>

@@ -196,8 +196,15 @@ The server runs the **same rules code** as the sample league, so the two can nev
   Teams, scores, nights, check-ins and the league log now live only in the league record; the
   old TEAM/NIGHT/SCORE/CHECKIN/AUDIT items and `/api/me`, `/api/standings`, `/api/audit`,
   `/api/admin/teams` are gone. Team ids are slugs from the name ("left-and-right").
-- **The league clock** (every 5 minutes): opens tonight's night from 30 minutes before its
-  start (rule `openNight`), then the check-in reminder. Closing the night is still the admin's.
+- **The league clock** (`api/src/leagueClock.ts`, Oct 29): opens tonight's night from 30 minutes
+  before its start (rule `openNight`), closes it at closing time plus any added minutes (rule
+  `closeNight` {by: 'league'}), and forfeits run-out turns. Checked on every `GET /api/league`,
+  every league action and score post, and by the 5-minute schedule (which also sends the
+  check-in reminder). Nothing automatic while paused. An admin can open tonight's night early
+  (`openNight` {by: 'admin'}, same date only) or close it any time from Night settings.
+- **Admin input checks in the rules** (Oct 29): message 1–280 characters; machine and location
+  names up to 40 and no duplicates; night times HH:MM with opening before closing; add minutes
+  1–60 at a time, 2 hours max, only while open; corrections and voids need a reason (up to 200).
 - **The turn clock** (Oct 28, `api/src/turnClock.ts`): a team that's up has 5 minutes to start.
   The server forfeits run-out turns (rule `forfeitTurn` by `clock`) whenever anyone loads the
   league or posts an action, and the league clock checks too. Stops while paused; resume gives a

@@ -108,6 +108,8 @@ async function handler(event) {
   // No pass. The app reloads into the password page when it sees "gate": true.
   if (isApi) return reply(401, 'Unauthorized', { error: 'Enter the demo password to continue.', gate: true });
   if (isPhoto) return reply(403, 'Forbidden', { error: 'Enter the demo password to continue.' });
+  // The password page's own script (no secrets in it).
+  if (uri === '/gate-page.js') return request;
   if (uri === '/gate.html' || uri.indexOf('.') === -1) {
     request.uri = '/gate.html';
     return request;

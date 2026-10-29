@@ -18,6 +18,8 @@ export interface STeam {
   smsSeasonAsked?: boolean;
   /** Paired from the waitlist and hasn't finished setting up yet: team name, photo and PIN. */
   needsSetup?: boolean;
+  /** Every phone logged in before this was signed out (an admin's Reset PIN). */
+  signedOutAt?: string;
   photo: string; // image address (a drawn placeholder)
   /** New teams wait for an admin. Only approved teams play and appear in standings. */
   status: 'pending' | 'approved' | 'withdrawn';

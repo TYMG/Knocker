@@ -6,6 +6,7 @@
 // settings, removing a sign-up, pairing solo players) are not allowed here: they have their own
 // endpoints, which save the private part and then apply the same rule.
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
+import { SIGNED_OUT, stillSignedIn } from './session.js';
 import { limit, limitAddress } from './limits.js';
 import type { LeagueActionName } from '../../shared/league/rules.js';
 import { ADMIN_ACTIONS, TEAM_ACTIONS } from '../../shared/league/permissions.js';
@@ -26,13 +27,18 @@ import { HttpError, nowIso, parseBody, photoUrl } from './util.js';
 const photoSrc = (key: string | undefined) => (key?.startsWith('leagues/') ? photoUrl(key) ?? undefined : key || undefined);
 
 /** Who is asking: an admin (checked against the database), a team, or a visitor. */
-async function viewer(event: APIGatewayProxyEventV2): Promise<(Actor & { owner?: boolean }) | null> {
+async function viewer(event: APIGatewayProxyEventV2, league?: League | null): Promise<(Actor & { owner?: boolean }) | null> {
   if (readAdminToken(event)) {
     const admin = await requireAdmin(event);
     return { kind: 'admin', name: admin.name, owner: admin.owner === true };
   }
   const team = readToken(event);
-  if (team) return { kind: 'team', teamId: team.teamId };
+  if (team) {
+    // Signed out by a Reset PIN since this phone logged in: it has to log in again.
+    const l = league === undefined ? (await loadLeagueState())?.league : league;
+    if (l && !stillSignedIn(team, l)) throw SIGNED_OUT();
+    return { kind: 'team', teamId: team.teamId };
+  }
   const solo = readSoloToken(event);
   return solo ? { kind: 'solo', soloId: solo.soloId } : null;
 }
@@ -103,10 +109,10 @@ async function adminPhones() {
 export interface NoLeague { version: 0; league: null; viewer: { role: 'visitor' | 'team' | 'admin'; adminName: string; adminIsOwner: boolean } }
 
 export async function getLeague(event: APIGatewayProxyEventV2): Promise<{ version: number; league: League; teamToken?: string; soloGone?: boolean } | NoLeague> {
-  let who = await viewer(event);
   let state = await loadLeagueState();
   // Whatever the league clock has due (open or close the night, run-out turns) happens first.
   if (state && (await runLeagueClock(state.league))) state = await loadLeagueState();
+  let who = await viewer(event, state?.league ?? null);
   if (!state) {
     return {
       version: 0, league: null,

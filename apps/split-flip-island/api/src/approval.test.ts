@@ -99,7 +99,7 @@ function openNight(...checkedIn: string[]) {
 }
 
 function scorePhotos(teamId: string) {
-  const base = `leagues/sfi-s1/scores/${easternDate(new Date().toISOString())}/${teamId}-abc`;
+  const base = `leagues/sfi-s1/scores/${easternDate(new Date().toISOString())}/${teamId}-0f8fad5b-d9cb-469f-a165-70867728950e`;
   fake.bucket.objects.set(`${base}.jpg`, JPEG);
   fake.bucket.objects.set(`${base}-thumb.jpg`, JPEG);
   return { photoKey: `${base}.jpg`, thumbKey: `${base}-thumb.jpg` };

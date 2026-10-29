@@ -97,6 +97,12 @@ describe('demo password gate', () => {
     expect((photo as Request).uri).toBe('/leagues/sfi-s1/teams/x.jpg');
   });
 
+  it("lets the password page's own script through, and nothing else", async () => {
+    const handler = load(record);
+    expect(((await handler(req('/gate-page.js'))) as Request).uri).toBe('/gate-page.js');
+    expect(((await handler(req('/gate-page.js.map'))) as Reply).statusCode).toBe(403);
+  });
+
   it("tells the server the visitor's real address, replacing anything they sent", async () => {
     const handler = load(record);
     const cookies = { sfi_gate: { value: (await enter(handler, PASSWORD)).cookies!.sfi_gate.value } };

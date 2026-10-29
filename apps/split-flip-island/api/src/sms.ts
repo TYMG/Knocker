@@ -7,14 +7,15 @@ import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import {
   DescribeAccountAttributesCommand, DescribePhoneNumbersCommand, DescribeVerifiedDestinationNumbersCommand,
-  PinpointSMSVoiceV2Client, SendTextMessageCommand
+  PinpointSMSVoiceV2Client
 } from '@aws-sdk/client-pinpoint-sms-voice-v2';
 import {
   SMS_SAMPLE, SMS_TEMPLATES, type SmsStatusResponse, type SmsTemplate, type SmsTestRequest, type SmsTestResponse,
   type TeamTextsRequest, type TeamTextsResponse
 } from '../../shared/sms.js';
 import { requireAdmin } from './admin.js';
-import { requireTeam } from './auth.js';
+import { sendText } from './textsender.js';
+import { requireTeamSession } from './session.js';
 import { ddb, keys, leagueId, table } from './db.js';
 import { applyAction, RuleRefused } from './leagueStore.js';
 import { HttpError, nowIso, parseBody } from './util.js';
@@ -69,18 +70,19 @@ export async function smsTest(event: APIGatewayProxyEventV2): Promise<SmsTestRes
   if (phones.length === 0) throw new HttpError(409, 'No verified test phone yet. Run scripts/sms-verify.sh to add yours.');
 
   const text = template.body(SMS_SAMPLE);
+  // Through the same caps as every other text (3 per phone a day, the daily total).
+  let sent = 0;
   for (const p of phones) {
-    await sms.send(new SendTextMessageCommand({
-      DestinationPhoneNumber: p.number,
-      OriginationIdentity: origination(),
-      ConfigurationSetName: configSet(),
-      MessageType: 'TRANSACTIONAL',
-      MessageBody: text
-    }));
+    try {
+      await sendText(p.number, text);
+      sent++;
+    } catch (err) {
+      if ((err as Error).name !== 'TextLimitReached') throw err;
+    }
   }
   // A test is the admin's own business, so it goes in the server log, not the league log.
-  console.log('Test text sent', JSON.stringify({ by: admin.name, template: body.template, phones: phones.length }));
-  return { sent: phones.length, body: text };
+  console.log('Test text sent', JSON.stringify({ by: admin.name, template: body.template, phones: sent }));
+  return { sent, body: text };
 }
 
 // ---------- A team's own setting: GET / POST /api/me/texts ----------
@@ -90,14 +92,14 @@ export async function smsTest(event: APIGatewayProxyEventV2): Promise<SmsTestRes
 const privKey = (teamId: string) => ({ PK: keys.league(leagueId()), SK: keys.teamPrivate(teamId) });
 
 export async function teamTexts(event: APIGatewayProxyEventV2): Promise<TeamTextsResponse> {
-  const { teamId } = requireTeam(event);
+  const { teamId } = await requireTeamSession(event);
   const item = (await ddb.send(new GetCommand({ TableName: table(), Key: privKey(teamId) }))).Item;
   if (!item) throw new HttpError(401, 'Your team was not found. Log in again.');
   return { texts: [item.smsOptIn1 === true, item.smsOptIn2 === true] };
 }
 
 export async function setTeamTexts(event: APIGatewayProxyEventV2): Promise<TeamTextsResponse> {
-  const { teamId } = requireTeam(event);
+  const { teamId } = await requireTeamSession(event);
   const body = parseBody<TeamTextsRequest>(event);
   if (body.player !== 0 && body.player !== 1) throw new HttpError(400, 'Say which player: 0 for Player 1, 1 for Player 2.');
   if (typeof body.optIn !== 'boolean') throw new HttpError(400, 'Say whether they want texts (optIn: true or false).');

@@ -821,7 +821,11 @@ export function makeLeagueRules(current: Current, fallbackTeamId = '') {
         addLog(s, 'league', 'A sign-up expired without approval');
       },
       resetPin(s: SampleState, a: PayloadAction<string>) {
-        addLog(s, 'admin', `Admin reset ${team(s, a.payload).teamName}'s PIN`);
+        const t = s.teams.find((x) => x.teamId === a.payload);
+        if (!t) return;
+        // A lost or stolen phone stops working: every phone has to log in with the new PIN.
+        t.signedOutAt = s.now;
+        addLog(s, 'admin', `Admin reset ${t.teamName}'s PIN`);
       },
 
       // ---- Challenges ----

@@ -12,7 +12,7 @@ cd "$ROOT/apps/split-flip-island/web"
 npm ci && npm run build
 # Hashed files can be cached forever. The app shell, the demo password page, the phone
 # notifications worker (sw.js) and the app manifest must always be fresh.
-FRESH=(index.html gate.html sw.js manifest.webmanifest)
+FRESH=(index.html gate.html gate-page.js sw.js manifest.webmanifest)
 aws s3 sync dist "s3://$BUCKET" --delete --cache-control "public,max-age=31536000,immutable" $(printf -- '--exclude %s ' "${FRESH[@]}")
 for f in "${FRESH[@]}"; do
   type=()

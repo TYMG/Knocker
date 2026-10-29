@@ -208,7 +208,7 @@ describe('an admin entering a score for a team', () => {
     expect((await call('POST', '/api/admin/scores', { ...asTeam('aaaa1111'), body })).status).toBe(401);
     expect((await call('POST', '/api/admin/scores', { ...admin, body })).status).toBe(201);
 
-    const key = 'leagues/sfi-s1/scores/2026-11-05/aaaa1111-abc';
+    const key = 'leagues/sfi-s1/scores/2026-11-05/aaaa1111-0f8fad5b-d9cb-469f-a165-70867728950e';
     fake.bucket.objects.set(`${key}.jpg`, new Uint8Array([1]));
     fake.bucket.objects.set(`${key}-thumb.jpg`, new Uint8Array([1]));
     expect((await call('POST', '/api/admin/scores', { ...admin, body: { ...body, score: 900, noPhoto: false, photoKey: `${key}.jpg`, thumbKey: `${key}-thumb.jpg` } })).status).toBe(201);
@@ -511,6 +511,34 @@ describe('security, phase 1', () => {
     expect((await call('POST', '/api/waitlist', { ...from('198.51.100.7'), body: { name: 'P9', phone: '2025550199', pin: '4826', traits, wants: 'anyone' } })).status).toBe(429);
     // Counters are kept under scrambled names: no addresses or phone numbers in the table.
     expect(JSON.stringify(fake.table.all('RATE#sfi-s1'))).not.toContain('198.51');
+  });
+
+  it("an admin's Reset PIN signs out every phone the team was logged in on", async () => {
+    vi.setSystemTime(new Date('2026-11-05T23:00:00.000Z'));
+    const oldPhone = asTeam('aaaa1111');
+    vi.setSystemTime(new Date('2026-11-05T23:20:00.000Z'));
+    expect((await call('GET', '/api/league', oldPhone)).body.league.myTeamId).toBe('aaaa1111');
+    expect((await call('POST', '/api/admin/teams/aaaa1111/reset-pin', await asAdmin())).status).toBe(200);
+    vi.setSystemTime(new Date('2026-11-05T23:21:00.000Z'));
+    expect((await call('GET', '/api/league', oldPhone)).status).toBe(401);
+    expect((await act('requestCheckIn', undefined, oldPhone)).status).toBe(401);
+    expect((await call('POST', '/api/me/pin', { ...oldPhone, body: { currentPin: '0000', newPin: '5830' } })).status).toBe(401);
+    expect((await call('GET', '/api/league', asTeam('aaaa1111'))).status).toBe(200); // a fresh log-in works
+    expect((await call('GET', '/api/league', asTeam('bbbb2222'))).status).toBe(200); // other teams untouched
+  });
+
+  it('refuses a score photo that is not exactly the one uploaded for this team tonight, and oversized requests', async () => {
+    const admin = await asAdmin();
+    await act('openNight', { by: 'admin' }, admin);
+    await act('checkIn', 'aaaa1111', admin);
+    const uuid = '0f8fad5b-d9cb-469f-a165-70867728950e';
+    const base = 'leagues/sfi-s1/scores/2026-11-05/aaaa1111-';
+    fake.bucket.objects.set(`${base}${uuid}.jpg`, new Uint8Array(10));
+    const post = (photoKey: string, thumbKey: string) => call('POST', '/api/scores', { ...asTeam('aaaa1111'), body: { machineId: 'godzilla', score: 1000, photoKey, thumbKey } });
+    expect((await post(`${base}../../../teams/x.jpg`, `${base}${uuid}-thumb.jpg`)).status).toBe(400);
+    expect((await post(`${base}${uuid}.jpg`, `leagues/sfi-s1/scores/2026-11-05/bbbb2222-${uuid}-thumb.jpg`)).status).toBe(400);
+    expect((await post(`${base}${uuid}.jpg`, `${base}${uuid}-thumb.jpg`)).status).toBe(201);
+    expect((await call('POST', '/api/login', { body: { teamName: 'x'.repeat(40_000), pin: '1234' } })).status).toBe(413);
   });
 
   it('caps texts per phone per day', async () => {

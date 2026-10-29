@@ -222,6 +222,13 @@ The server runs the **same rules code** as the sample league, so the two can nev
   Lambda `reserved_concurrent_executions` = `api_max_concurrency` (20, Matt's call). Bill alerts at $25/$50/$100
   (+ forecast) in `infra/foundation/billing.tf`; the email is in the ignored
   `infra/foundation/alerts.auto.tfvars`. Tests give each call its own `x-viewer-ip`.
+- **Security phase 2, app side (Oct 29):** security headers on every response (CloudFront
+  response headers policy in infra/site.tf: CSP `script-src 'self'` and no inline scripts, so
+  the password page's script is `public/gate-page.js`, let through by gate.js; HSTS, DENY
+  framing, nosniff, Permissions-Policy camera=self). Team tokens carry `iat`; an admin Reset PIN
+  sets `STeam.signedOutAt`, and `session.ts` (`stillSignedIn`, `requireTeamSession`) refuses older
+  tokens everywhere a team acts. Score photo keys must be exactly `<team>-<uuid>.jpg` and its
+  `-thumb.jpg`. Request bodies over 32 KB get 413. The admin test text goes through the text caps.
 - **Admin input checks in the rules** (Oct 29): message 1–280 characters; machine and location
   names up to 40 and no duplicates; night times HH:MM with opening before closing; add minutes
   1–60 at a time, 2 hours max, only while open; corrections and voids need a reason (up to 200).

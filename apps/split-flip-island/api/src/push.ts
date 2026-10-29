@@ -16,6 +16,7 @@ import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { limit } from './limits.js';
 import { GetCommand, PutCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { readSoloToken, readToken } from './auth.js';
+import { requireTeamSession } from './session.js';
 import { ddb, leagueId, queryAll, table } from './db.js';
 import type { League } from './leagueStore.js';
 import { HttpError, nowIso, parseBody, text } from './util.js';
@@ -29,9 +30,9 @@ interface PushItem { subs: (PushSub & { at: string })[] }
 
 export interface News { to: Owner[] | 'all-teams'; title: string; body: string; url: string; tag?: string }
 
-function who(event: APIGatewayProxyEventV2): Owner {
+async function who(event: APIGatewayProxyEventV2): Promise<Owner> {
   const team = readToken(event);
-  if (team) return `team:${team.teamId}`;
+  if (team) return `team:${(await requireTeamSession(event)).teamId}`;
   const solo = readSoloToken(event);
   if (solo) return `solo:${solo.soloId}`;
   throw new HttpError(401, 'Log in first, then turn on notifications.');
@@ -49,7 +50,7 @@ const write = async (owner: Owner, subs: PushItem['subs']) => {
 };
 
 export async function subscribe(event: APIGatewayProxyEventV2): Promise<{ ok: true }> {
-  const owner = who(event);
+  const owner = await who(event);
   await limit('pushSubscribe', owner);
   const body = parseBody<{ endpoint?: string; keys?: { p256dh?: string; auth?: string } }>(event);
   const endpoint = text(body.endpoint);
@@ -64,7 +65,7 @@ export async function subscribe(event: APIGatewayProxyEventV2): Promise<{ ok: tr
 }
 
 export async function unsubscribe(event: APIGatewayProxyEventV2): Promise<{ ok: true }> {
-  const owner = who(event);
+  const owner = await who(event);
   const endpoint = text(parseBody<{ endpoint?: string }>(event).endpoint);
   const subs = await read(owner);
   if (subs.some((s) => s.endpoint === endpoint)) await write(owner, subs.filter((s) => s.endpoint !== endpoint));

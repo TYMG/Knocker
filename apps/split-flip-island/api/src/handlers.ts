@@ -2,6 +2,7 @@
 // photo uploads, sign-up, log-in and posting a score. Each saves its private part (PIN hash,
 // phone numbers, the name claim) in its own items and applies the same rule the pages use.
 import { randomUUID } from 'node:crypto';
+import { SIGNED_OUT, stillSignedIn } from './session.js';
 import { limit, limitAddress } from './limits.js';
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { GetCommand } from '@aws-sdk/lib-dynamodb';
@@ -102,9 +103,11 @@ export async function createUpload(event: APIGatewayProxyEventV2): Promise<Uploa
   if (purpose === 'score') {
     // A team uploads its own score photo; an admin entering a score uploads one for that team.
     const admin = readAdminToken(event) ? await requireAdmin(event) : null;
-    const teamId = admin ? text(parseBody<{ teamId?: string }>(event).teamId) : requireTeam(event).teamId;
+    const token = admin ? null : requireTeam(event);
+    const teamId = admin ? text(parseBody<{ teamId?: string }>(event).teamId) : token!.teamId;
     if (!admin) await limit('scoreUpload', `team:${teamId}`);
     const s = await league();
+    if (token && !stillSignedIn(token, s)) throw SIGNED_OUT();
     const team = s.teams.find((t) => t.teamId === teamId);
     if (!team) throw new HttpError(401, 'Your team was not found. Log in again.');
     if (team.status !== 'approved') throw new HttpError(403, NOT_APPROVED);
@@ -215,12 +218,25 @@ export async function login(event: APIGatewayProxyEventV2): Promise<AuthResponse
 
 // ---------- POST /api/scores ----------
 
+/**
+ * A score's photo and small copy, exactly as /api/uploads named them for this team tonight:
+ * leagues/<league>/scores/<date>/<team>-<uuid>.jpg and the same with -thumb. Nothing else is
+ * accepted, so a score can never point at someone else's photo or anywhere outside the folder.
+ */
+function scorePhotoPair(date: string, teamId: string, photo: string, thumb: string): boolean {
+  const base = `leagues/${leagueId()}/scores/${date}/${teamId}-`;
+  const m = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jpg$/.exec(photo.slice(base.length));
+  return photo.startsWith(base) && !!m && thumb === `${base}${m[1]}-thumb.jpg`;
+}
+
 export async function submitScore(event: APIGatewayProxyEventV2): Promise<{ version: number }> {
   // A night past its closing time closes first, so a late score is refused.
   await runLeagueClock();
-  const { teamId } = requireTeam(event);
+  const token = requireTeam(event);
+  const { teamId } = token;
   const body = parseBody<SubmitScoreRequest>(event);
   const s = await league();
+  if (!stillSignedIn(token, s)) throw SIGNED_OUT();
   const team = s.teams.find((t) => t.teamId === teamId);
   if (!team) throw new HttpError(401, 'Your team was not found. Log in again.');
   if (team.status !== 'approved') throw new HttpError(403, NOT_APPROVED);
@@ -232,10 +248,9 @@ export async function submitScore(event: APIGatewayProxyEventV2): Promise<{ vers
   const score = Number(body.score);
   if (!Number.isSafeInteger(score) || score <= 0) throw new HttpError(400, 'Enter the score as a whole number.');
 
-  const prefix = `leagues/${leagueId()}/scores/${week.date}/${teamId}-`;
   const photoKey = text(body.photoKey);
   const thumbKey = text(body.thumbKey);
-  if (!photoKey.startsWith(prefix) || !thumbKey.startsWith(prefix) || !(await photoExists(photoKey))) {
+  if (!scorePhotoPair(week.date, teamId, photoKey, thumbKey) || !(await photoExists(photoKey))) {
     throw new HttpError(400, 'Every score needs a photo of the score display.');
   }
   const saved = await applyAction({ kind: 'team', teamId }, {
@@ -270,10 +285,9 @@ export async function adminEnterScore(event: APIGatewayProxyEventV2): Promise<{ 
   let photo: string | undefined;
   let thumb: string | undefined;
   if (!noPhoto) {
-    const prefix = `leagues/${leagueId()}/scores/${week.date}/${teamId}-`;
     photo = text(body.photoKey);
     thumb = text(body.thumbKey);
-    if (!photo.startsWith(prefix) || !thumb.startsWith(prefix) || !(await photoExists(photo))) {
+    if (!scorePhotoPair(week.date, teamId, photo, thumb) || !(await photoExists(photo))) {
       throw new HttpError(400, 'Add a photo of the score, or say there is none.');
     }
   }

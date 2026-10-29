@@ -8,10 +8,12 @@ import { env, HttpError } from './util.js';
 const TOKEN_DAYS = 60;
 const ADMIN_TOKEN_HOURS = 12;
 
-interface TokenPayload {
+export interface TokenPayload {
   teamId: string;
   leagueId: string;
   exp: number;
+  /** When it was issued (ms). A team signed out after this (Reset PIN) needs to log in again. */
+  iat?: number;
 }
 
 const b64url = (b: Buffer | string) => Buffer.from(b).toString('base64url');
@@ -33,7 +35,7 @@ function sign(data: string) {
 }
 
 export function issueToken(teamId: string, leagueId: string): string {
-  const payload: TokenPayload = { teamId, leagueId, exp: Date.now() + TOKEN_DAYS * 86_400_000 };
+  const payload: TokenPayload = { teamId, leagueId, exp: Date.now() + TOKEN_DAYS * 86_400_000, iat: Date.now() };
   const body = b64url(JSON.stringify(payload));
   return `${body}.${sign(body)}`;
 }

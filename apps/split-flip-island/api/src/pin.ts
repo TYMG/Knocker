@@ -8,7 +8,8 @@ import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { pinProblem, type ChangePinRequest, type ResetPinResponse } from '../../shared/pin.js';
 import { requireAdmin } from './admin.js';
-import { clearLoginStrikes, hashPin, requireTeam, takeLoginStrike, verifyPin } from './auth.js';
+import { clearLoginStrikes, hashPin, takeLoginStrike, verifyPin } from './auth.js';
+import { requireTeamSession } from './session.js';
 import { ddb, keys, leagueId, table } from './db.js';
 import type { PrivateItem } from './handlers.js';
 import { applyAction, loadLeagueState, RuleRefused } from './leagueStore.js';
@@ -19,7 +20,7 @@ import { HttpError, nowIso, parseBody, text } from './util.js';
 const privKey = (teamId: string) => ({ PK: keys.league(leagueId()), SK: keys.teamPrivate(teamId) });
 
 export async function changePin(event: APIGatewayProxyEventV2): Promise<{ ok: true }> {
-  const { teamId } = requireTeam(event);
+  const { teamId } = await requireTeamSession(event);
   await limit('actions', `team:${teamId}`);
   const body = parseBody<ChangePinRequest>(event);
   const current = text(body.currentPin);
@@ -83,7 +84,7 @@ export async function resetPin(event: APIGatewayProxyEventV2, teamId: string): P
  * a photo if it wants one, and the PIN both players share. Only once, while it still needs it.
  */
 export async function finishSetup(event: APIGatewayProxyEventV2): Promise<{ ok: true; teamName: string }> {
-  const { teamId } = requireTeam(event);
+  const { teamId } = await requireTeamSession(event);
   await limit('actions', `team:${teamId}`);
   const body = parseBody<{ teamName?: string; photoKey?: string; pin?: string }>(event);
   const pin = text(body.pin);

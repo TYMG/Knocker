@@ -14,9 +14,14 @@ export function json(status: number, body: unknown): APIGatewayProxyStructuredRe
   };
 }
 
+/** The largest request body the server reads. */
+export const MAX_BODY_CHARS = 32 * 1024;
+
 export function parseBody<T>(event: APIGatewayProxyEventV2): Partial<T> {
   if (!event.body) return {};
   const raw = event.isBase64Encoded ? Buffer.from(event.body, 'base64').toString('utf8') : event.body;
+  // Every real request is small (photos go straight to storage, not here).
+  if (raw.length > MAX_BODY_CHARS) throw new HttpError(413, 'That request is too big.');
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);

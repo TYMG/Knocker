@@ -211,7 +211,7 @@ export default function TeamDetail() {
           <>
             <DialogTitle>Reset {team.teamName}'s PIN?</DialogTitle>
             <DialogContent>
-              <Typography>You'll get a temporary PIN to tell the team in person. Their old PIN stops working, and the reset goes in the league log.</Typography>
+              <Typography>You'll get a temporary PIN to tell the team in person. Their old PIN stops working and every phone they were logged in on is signed out (good for a lost phone). The reset goes in the league log.</Typography>
             </DialogContent>
             <DialogActions sx={{ px: 3, pb: 2 }}>
               <Button onClick={closeReset}>Cancel</Button>

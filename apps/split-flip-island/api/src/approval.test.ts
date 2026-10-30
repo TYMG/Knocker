@@ -499,7 +499,7 @@ describe('sign-ups nobody approves', () => {
     // Run through the handler the way the schedule does, 24 hours and a bit after the first sign-up.
     vi.useFakeTimers({ now: now + 24 * HOUR + 60_000, toFake: ['Date'] });
     try {
-      expect(await handler({ task: 'purge' })).toEqual({ purged: 1, failed: 0 });
+      expect(await handler({ task: 'purge' })).toMatchObject({ purged: 1, failed: 0 });
     } finally {
       vi.useRealTimers();
     }

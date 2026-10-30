@@ -8,6 +8,7 @@ import { soloConfirm, soloConfirmStart, soloTexts, teamConfirm, teamConfirmStart
 import { adminRemoveSolo, joinWaitlist, pairWaitlist, soloAnswer, soloAsk, soloCancelAsk, soloLeave, soloLogin, soloSwipe } from './waitlist.js';
 import { changePin, finishSetup, resetPin } from './pin.js';
 import { sendCheckInReminders } from './reminders.js';
+import { forgetAfterSeason } from './retention.js';
 import { runLeagueClock } from './leagueClock.js';
 import { pushKey, subscribe, unsubscribe } from './push.js';
 import { setTeamTexts, smsStatus, smsTest, teamTexts } from './sms.js';
@@ -91,7 +92,10 @@ export async function handler(event: APIGatewayProxyEventV2 | ScheduledTask): Pr
     }
     const result = await purgeExpired();
     console.log('Purged unapproved sign-ups', JSON.stringify(result));
-    return result;
+    // 30 days after the finals: phone numbers and other personal details go (retention.ts).
+    const forgot = await forgetAfterSeason();
+    if (!('skipped' in forgot)) console.log('Forgot personal details after the season', JSON.stringify(forgot));
+    return { ...result, forgot };
   }
   if (!event.requestContext?.http) return json(400, { error: 'Not found.' });
   if (!cameThroughFrontDoor(event)) return json(403, { error: 'Not found.' });

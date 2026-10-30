@@ -563,6 +563,28 @@ describe('security, phase 1', () => {
     }
   });
 
+  it('30 days after the finals, phone numbers and other personal details are deleted, once', async () => {
+    const { forgetAfterSeason, forgetAt } = await import('./retention.js');
+    const traits = { why: 'win', energy: 'loud', experience: 'some', style: 'coach' };
+    expect((await call('POST', '/api/waitlist', { body: { name: 'Jo', phone: '2025550199', pin: '4826', traits, wants: 'anyone' } })).status).toBe(201);
+    fake.table.put({ PK: 'PUSH#sfi-s1', SK: 'team:aaaa1111#x', endpoint: 'https://push.example/x' });
+    const league = (await loadLeagueState())!.league;
+    const due = forgetAt(league)!;
+    expect(new Date(due).toISOString().slice(0, 10)).toBe(new Date(Date.parse(`${league.weeks.find((w) => w.week === 9)!.date}T12:00:00Z`) + 30 * 86_400_000).toISOString().slice(0, 10));
+
+    expect(await forgetAfterSeason(due - 60_000)).toEqual({ skipped: 'not yet' });
+    expect(fake.table.get(L, 'TEAM#aaaa1111#PRIVATE')!.phone1).toBe('2025550101');
+    const done = await forgetAfterSeason(due + 60_000);
+    expect(done).toMatchObject({ teams: 1 });
+    const priv = fake.table.get(L, 'TEAM#aaaa1111#PRIVATE')!;
+    expect([priv.phone1, priv.phone2, priv.pinHash]).toEqual([undefined, undefined, 'x']); // the PIN stays: teams can still look back
+    expect(fake.table.all(L).filter((i) => /^(WAITLIST#.*#PRIVATE|SOLOPHONE#)/.test(String(i.SK)))).toHaveLength(0);
+    expect(fake.table.all('PUSH#sfi-s1')).toHaveLength(0);
+    expect(JSON.stringify(fake.table.all(L).filter((i) => i.SK !== 'STATE'))).not.toMatch(/20255501/);
+    expect((await loadLeagueState())!.league.teams.map((t) => t.teamName)).toContain('Left & Right'); // the season record stays
+    expect(await forgetAfterSeason(due + 120_000)).toEqual({ skipped: 'already done' });
+  });
+
   it('a log-in lasts a week, then the team types its PIN again', async () => {
     vi.setSystemTime(new Date('2026-11-05T23:00:00.000Z'));
     const phone = asTeam('aaaa1111');

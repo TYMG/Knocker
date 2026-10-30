@@ -264,6 +264,11 @@ The server runs the **same rules code** as the sample league, so the two can nev
   team home, the solo page), live league only. Teams from before this get no texts until they
   confirm. The code text (`phoneCodeText` in shared/sms.ts) is a new message type for the
   toll-free verification and knckr.com/sms.html.
+- **Personal details go 30 days after the finals (Oct 30):** `api/src/retention.ts`
+  `forgetAfterSeason()`, run by the 15-minute purge task. At noon UTC on the finals night (week 9)
+  + 30 days, once (marker `RETENTION#DONE`): team private items lose phones and text settings
+  (PIN kept), waitlist private items / SOLOPHONE# / SOLOTEAM# are deleted, and the PUSH# and
+  RATE# partitions are emptied. Team names, scores, photos and the log stay.
 - **Admin input checks in the rules** (Oct 29): message 1–280 characters; machine and location
   names up to 40 and no duplicates; night times HH:MM with opening before closing; add minutes
   1–60 at a time, 2 hours max, only while open; corrections and voids need a reason (up to 200).

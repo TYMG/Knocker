@@ -236,6 +236,16 @@ The server runs the **same rules code** as the sample league, so the two can nev
   photos are stripped for non-admins in viewFor. `infra/alarms.tf`: SNS email (alert_email in the
   ignored `alerts.auto.tfvars`), alarms on server errors, throttles, an hourly traffic flood, and
   log lines LEAGUE_RECORD_LARGE / LEAGUE_RECORD_TOO_BIG / "Push delivery failed" / TextLimitReached.
+- **Outsiders see only the schedule (Oct 30, Matt: "visitors shouldn't see any live data… they
+  can go through the demo"):** in the live league, `viewFor` sends anyone who isn't an admin or an
+  approved team (visitors, solo players, teams waiting for approval) `outsiderView`: weeks (dates
+  and states only), night times, teamCap, paused, `league.outsider` counts, their own sign-up and
+  their waitlist view. Nothing else. Web: `useOutsider()`; `MembersOnly` guard on standings,
+  teams and machines offers "Try the demo" (`TryDemoButton`, `setLive(false)`); FrontDoor swaps
+  the standings for the demo button; SignUp reads the counts. The demo (sample league) is unchanged.
+- **Log-ins last a week (Oct 30):** team and solo tokens expire after 7 days (`TOKEN_DAYS`). A
+  token header that doesn't verify (expired or tampered) gets 401 on GET /api/league, so the
+  phone forgets it and asks for the PIN instead of quietly showing the visitor view.
 - **Admin input checks in the rules** (Oct 29): message 1–280 characters; machine and location
   names up to 40 and no duplicates; night times HH:MM with opening before closing; add minutes
   1–60 at a time, 2 hours max, only while open; corrections and voids need a reason (up to 200).

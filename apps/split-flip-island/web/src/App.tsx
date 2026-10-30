@@ -7,7 +7,7 @@ import { useAppDispatch, useAppSelector, useLeague, useMe } from './hooks';
 import { sample } from './sample/slice';
 import { setPendingRole } from './store';
 import BareLayout from './layout/BareLayout';
-import { AdminOnly, TeamOnly } from './layout/guards';
+import { AdminOnly, MembersOnly, TeamOnly } from './layout/guards';
 import PlayerLayout from './layout/PlayerLayout';
 import Challenges from './pages/Challenges';
 import LoveDrAnalysis from './pages/LoveDrAnalysis';
@@ -128,15 +128,17 @@ export default function App() {
           <Route path="/tour" element={<Tour />} />
           <Route path="/settings" element={<Settings />} />
 
-          {/* Open to anyone with the link */}
-          <Route path="/standings" element={<StandingsLayout />}>
-            <Route index element={<Tonight />} />
-            <Route path="season" element={<Season />} />
-            <Route path="finals" element={<Finals />} />
-            <Route path="log" element={<LeagueLog />} />
+          {/* About the league itself: anyone in the sample; in the live league, only its players */}
+          <Route element={<MembersOnly />}>
+            <Route path="/standings" element={<StandingsLayout />}>
+              <Route index element={<Tonight />} />
+              <Route path="season" element={<Season />} />
+              <Route path="finals" element={<Finals />} />
+              <Route path="log" element={<LeagueLog />} />
+            </Route>
+            <Route path="/teams/:teamId" element={<TeamPage />} />
+            <Route path="/machines/:machineId" element={<Machine />} />
           </Route>
-          <Route path="/teams/:teamId" element={<TeamPage />} />
-          <Route path="/machines/:machineId" element={<Machine />} />
 
           {/* A logged-in team */}
           <Route element={<TeamOnly />}>

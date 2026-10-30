@@ -83,7 +83,15 @@ describe('the league on the server', () => {
     expect(visitor.status).toBe(200);
     expect(visitor.body.version).toBe(1);
     expect(visitor.body.league.role).toBe('visitor');
-    expect(visitor.body.league.teams.every((t: any) => t.phone1 === '' && t.texts === undefined)).toBe(true);
+    expect(visitor.body.league.teams).toEqual([]); // visitors see the schedule and counts, not the league
+    expect(visitor.body.league.outsider).toEqual({ approvedTeams: 2, pendingTeams: 1 });
+    expect(visitor.body.league.weeks.length).toBeGreaterThan(0);
+    for (const k of ['scores', 'lines', 'log', 'machines', 'locations', 'challenges', 'forfeits']) expect(visitor.body.league[k]).toEqual([]);
+    expect(JSON.stringify(visitor.body.league)).not.toContain('Tilt Me Tender'); // no team names
+
+    const pending = (await call('GET', '/api/league', asTeam('cccc3333'))).body.league;
+    expect(pending.teams.map((t: any) => t.teamId)).toEqual(['cccc3333']); // a team waiting for approval sees only itself
+    expect(pending.outsider).toBeTruthy();
 
     const mine = await call('GET', '/api/league', asTeam('aaaa1111'));
     expect(mine.body.league.myTeamId).toBe('aaaa1111');
@@ -215,7 +223,7 @@ describe('an admin entering a score for a team', () => {
 
     const scores = (await loadLeagueState())!.league.scores;
     expect(scores.map((x) => [x.score, x.enteredBy, x.photo ?? null, x.check])).toEqual([[1_250_000, 'admin', null, 'checked'], [900, 'admin', `${key}.jpg`, 'checked']]);
-    expect((await call('GET', '/api/league')).body.league.scores[1].photo).toBe(`/${key}.jpg`);
+    expect((await call('GET', '/api/league', asTeam('bbbb2222'))).body.league.scores[1].photo).toBe(`/${key}.jpg`);
   });
 });
 
@@ -372,32 +380,32 @@ describe('the turn clock on the server', () => {
   it('forfeits a turn not started within 5 minutes, the next time anyone looks', async () => {
     await bothInLine();
     at('2026-11-05T23:24:30.000Z'); // 4.5 minutes in
-    expect(godzilla((await call('GET', '/api/league')).body).teamIds[0]).toBe('aaaa1111');
+    expect(godzilla((await call('GET', '/api/league', asTeam('bbbb2222'))).body).teamIds[0]).toBe('aaaa1111');
     at('2026-11-05T23:25:01.000Z');
-    const seen = await call('GET', '/api/league');
+    const seen = await call('GET', '/api/league', asTeam('bbbb2222'));
     expect(godzilla(seen.body).teamIds).toEqual(['bbbb2222']);
     expect(seen.body.league.forfeits).toMatchObject([{ teamId: 'aaaa1111', machineId: 'godzilla', by: 'clock' }]);
     // Looking again forfeits nothing more: the next team has its own 5 minutes.
-    expect((await call('GET', '/api/league')).body.league.forfeits).toHaveLength(1);
+    expect((await call('GET', '/api/league', asTeam('bbbb2222'))).body.league.forfeits).toHaveLength(1);
   });
 
   it("won't let a team start a turn that already ran out", async () => {
     await bothInLine();
     at('2026-11-05T23:26:00.000Z');
     expect((await act('startTurn', 'godzilla', asTeam('aaaa1111'))).status).toBe(409);
-    expect(godzilla((await call('GET', '/api/league')).body).teamIds).toEqual(['bbbb2222']);
+    expect(godzilla((await call('GET', '/api/league', asTeam('bbbb2222'))).body).teamIds).toEqual(['bbbb2222']);
   });
 
   it('stops while the league is paused, and gives a fresh 5 minutes on resume', async () => {
     const admin = await bothInLine();
     await act('setPaused', true, admin);
     at('2026-11-05T23:35:00.000Z'); // well past 5 minutes, but paused
-    expect(godzilla((await call('GET', '/api/league')).body).teamIds[0]).toBe('aaaa1111');
+    expect(godzilla((await call('GET', '/api/league', asTeam('bbbb2222'))).body).teamIds[0]).toBe('aaaa1111');
     await act('setPaused', false, admin);
     at('2026-11-05T23:39:00.000Z');
-    expect(godzilla((await call('GET', '/api/league')).body).teamIds[0]).toBe('aaaa1111');
+    expect(godzilla((await call('GET', '/api/league', asTeam('bbbb2222'))).body).teamIds[0]).toBe('aaaa1111');
     at('2026-11-05T23:40:01.000Z');
-    expect(godzilla((await call('GET', '/api/league')).body).teamIds).toEqual(['bbbb2222']);
+    expect(godzilla((await call('GET', '/api/league', asTeam('bbbb2222'))).body).teamIds).toEqual(['bbbb2222']);
   });
 
   it('is checked by the 5-minute league clock too', async () => {
@@ -513,6 +521,15 @@ describe('security, phase 1', () => {
     expect(JSON.stringify(fake.table.all('RATE#sfi-s1'))).not.toContain('198.51');
   });
 
+  it('a log-in lasts a week, then the team types its PIN again', async () => {
+    vi.setSystemTime(new Date('2026-11-05T23:00:00.000Z'));
+    const phone = asTeam('aaaa1111');
+    vi.setSystemTime(new Date('2026-11-12T22:59:00.000Z')); // a minute short of a week
+    expect((await call('GET', '/api/league', phone)).status).toBe(200);
+    vi.setSystemTime(new Date('2026-11-12T23:01:00.000Z'));
+    expect((await call('GET', '/api/league', phone)).status).toBe(401);
+  });
+
   it("an admin's Reset PIN signs out every phone the team was logged in on", async () => {
     vi.setSystemTime(new Date('2026-11-05T23:00:00.000Z'));
     const oldPhone = asTeam('aaaa1111');
@@ -598,7 +615,7 @@ describe('moderation', () => {
     expect(seenByTeam.reportedBy).toBeUndefined(); // nobody but admins learns who reported
     expect((await call('GET', '/api/league', admin)).body.league.scores.at(-1).reportedBy).toEqual(['bbbb2222']);
     expect((await act('hideScorePhoto', { scoreId, reason: 'not a score' }, admin)).status).toBe(200);
-    const visitor = (await call('GET', '/api/league')).body.league.scores.at(-1);
+    const visitor = (await call('GET', '/api/league', asTeam('bbbb2222'))).body.league.scores.at(-1);
     expect([visitor.photo, visitor.thumb, visitor.photoSource]).toEqual([undefined, undefined, 'none']);
     expect((await call('GET', '/api/league', admin)).body.league.scores.at(-1).photo).toContain(uuid);
   });

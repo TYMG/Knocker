@@ -40,7 +40,12 @@ async function viewer(event: APIGatewayProxyEventV2, league?: League | null): Pr
     return { kind: 'team', teamId: team.teamId };
   }
   const solo = readSoloToken(event);
-  return solo ? { kind: 'solo', soloId: solo.soloId } : null;
+  if (solo) return { kind: 'solo', soloId: solo.soloId };
+  // A log-in that has run out (a week for teams and solo players) or was tampered with: say so,
+  // so the phone forgets it and asks for the PIN, rather than quietly showing the visitor view.
+  const h = event.headers ?? {};
+  if (h['x-team-token'] || h['x-solo-token'] || h['x-admin-token']) throw SIGNED_OUT();
+  return null;
 }
 
 /**
@@ -77,6 +82,10 @@ function waitlistFor(waitlist: SWaitlistEntry[], who: (Actor & { owner?: boolean
 export function viewFor(league: League, who: (Actor & { owner?: boolean }) | null, phones?: Map<string, { phone1: string; phone2: string }>): League {
   const admin = who?.kind === 'admin';
   const mine = who?.kind === 'team' ? who.teamId : '';
+  // Only approved teams and admins see the league itself. Everyone else (a visitor, a solo
+  // player, a team still waiting for approval) gets the schedule and a few counts.
+  const member = admin || league.teams.some((t) => t.teamId === mine && t.status === 'approved');
+  if (!member) return outsiderView(league, who, mine);
   return {
     ...league,
     now: nowIso(),
@@ -97,6 +106,53 @@ export function viewFor(league: League, who: (Actor & { owner?: boolean }) | nul
       ? { ...x, photo: undefined, thumb: undefined, photoSource: 'none' as const }
       : { ...x, photo: photoSrc(x.photo), thumb: photoSrc(x.thumb), ...(admin && reportedBy ? { reportedBy } : {}) })),
     pendingSubs: Object.fromEntries(Object.entries(league.pendingSubs ?? {}).filter(([teamId]) => admin || teamId === mine))
+  };
+}
+
+/**
+ * What someone outside the league sees: when the nights are, how many spots are taken, and
+ * whether sign-ups are open. No teams (except their own sign-up), scores, lines, photos, log or
+ * anything else. To see how the league works, the app sends them to the demo.
+ */
+function outsiderView(league: League, who: (Actor & { owner?: boolean }) | null, mine: string): League {
+  const own = league.teams.filter((t) => t.teamId === mine).map((t) => ({ ...t, photo: photoSrc(t.photo) || teamPhoto(t.teamName), phone1: '', phone2: '' }));
+  const emptyFinal = (f: League['finals']['championship']) => ({ ...f, teamIds: [], games: [], live: undefined, winnerId: undefined, locked: false });
+  return {
+    now: nowIso(),
+    role: mine ? 'team' : 'visitor',
+    myTeamId: mine,
+    mySoloId: who?.kind === 'solo' && league.waitlist.some((w) => w.id === who.soloId) ? who.soloId : undefined,
+    adminOnTeam: false,
+    adminName: '',
+    adminIsOwner: false,
+    teamCap: league.teamCap,
+    teams: own,
+    locations: [],
+    machines: [],
+    weeks: league.weeks.map((w) => ({ week: w.week, date: w.date, state: w.state, machineIds: [], out: {} })),
+    skippedDates: league.skippedDates,
+    scores: [],
+    lines: [],
+    forfeits: [],
+    noShows: [],
+    subs: [],
+    pendingSubs: {},
+    lineEvents: [],
+    checkIns: {},
+    checkInRequests: mine && league.checkInRequests?.[mine] ? { [mine]: league.checkInRequests[mine]! } : {},
+    message: null,
+    challenges: [],
+    log: [],
+    feed: league.feed.filter((f) => f.teamId === mine),
+    waitlist: waitlistFor(league.waitlist, who),
+    night: league.night,
+    finals: { championship: emptyFinal(league.finals.championship), secondChance: emptyFinal(league.finals.secondChance) },
+    seq: 0,
+    paused: league.paused,
+    outsider: {
+      approvedTeams: league.teams.filter((t) => t.status === 'approved').length,
+      pendingTeams: league.teams.filter((t) => t.status === 'pending').length
+    }
   };
 }
 

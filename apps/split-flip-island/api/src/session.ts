@@ -1,4 +1,4 @@
-// A team's log-in is good until it expires (60 days) or the admin resets the team's PIN, which
+// A team's log-in is good until it expires (7 days) or the admin resets the team's PIN, which
 // signs out every phone (for a lost or stolen phone). The token says when it was issued; the
 // league says when the team was last signed out.
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';

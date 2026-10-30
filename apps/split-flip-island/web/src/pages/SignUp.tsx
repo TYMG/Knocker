@@ -370,8 +370,9 @@ function ModeButton({ value, mode, children, ...rest }: { value: Mode; mode: Mod
 export default function SignUp() {
   const league = useLeague();
   const me = useMe();
-  const taken = approvedTeams(league).length;
-  const waiting = pendingTeams(league).length;
+  // In the live league a visitor is sent only the counts, not the teams.
+  const taken = league.outsider?.approvedTeams ?? approvedTeams(league).length;
+  const waiting = league.outsider?.pendingTeams ?? pendingTeams(league).length;
   const full = taken >= league.teamCap;
   const [picked, setPicked] = useState<Mode>('pair');
   // With every spot taken, the waitlist is the only way in.

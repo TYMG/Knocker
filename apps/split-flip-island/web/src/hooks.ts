@@ -45,3 +45,14 @@ export function useMe() {
 
 /** True while the app runs on the live league from the server (the Live switch). */
 export const useLiveOn = () => useAppSelector((s) => s.live.on);
+
+/**
+ * True when the live league is on and the one looking isn't a player in it (a visitor, a solo
+ * player, a team waiting for approval). The server sends them the schedule and a few counts and
+ * nothing else, so pages about the league send them to the demo instead.
+ */
+export function useOutsider() {
+  const on = useLiveOn();
+  const league = useLeague();
+  return on && !!league.outsider;
+}

@@ -16,7 +16,8 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import type { SxProps, Theme } from '@mui/material/styles';
-import { useCalm, useLeague, useMe } from '../hooks';
+import { useCalm, useLeague, useMe, useOutsider } from '../hooks';
+import { TryDemoButton } from '../layout/guards';
 import { playedWeeks, season, weekLabel } from '../sample/league';
 import { clockLabel, longDate } from '../sample/time';
 import { colors } from '../theme';
@@ -145,7 +146,7 @@ function RowsArrive({ children }: { children: ReactNode }) {
 }
 
 /** The top of the page: the name, the pitch and the two ways in, over the drawn bar. */
-function Hero() {
+function Hero({ outsider }: { outsider: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
 
   // Parallax. The scroll position is written to two CSS variables on the hero and the layers
@@ -210,15 +211,21 @@ function Hero() {
             <Button component={RouterLink} to="/join" variant="contained" color="secondary" size="large">
               Sign up your team
             </Button>
-            <Button
-              component={RouterLink}
-              to="/standings"
-              variant="outlined"
-              size="large"
-              sx={{ color: colors.paleYellow, borderColor: colors.paleYellow, bgcolor: 'rgba(0, 0, 0, 0.55)', '&:hover': { borderColor: colors.lime, bgcolor: 'rgba(0, 0, 0, 0.7)' } }}
-            >
-              See the standings
-            </Button>
+            {outsider ? (
+              <Box sx={{ '& .MuiButton-root': { color: colors.paleYellow, borderColor: colors.paleYellow, bgcolor: 'rgba(0, 0, 0, 0.55)', '&:hover': { borderColor: colors.lime, bgcolor: 'rgba(0, 0, 0, 0.7)' } } }}>
+                <TryDemoButton variant="outlined" />
+              </Box>
+            ) : (
+              <Button
+                component={RouterLink}
+                to="/standings"
+                variant="outlined"
+                size="large"
+                sx={{ color: colors.paleYellow, borderColor: colors.paleYellow, bgcolor: 'rgba(0, 0, 0, 0.55)', '&:hover': { borderColor: colors.lime, bgcolor: 'rgba(0, 0, 0, 0.7)' } }}
+              >
+                See the standings
+              </Button>
+            )}
           </Stack>
         </Box>
       </Box>
@@ -230,6 +237,8 @@ export default function FrontDoor() {
   const league = useLeague();
   const me = useMe();
   const calm = useCalm();
+  // A visitor to the live league sees the schedule but not the teams; the demo has the rest.
+  const outsider = useOutsider();
   const pageRef = useRef<HTMLDivElement>(null);
   const showFlow = !calm && !wantsLessMotion();
 
@@ -257,7 +266,7 @@ export default function FrontDoor() {
           <FrontDoorFlow page={pageRef} />
         </Suspense>
       )}
-      <Hero />
+      <Hero outsider={outsider} />
       <Page width="wide">
         <Stack spacing={5}>
           <Section title="How a night works">
@@ -305,7 +314,7 @@ export default function FrontDoor() {
                 </Box>
               </Box>
               <Typography sx={{ color: 'text.secondary', mt: 1.5 }}>
-                {NUMBER_WORDS[nights.length] ?? nights.length} league nights, then a championship night for the top {finalists}.
+                {NUMBER_WORDS[nights.length] ?? nights.length} league nights, then a championship night{finalists ? ` for the top ${finalists}` : ''}.
               </Typography>
               <Box component="dl" sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1.5, m: 0, mt: 2 }}>
                 <Card sx={{ p: 1.5 }}>
@@ -331,7 +340,14 @@ export default function FrontDoor() {
 
             <Box sx={{ gridColumn: { md: 2 }, gridRow: { md: '1 / span 2' } }}>
               <Section title="Standings" aside={latest ? `after ${weekLabel(latest.week).toLowerCase()}` : undefined}>
-                {latest ? (
+                {outsider ? (
+                  <>
+                    <Typography sx={{ color: 'text.secondary', mb: 2 }}>
+                      The standings are for teams in the league. Want to see how they work? The demo has a whole season, made up.
+                    </Typography>
+                    <TryDemoButton variant="outlined" />
+                  </>
+                ) : latest ? (
                   <>
                     <RowsArrive>
                       <StandingsTable rows={rows} limit={5} myTeamId={me.myTeamId} />
@@ -366,7 +382,7 @@ export default function FrontDoor() {
             <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' } }}>{signUp}</Box>
           </Section>
 
-          <Stack direction="row" spacing={3} sx={{ justifyContent: 'center', borderTop: 1, borderColor: 'divider', pt: 1 }}>
+          {!outsider && <Stack direction="row" spacing={3} sx={{ justifyContent: 'center', borderTop: 1, borderColor: 'divider', pt: 1 }}>
             {[
               { to: '/standings/log', label: 'League log' },
               { to: '/standings/finals', label: 'Championship' }
@@ -375,7 +391,7 @@ export default function FrontDoor() {
                 {l.label}
               </Link>
             ))}
-          </Stack>
+          </Stack>}
         </Stack>
       </Page>
     </Box>

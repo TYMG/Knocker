@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
-import { Link as RouterLink, Navigate, Outlet, useLocation } from 'react-router';
+import { Link as RouterLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { useAppDispatch, useLeague, useMe } from '../hooks';
+import { useAppDispatch, useLeague, useMe, useOutsider } from '../hooks';
+import { setLive } from '../live/sync';
 import { sample } from '../sample/slice';
 import { until } from '../sample/time';
 import { showToast } from '../store';
@@ -14,6 +15,59 @@ import Page from '../ui/Page';
 // Remembers, for this browser tab, that a team has seen the waiting notice, so ApprovalCheer can
 // celebrate the moment it is let in.
 const WAITING_KEY = 'sfi-was-waiting';
+
+/** Leaves the live league for the sample one, where everything can be tried, and opens a page of it. */
+export function TryDemoButton({ to = '/standings', variant = 'contained' }: { to?: string; variant?: 'contained' | 'outlined' }) {
+  const navigate = useNavigate();
+  return (
+    <Button
+      variant={variant}
+      color={variant === 'contained' ? 'secondary' : undefined}
+      size="large"
+      onClick={() => {
+        void setLive(false).then(() => navigate(to));
+      }}
+    >
+      Try the demo
+    </Button>
+  );
+}
+
+/**
+ * Pages about the live league itself (standings, teams, machines, the log). Only approved teams
+ * and admins get them; everyone else is offered the demo, which has the same pages filled in
+ * with a made-up league.
+ */
+export function MembersOnly() {
+  const outsider = useOutsider();
+  const me = useMe();
+  if (!outsider) return <Outlet />;
+  const waiting = me.role === 'team';
+  return (
+    <Page
+      title="For players in the league"
+      subtitle={
+        waiting
+          ? 'Once your team is approved, the standings, scores and lines open up here. Until then, the demo shows how it all works.'
+          : 'Standings, scores and lines are only for teams in the league. The demo shows how it all works, with a made-up league.'
+      }
+    >
+      <Stack spacing={1.5}>
+        <TryDemoButton />
+        {!waiting && (
+          <>
+            <Button component={RouterLink} to="/login" variant="outlined" size="large">
+              Log in
+            </Button>
+            <Button component={RouterLink} to="/join" variant="outlined" size="large">
+              Sign up your team
+            </Button>
+          </>
+        )}
+      </Stack>
+    </Page>
+  );
+}
 
 /** What a team sees everywhere until an admin approves it. */
 export function WaitingForApproval() {

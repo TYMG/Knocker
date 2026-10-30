@@ -5,7 +5,10 @@ import { UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb, table } from './db.js';
 import { env, HttpError } from './util.js';
 
-const TOKEN_DAYS = 60;
+// A team's (and a solo player's) log-in lasts a week, then they type their PIN again. Short
+// enough that a lost phone doesn't stay signed in for long, and often enough that nobody
+// forgets their PIN between league nights (Matt, Oct 30).
+const TOKEN_DAYS = 7;
 const ADMIN_TOKEN_HOURS = 12;
 
 export interface TokenPayload {

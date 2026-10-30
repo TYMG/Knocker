@@ -1,5 +1,5 @@
 // Talking to the league server. Used only when the "Live league" switch is on; the sample
-// league never sends anything. Tokens are kept on this phone: a team's for 60 days (the server's
+// league never sends anything. Tokens are kept on this phone: a team's for a week (the server's
 // own limit), an admin's until the browser is closed.
 import type { AuthResponse, AdminAuthResponse, UploadResponse, PresignedUpload, RegisterRequest } from '../../../shared/types';
 import type { SampleState } from '../sample/types';
@@ -17,7 +17,7 @@ export const tokens = {
   admin: () => read(sessionStorage, ADMIN_KEY),
   setTeam: (t: string) => write(localStorage, TEAM_KEY, t),
   setAdmin: (t: string) => write(sessionStorage, ADMIN_KEY, t),
-  /** A solo player on the waitlist (kept 60 days, like a team's). */
+  /** A solo player on the waitlist (kept a week, like a team's). */
   solo: () => read(localStorage, SOLO_KEY),
   setSolo: (t: string) => write(localStorage, SOLO_KEY, t),
   clear: () => { write(localStorage, TEAM_KEY, ''); write(sessionStorage, ADMIN_KEY, ''); write(localStorage, SOLO_KEY, ''); }

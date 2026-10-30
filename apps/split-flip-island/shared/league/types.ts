@@ -312,4 +312,10 @@ export interface SampleState {
   paused?: boolean;
   /** Viewer field: the admin looking is the league's owner (can start the league over). */
   adminIsOwner?: boolean;
+  /**
+   * Viewer field, live league only: set when the one looking isn't a player in the league yet
+   * (a visitor, a solo player, a team waiting for approval). They're sent the schedule and these
+   * counts, and nothing else about the league (Matt, Oct 30: visitors see only the demo).
+   */
+  outsider?: { approvedTeams: number; pendingTeams: number };
 }

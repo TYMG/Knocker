@@ -73,7 +73,8 @@ export async function sendCheckInReminders(now = new Date()): Promise<ReminderRe
     if (here.has(team.teamId)) continue;
     const priv = privates.get(team.teamId);
     if (!priv) continue;
-    const phones = [priv.smsOptIn1 ? priv.phone1 : '', priv.smsOptIn2 ? priv.phone2 : ''].filter(Boolean);
+    // Only phones that said yes and were confirmed with a code.
+    const phones = [priv.smsOptIn1 && priv.smsVerified1 ? priv.phone1 : '', priv.smsOptIn2 && priv.smsVerified2 ? priv.phone2 : ''].filter(Boolean);
     if (phones.length === 0) continue;
     teamCount += 1;
     const body = SMS_TEMPLATES.checkInReminder.body({ partnerName: '', teamName: team.teamName, machineName: '', minutes: mins, week: week.week, noShows: 0 });

@@ -24,6 +24,7 @@ export const LIMITS = {
   actions: { max: 90, seconds: 60 },               // per team, solo player or admin: league actions
   addressActions: { max: 300, seconds: 60 },       // per address, all of the above together
   pushSubscribe: { max: 20, seconds: 60 * 60 },    // per team or solo player
+  phoneCodes: { max: 6, seconds: 60 * 60 },        // per address: phone confirmation codes asked for
   textsPerPhone: { max: 3, seconds: 24 * 60 * 60 } // per phone, a day
 } satisfies Record<string, Limit>;
 

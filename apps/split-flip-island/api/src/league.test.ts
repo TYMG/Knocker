@@ -302,6 +302,16 @@ describe('solo players and the matchmaker', () => {
     expect((await loadLeagueState())!.league.teams).toHaveLength(3);
     await ask(ana, bea.soloId);
     process.env.SMS_ORIGINATION = '+18555550100';
+    // Phones are confirmed with a texted code before the league texts them.
+    sms.texts.length = 0;
+    for (const who of [ana, bea]) {
+      expect((await call('GET', '/api/solo/texts', asSolo(who.token))).body).toEqual({ texts: true, confirmed: false });
+      expect((await call('POST', '/api/solo/texts/confirm-start', asSolo(who.token))).status).toBe(200);
+      const code = /your code is (\d{6})/.exec(sms.texts.at(-1)!.body)![1]!;
+      expect((await call('POST', '/api/solo/texts/confirm', { ...asSolo(who.token), body: { code: code === '000000' ? '111111' : '000000' } })).status).toBe(401);
+      expect((await call('POST', '/api/solo/texts/confirm', { ...asSolo(who.token), body: { code } })).body).toEqual({ texts: true, confirmed: true });
+    }
+    expect(JSON.stringify(fake.table.all(L))).not.toMatch(/your code/); // only a hash of the code is kept
     sms.texts.length = 0;
     const made = await answer(bea, ana.soloId, true);
     delete process.env.SMS_ORIGINATION;
@@ -522,6 +532,35 @@ describe('security, phase 1', () => {
     expect((await call('POST', '/api/waitlist', { ...from('198.51.100.7'), body: { name: 'P9', phone: '2025550199', pin: '4826', traits, wants: 'anyone' } })).status).toBe(429);
     // Counters are kept under scrambled names: no addresses or phone numbers in the table.
     expect(JSON.stringify(fake.table.all('RATE#sfi-s1'))).not.toContain('198.51');
+  });
+
+  it('a team confirms each phone with a texted code; codes run out and allow 5 tries', async () => {
+    const me = asTeam('aaaa1111');
+    const lastCode = () => /your code is (\d{6})/.exec(sms.texts.at(-1)!.body)![1]!;
+    expect((await call('POST', '/api/me/texts/confirm-start', { ...me, body: { player: 0 } })).status).toBe(409); // texting is off
+    process.env.SMS_ORIGINATION = '+18555550100';
+    try {
+      vi.setSystemTime(new Date('2026-11-05T20:00:00.000Z'));
+      expect((await call('POST', '/api/me/texts/confirm-start', { ...me, body: { player: 0 } })).status).toBe(200);
+      expect(sms.texts.at(-1)!.to).toBe('+12025550101');
+      vi.setSystemTime(new Date('2026-11-05T20:11:00.000Z')); // 11 minutes later
+      expect((await call('POST', '/api/me/texts/confirm', { ...me, body: { player: 0, code: lastCode() } })).status).toBe(409);
+
+      expect((await call('POST', '/api/me/texts/confirm-start', { ...me, body: { player: 0 } })).status).toBe(200);
+      const code = lastCode();
+      const wrong = code === '000000' ? '111111' : '000000';
+      for (let i = 0; i < 5; i++) expect((await call('POST', '/api/me/texts/confirm', { ...me, body: { player: 0, code: wrong } })).status).toBe(401);
+      expect((await call('POST', '/api/me/texts/confirm', { ...me, body: { player: 0, code } })).status).toBe(409); // too many tries
+
+      expect((await call('POST', '/api/me/texts/confirm-start', { ...me, body: { player: 0 } })).status).toBe(200);
+      const ok = await call('POST', '/api/me/texts/confirm', { ...me, body: { player: 0, code: lastCode() } });
+      expect(ok.body.confirmed).toEqual([true, false]);
+      expect((await call('GET', '/api/me/texts', me)).body.confirmed).toEqual([true, false]);
+      expect((await call('POST', '/api/me/texts/confirm-start', { ...me, body: { player: 0 } })).status).toBe(409); // already confirmed
+      expect((await call('POST', '/api/me/texts/confirm-start', { ...asTeam('bbbb2222'), body: { player: 2 } })).status).toBe(400);
+    } finally {
+      delete process.env.SMS_ORIGINATION;
+    }
   });
 
   it('a log-in lasts a week, then the team types its PIN again', async () => {

@@ -38,6 +38,7 @@ import Page from '../ui/Page';
 import Section from '../ui/Section';
 import Tag from '../ui/Tag';
 import PushToggle from '../ui/PushToggle';
+import { SoloConfirmPhone } from '../ui/ConfirmPhone';
 
 const traitList = (t: SoloTraits) => QUESTIONS.map((q) => shortAnswer(q.key, t[q.key] as never));
 const since = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
@@ -296,6 +297,7 @@ export default function Solo() {
         )}
 
         <PushToggle what="Get told about a match, a request to pair up, and when you're a team." />
+        <SoloConfirmPhone />
 
         <Section title="How you play" small>
           <Traits traits={me.traits} />

@@ -35,6 +35,8 @@ export interface PrivateItem {
   pinHash: string; phone1: string; phone2: string; failures?: number; lastFailureAt?: number;
   /** Reminder texts, one setting per phone (1 = Player 1). The time of each latest yes or no is the consent record. */
   smsOptIn1?: boolean; smsOptIn2?: boolean; smsChangedAt1?: string; smsChangedAt2?: string;
+  /** Confirmed with a texted code (phoneCheck.ts). Nothing is texted to a phone until it is. */
+  smsVerified1?: boolean; smsVerified2?: boolean;
   pinChangedAt?: string;
 }
 

@@ -8,6 +8,7 @@
 //   - league night open: everything;
 //   - league night closed: how the week ended, with the line and submit parts hidden.
 
+import { ConfirmPhonesNudge } from '../ui/ConfirmPhone';
 import { useState, type ReactNode } from 'react';
 import { Link as RouterLink, useSearchParams } from 'react-router';
 import Alert from '@mui/material/Alert';
@@ -263,7 +264,10 @@ export default function TeamHome() {
       <Typography sx={{ fontWeight: 700 }}>Finish setting up your team.</Typography>
       Pick your team name, photo and PIN together.
     </Alert>
-  ) : null;
+  ) : (
+    // Live league: a phone that said yes to texts still needs its code.
+    <ConfirmPhonesNudge />
+  );
 
   // 1. A new team that no admin has approved yet.
   if (team.status === 'pending') {

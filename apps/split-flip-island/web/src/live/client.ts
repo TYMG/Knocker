@@ -152,6 +152,13 @@ export const live = {
 
   changePin: (currentPin: string, newPin: string) => call<{ ok: true }>('me/pin', { currentPin, newPin }),
   setTexts: (player: 0 | 1, optIn: boolean) => call<{ texts: [boolean, boolean] }>('me/texts', { player, optIn }),
+  // Confirming a phone with a texted code, before the league texts it (phoneCheck.ts).
+  teamTexts: () => call<{ texts: [boolean, boolean]; confirmed: [boolean, boolean] }>('me/texts'),
+  teamConfirmStart: (player: 0 | 1) => call<{ sent: true }>('me/texts/confirm-start', { player }),
+  teamConfirm: (player: 0 | 1, code: string) => call<{ texts: [boolean, boolean]; confirmed: [boolean, boolean] }>('me/texts/confirm', { player, code }),
+  soloTexts: () => call<{ texts: boolean; confirmed: boolean }>('solo/texts'),
+  soloConfirmStart: () => call<{ sent: true }>('solo/texts/confirm-start', {}),
+  soloConfirm: (code: string) => call<{ texts: boolean; confirmed: boolean }>('solo/texts/confirm', { code }),
   approve: (teamId: string) => call<{ ok: true }>(`admin/teams/${teamId}/approve`, {}),
   remove: (teamId: string, reason: string) => call<{ ok: true }>(`admin/teams/${teamId}/remove`, { reason }),
   resetPin: (teamId: string) => call<{ pin: string }>(`admin/teams/${teamId}/reset-pin`, {}),

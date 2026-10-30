@@ -14,6 +14,7 @@ import {
   type TeamTextsRequest, type TeamTextsResponse
 } from '../../shared/sms.js';
 import { requireAdmin } from './admin.js';
+import { teamTextsView } from './phoneCheck.js';
 import { sendText } from './textsender.js';
 import { requireTeamSession } from './session.js';
 import { ddb, keys, leagueId, table } from './db.js';
@@ -95,7 +96,7 @@ export async function teamTexts(event: APIGatewayProxyEventV2): Promise<TeamText
   const { teamId } = await requireTeamSession(event);
   const item = (await ddb.send(new GetCommand({ TableName: table(), Key: privKey(teamId) }))).Item;
   if (!item) throw new HttpError(401, 'Your team was not found. Log in again.');
-  return { texts: [item.smsOptIn1 === true, item.smsOptIn2 === true] };
+  return teamTextsView(item);
 }
 
 export async function setTeamTexts(event: APIGatewayProxyEventV2): Promise<TeamTextsResponse> {

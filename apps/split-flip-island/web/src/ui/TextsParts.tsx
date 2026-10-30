@@ -18,6 +18,8 @@ import type { STeam } from '../sample/types';
 import { showToast } from '../store';
 import { colors } from '../theme';
 import { anyTexts, textedNames, textPhones } from './players';
+import { live } from '../live/client';
+import { ConfirmPhone, useTeamPhones } from './ConfirmPhone';
 
 export const CONTACT_CARD_URL = 'https://knckr.com/split-flip-island.vcf';
 export const TEXT_TERMS_URL = 'https://knckr.com/sms.html';
@@ -41,6 +43,8 @@ export function SaveNumberButton({ fullWidth }: { fullWidth?: boolean }) {
 /** Settings: each player turns the check-in reminder on or off for their own phone. */
 export function TextsSetting({ team }: { team: STeam }) {
   const dispatch = useAppDispatch();
+  // Live league only: which phones are confirmed with a code (nothing is texted until they are).
+  const phones = useTeamPhones();
   const flip = (player: 0 | 1, optIn: boolean) => {
     const who = team.players[player] || `Player ${player + 1}`;
     dispatch(sample.setSmsOptIn({ teamId: team.teamId, player, optIn }));
@@ -57,9 +61,15 @@ export function TextsSetting({ team }: { team: STeam }) {
       {([0, 1] as const).map((i) => (
         <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 1, minHeight: 44 }}>
           <Typography sx={{ flex: 1, minWidth: 0 }}>{team.players[i] || `Player ${i + 1}`}'s phone</Typography>
-          <Switch checked={!!team.texts?.[i]} onChange={(e) => flip(i, e.target.checked)} slotProps={{ input: { 'aria-label': `Reminder texts to ${team.players[i] || `Player ${i + 1}`}'s phone` } }} />
+          <Switch checked={!!team.texts?.[i]} onChange={(e) => { flip(i, e.target.checked); window.setTimeout(phones.reload, 800); }} slotProps={{ input: { 'aria-label': `Reminder texts to ${team.players[i] || `Player ${i + 1}`}'s phone` } }} />
         </Box>
-      ))}
+      )).flatMap((row, i) => {
+        const s = phones.state;
+        const needs = !!team.texts?.[i] && s && !s.confirmed[i];
+        return needs
+          ? [row, <ConfirmPhone key={`c${i}`} who={`${team.players[i] || `Player ${i + 1}`}'s phone`} start={() => live.teamConfirmStart(i as 0 | 1)} confirm={(code) => live.teamConfirm(i as 0 | 1, code)} onDone={phones.reload} />]
+          : [row];
+      })}
       {anyTexts(team) && <Box sx={{ mt: 1.5 }}><SaveNumberButton /></Box>}
     </Card>
   );

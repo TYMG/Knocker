@@ -76,6 +76,12 @@ export interface SmsStatusResponse {
 export interface SmsTestRequest { template: SmsTemplate }
 
 /** Each player's reminder-text setting for their own phone (Player 1 first). Switchable any time. */
-export interface TeamTextsResponse { texts: [boolean, boolean] }
+export interface TeamTextsResponse { texts: [boolean, boolean]; confirmed: [boolean, boolean] }
+
+/** Whether a phone said yes to texts and has been confirmed with a code. */
+export interface PhoneTextsResponse { texts: boolean | [boolean, boolean]; confirmed: boolean | [boolean, boolean] }
+
+/** The text that carries a phone confirmation code. Not a league message, so not in SMS_TEMPLATES. */
+export const phoneCodeText = (code: string) => `Split Flipper Island: your code is ${code}. It confirms this phone for league texts and works for 10 minutes. Didn't ask? Ignore this.${SIGN_OFF}`;
 export interface TeamTextsRequest { player: 0 | 1; optIn: boolean }
 export interface SmsTestResponse { sent: number; body: string }

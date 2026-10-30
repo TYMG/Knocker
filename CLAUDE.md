@@ -254,6 +254,16 @@ The server runs the **same rules code** as the sample league, so the two can nev
   `./scripts/admin.sh reset-2fa "Name"`. Start over also needs the password typed again. The
   Texts page uses the main admin log-in. Tests issue mfa tokens directly; approval.test covers
   the log-in (`testing/twoStep.ts`).
+- **Phones are confirmed with a code before any text (Oct 30):** `api/src/phoneCheck.ts`.
+  Saying yes to texts is the consent; a 6-digit code texted to the phone (keyed hash only, 10
+  minutes, 5 tries, goes through the text caps, `phoneCodes` 6/h per address) sets
+  `smsVerified1/2` on the team private item or `verified` on the waitlist private item.
+  reminders.ts and the team-made text skip unconfirmed phones; pairing solos carries it over.
+  Routes `GET|POST /api/me/texts…/confirm-start|confirm`, `GET /api/solo/texts`,
+  `POST /api/solo/texts/confirm-start|confirm`. Web: `ui/ConfirmPhone.tsx` (Settings, a nudge on
+  team home, the solo page), live league only. Teams from before this get no texts until they
+  confirm. The code text (`phoneCodeText` in shared/sms.ts) is a new message type for the
+  toll-free verification and knckr.com/sms.html.
 - **Admin input checks in the rules** (Oct 29): message 1–280 characters; machine and location
   names up to 40 and no duplicates; night times HH:MM with opening before closing; add minutes
   1–60 at a time, 2 hours max, only while open; corrections and voids need a reason (up to 200).

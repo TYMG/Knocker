@@ -4,6 +4,7 @@ import { sameSecret } from './auth.js';
 import { adminEnterScore, createUpload, login, register, submitScore } from './handlers.js';
 import { getLeague, postAction } from './leagueApi.js';
 import { setupLeague, startOver } from './leagueAdmin.js';
+import { soloConfirm, soloConfirmStart, soloTexts, teamConfirm, teamConfirmStart } from './phoneCheck.js';
 import { adminRemoveSolo, joinWaitlist, pairWaitlist, soloAnswer, soloAsk, soloCancelAsk, soloLeave, soloLogin, soloSwipe } from './waitlist.js';
 import { changePin, finishSetup, resetPin } from './pin.js';
 import { sendCheckInReminders } from './reminders.js';
@@ -28,6 +29,11 @@ const routes: Record<string, { run: Route; status?: 201 }> = {
   'POST /api/admin/sms/test': { run: smsTest },
   'GET /api/me/texts': { run: teamTexts },
   'POST /api/me/texts': { run: setTeamTexts },
+  'POST /api/me/texts/confirm-start': { run: teamConfirmStart },
+  'POST /api/me/texts/confirm': { run: teamConfirm },
+  'GET /api/solo/texts': { run: soloTexts },
+  'POST /api/solo/texts/confirm-start': { run: soloConfirmStart },
+  'POST /api/solo/texts/confirm': { run: soloConfirm },
   'POST /api/me/pin': { run: changePin },
   'GET /api/league': { run: getLeague },
   'POST /api/league/action': { run: postAction },

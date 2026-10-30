@@ -49,7 +49,8 @@ const logActions = async () => (await loadLeagueState())!.league.log.map((a) => 
 /** A team in the league record, and its private item with two phones and its text choices. */
 function team(teamId: string, teamName: string, texts: [boolean, boolean], status: 'approved' | 'pending' = 'approved') {
   const n = String(fake.table.items.size).padStart(2, '0');
-  fake.table.put({ PK: L, SK: `TEAM#${teamId}#PRIVATE`, type: 'private', pinHash: 'x', phone1: `20255501${n}`, phone2: `20255502${n}`, smsOptIn1: texts[0], smsOptIn2: texts[1] });
+  // Phones that said yes are confirmed with a code here; one test unconfirms one.
+  fake.table.put({ PK: L, SK: `TEAM#${teamId}#PRIVATE`, type: 'private', pinHash: 'x', phone1: `20255501${n}`, phone2: `20255502${n}`, smsOptIn1: texts[0], smsOptIn2: texts[1], smsVerified1: texts[0], smsVerified2: texts[1] });
   return { teamId, teamName, players: ['A', 'B'] as [string, string], phone1: '', phone2: '', texts, photo: '', status, createdAt: '2026-11-01T00:00:00.000Z', firstWeek: 1 };
 }
 
@@ -119,6 +120,12 @@ describe('the check-in reminder text', () => {
     at('2026-11-05T23:57:00.000Z');
     expect((await runClock()).skipped).toBe('already sent tonight');
     expect(fake.texts).toHaveLength(3);
+  });
+
+  it('never texts a phone that was not confirmed with a code', async () => {
+    delete fake.table.get(L, 'TEAM#left-and-right#PRIVATE')!.smsVerified1;
+    at('2026-11-05T23:56:00.000Z');
+    expect((await runClock()).sent).toBe(3); // Left & Right's second phone, Tilt Me Tender, Shoot Again
   });
 
   it('keeps going when one phone cannot be texted, and never logs the number', async () => {

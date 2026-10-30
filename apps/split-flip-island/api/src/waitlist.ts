@@ -37,7 +37,12 @@ export const waitKey = (id: string) => ({ PK: pk(), SK: `WAITLIST#${id}#PRIVATE`
 const phoneKey = (phone: string) => ({ PK: pk(), SK: `SOLOPHONE#${phoneLookup(phone)}` });
 export const soloTeamKey = (id: string) => ({ PK: pk(), SK: `SOLOTEAM#${id}` });
 
-export interface WaitPrivate { phone: string; texts: boolean; at: string; pinHash?: string }
+export interface WaitPrivate {
+  phone: string; texts: boolean; at: string; pinHash?: string;
+  /** Confirmed with a texted code (phoneCheck.ts). Nothing is texted until it is. */
+  verified?: boolean;
+  code?: import('./phoneCheck.js').PhoneCode;
+}
 
 const getItem = async <T>(key: { PK: string; SK: string }) => (await ddb.send(new GetCommand({ TableName: table(), Key: key }))).Item as T | undefined;
 
@@ -111,7 +116,7 @@ function teamWrites(team: { teamId: string; teamName: string }, ids: [string, st
   const [pa, pb] = privs;
   return [
     { Put: { TableName: table(), Item: { PK: pk(), SK: keys.teamName(team.teamName), type: 'teamName', teamId: team.teamId }, ConditionExpression: 'attribute_not_exists(PK)' } },
-    { Put: { TableName: table(), Item: { ...privateKey(team.teamId), type: 'private', pinHash, pinChangedAt: at, phone1: pa.phone, phone2: pb.phone, smsOptIn1: pa.texts, smsOptIn2: pb.texts, smsChangedAt1: pa.at, smsChangedAt2: pb.at }, ConditionExpression: 'attribute_not_exists(PK)' } },
+    { Put: { TableName: table(), Item: { ...privateKey(team.teamId), type: 'private', pinHash, pinChangedAt: at, phone1: pa.phone, phone2: pb.phone, smsOptIn1: pa.texts, smsOptIn2: pb.texts, smsVerified1: pa.verified === true, smsVerified2: pb.verified === true, smsChangedAt1: pa.at, smsChangedAt2: pb.at }, ConditionExpression: 'attribute_not_exists(PK)' } },
     ...ids.flatMap((id, i) => [
       { Delete: { TableName: table(), Key: waitKey(id) } },
       { Delete: { TableName: table(), Key: phoneKey(privs[i]!.phone) } },
@@ -163,7 +168,7 @@ async function textTeamMade(players: [string, string], privs: [WaitPrivate, Wait
   if (!textingOn()) return;
   let sent = 0, failed = 0;
   for (const i of [0, 1] as const) {
-    if (!privs[i].texts) continue;
+    if (!privs[i].texts || !privs[i].verified) continue; // only confirmed phones
     try {
       await sendText(e164(privs[i].phone), SMS_TEMPLATES.teamMade.body({ ...SMS_SAMPLE, partnerName: players[1 - i]! }));
       sent++;

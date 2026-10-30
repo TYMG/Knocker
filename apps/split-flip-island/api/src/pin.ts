@@ -8,7 +8,7 @@ import { limit } from './limits.js';
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { pinProblem, type ChangePinRequest, type ResetPinResponse } from '../../shared/pin.js';
-import { requireAdmin } from './admin.js';
+import { confirmWithCode, requireAdmin } from './admin.js';
 import { clearLoginStrikes, hashPin, takeLoginStrike, verifyPin } from './auth.js';
 import { requireTeamSession } from './session.js';
 import { ddb, keys, leagueId, table } from './db.js';
@@ -62,6 +62,7 @@ export async function resetPin(event: APIGatewayProxyEventV2, teamId: string): P
   const state = await loadLeagueState();
   const team = state?.league.teams.find((t) => t.teamId === teamId);
   if (!team) throw new HttpError(404, 'That team was not found.');
+  await confirmWithCode(event, admin);
   const pin = temporaryPin();
   // The rule writes the reset to the league log; the new PIN (hashed) is saved in the same write,
   // and any wrong-guess lockout is cleared for a fresh start.

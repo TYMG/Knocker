@@ -9,8 +9,8 @@ import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { SIGNED_OUT, stillSignedIn } from './session.js';
 import { limit, limitAddress } from './limits.js';
 import type { LeagueActionName } from '../../shared/league/rules.js';
-import { ADMIN_ACTIONS, TEAM_ACTIONS } from '../../shared/league/permissions.js';
-import { requireAdmin } from './admin.js';
+import { ADMIN_ACTIONS, ADMIN_CODE_ACTIONS, TEAM_ACTIONS } from '../../shared/league/permissions.js';
+import { confirmWithCode, requireAdmin } from './admin.js';
 import { issueToken, readAdminToken, readSoloToken, readToken } from './auth.js';
 import { GetCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb, leagueId, table } from './db.js';
@@ -231,6 +231,8 @@ export async function postAction(event: APIGatewayProxyEventV2): Promise<{ versi
     payload = forTeam(state.league, who.teamId, type, payload);
   } else if (who.kind === 'admin' && (ADMIN_ACTIONS.has(type) || TEAM_ACTIONS.has(type))) {
     if (type === 'forfeitTurn' && payload && typeof payload === 'object') payload = { ...(payload as object), by: 'admin' };
+    // Score changes and withdrawing a team need a fresh authenticator code (admin.ts).
+    if (ADMIN_CODE_ACTIONS.has(type)) await confirmWithCode(event, await requireAdmin(event));
   } else {
     throw new HttpError(403, "You can't do that.");
   }

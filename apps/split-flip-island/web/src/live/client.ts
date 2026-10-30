@@ -27,18 +27,34 @@ export class LiveError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
 }
 
-async function call<T>(path: string, body?: unknown): Promise<T> {
+/**
+ * Asks the admin for a code from their authenticator app; resolves '' if they cancel. Set by
+ * AdminCodeDialog. A hard change (a score, removing or renaming a team, a PIN reset) is answered
+ * with 428 until a fresh code comes with it (Matt, Oct 30).
+ */
+let askForCode: ((message: string) => Promise<string>) | null = null;
+export const setCodeAsker = (ask: typeof askForCode) => { askForCode = ask; };
+
+async function call<T>(path: string, body?: unknown, code?: string): Promise<T> {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   // An admin who is also signed in as a team acts as the admin.
   if (tokens.admin()) headers['x-admin-token'] = tokens.admin();
   else if (tokens.team()) headers['x-team-token'] = tokens.team();
   else if (tokens.solo()) headers['x-solo-token'] = tokens.solo();
+  if (code) headers['x-admin-code'] = code;
   const res = await fetch(`/api/${path}`, { method: body === undefined ? 'GET' : 'POST', headers, body: body === undefined ? undefined : JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    const message = (data as { error?: string }).error ?? `The league server said ${res.status}.`;
+    // A hard change: ask for the code and send it again (the asker shows why, e.g. a wrong code).
+    if (res.status === 428 && askForCode && tokens.admin()) {
+      const typed = await askForCode(message);
+      if (!typed) throw new LiveError('Not changed: no code was typed.', 428);
+      return call<T>(path, body, typed);
+    }
     // A token the server no longer accepts: forget it, so the next call goes as a visitor.
     if (res.status === 401 && (tokens.admin() || tokens.team() || tokens.solo()) && !path.includes('login')) tokens.clear();
-    throw new LiveError((data as { error?: string }).error ?? `The league server said ${res.status}.`, res.status);
+    throw new LiveError(message, res.status);
   }
   return data as T;
 }

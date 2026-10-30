@@ -21,6 +21,14 @@ export const ADMIN_ACTIONS: ReadonlySet<LeagueActionName> = new Set<LeagueAction
 ]);
 
 /**
+ * Admin rules that change a score or a team for good. Each one needs a fresh code from the
+ * admin's authenticator app, typed in for that change (Matt, Oct 30: "even if the admin login is
+ * available, any actions taken can only be done when the pin is entered first"). The endpoints
+ * for entering a score, removing a team, renaming a team and resetting a PIN ask for one too.
+ */
+export const ADMIN_CODE_ACTIONS: ReadonlySet<LeagueActionName> = new Set<LeagueActionName>(['correctScore', 'voidScore', 'withdrawTeam']);
+
+/**
  * Rules that touch private data or files, so they have their own endpoints: sign-up and the
  * waitlist (phones, PIN, photo), posting or entering a score (photo), approving, removing or
  * pairing sign-ups, PIN resets, text settings, and the server's own notes.

@@ -48,9 +48,22 @@ async function call(method: string, path: string, opts: { body?: unknown; header
   return { status: out.statusCode!, body: JSON.parse(out.body as string) as Record<string, any> };
 }
 const asTeam = (teamId: string) => ({ headers: { 'x-team-token': issueToken(teamId, 'sfi-s1') } });
-// Logged in with both steps (the log-in itself is tested in approval.test.ts).
+// Logged in with both steps (the log-in itself is tested in approval.test.ts). Every request
+// also carries a fresh authenticator code, as the app sends for a hard change (a getter, so each
+// request gets one that hasn't been used).
 async function asAdmin(name = 'Matt') {
+  const headers: Record<string, string> = { 'x-admin-token': issueAdminToken(name, 'sfi-s1', 1) };
+  Object.defineProperty(headers, 'x-admin-code', { enumerable: true, get: () => freshCode(name) });
+  return { headers };
+}
+/** Asks for nothing but the log-in: no code. */
+async function asAdminNoCode(name = 'Matt') {
   return { headers: { 'x-admin-token': issueAdminToken(name, 'sfi-s1', 1) } };
+}
+function freshCode(name = 'Matt') {
+  const item = fake.table.get('ADMIN#sfi-s1', `ADMIN#${name.toLowerCase()}`);
+  if (item) delete item.totpStep;
+  return testCode();
 }
 const act = (type: string, payload: unknown, who: { headers: Record<string, string> }) => call('POST', '/api/league/action', { ...who, body: { type, payload } });
 
@@ -583,6 +596,21 @@ describe('security, phase 1', () => {
     expect(JSON.stringify(fake.table.all(L).filter((i) => i.SK !== 'STATE'))).not.toMatch(/20255501/);
     expect((await loadLeagueState())!.league.teams.map((t) => t.teamName)).toContain('Left & Right'); // the season record stays
     expect(await forgetAfterSeason(due + 120_000)).toEqual({ skipped: 'already done' });
+  });
+
+  it('score changes and team changes need a fresh authenticator code, every time', async () => {
+    const plain = await asAdminNoCode();
+    await act('openNight', { by: 'admin' }, plain); // running the night needs no code
+    expect((await act('withdrawTeam', { teamId: 'bbbb2222', reason: 'moved away' }, plain)).status).toBe(428);
+    const withCode = (code: string) => ({ headers: { ...plain.headers, 'x-admin-code': code } });
+    expect((await act('withdrawTeam', { teamId: 'bbbb2222', reason: 'moved away' }, withCode('000000'))).status).toBe(428);
+    const code = freshCode();
+    expect((await act('withdrawTeam', { teamId: 'bbbb2222', reason: 'moved away' }, withCode(code))).status).toBe(200);
+    // The same code can't be used again.
+    expect((await call('POST', '/api/admin/teams/aaaa1111/reset-pin', withCode(code))).status).toBe(428);
+    expect((await call('POST', '/api/admin/teams/aaaa1111/reset-pin', plain)).status).toBe(428);
+    expect((await call('POST', '/api/admin/teams/aaaa1111/rename', { ...plain, body: { teamName: 'New Name', reason: 'asked' } })).status).toBe(428);
+    expect((await loadLeagueState())!.league.teams.find((t) => t.teamId === 'aaaa1111')!.teamName).toBe('Left & Right');
   });
 
   it('a log-in lasts a week, then the team types its PIN again', async () => {

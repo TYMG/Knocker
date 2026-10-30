@@ -6,7 +6,7 @@
 // deleted by purgeExpired, which a schedule runs every 15 minutes. The teams themselves live in
 // the league record (leagueStore.ts); their name claim and private item are deleted with them.
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
-import { limitAddress } from './limits.js';
+import { limit, limitAddress } from './limits.js';
 import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import type { AdminAuthResponse, AdminLoginRequest, RemoveTeamRequest, TwoStepSetup } from '../../shared/types.js';
@@ -71,6 +71,22 @@ async function useStep(admin: AdminItem, step: number, extra = '', values: Recor
     if ((err as Error).name === 'ConditionalCheckFailedException') return false;
     throw err;
   }
+}
+
+/** The header that carries the authenticator code confirming one hard change. */
+export const CODE_HEADER = 'x-admin-code';
+
+/**
+ * A hard change (a score, removing or renaming a team, a PIN reset) needs a fresh code from the
+ * admin's authenticator app, every time; each code works once. 428 tells the app to ask for one.
+ */
+export async function confirmWithCode(event: APIGatewayProxyEventV2, admin: AdminItem): Promise<void> {
+  const typed = text(event.headers?.[CODE_HEADER]);
+  if (!typed) throw new HttpError(428, 'Type the code from your authenticator app to confirm this change.');
+  await limit('adminCodes', `admin:${admin.name}`);
+  const step = checkCode(unseal(admin.totp), typed, Date.now(), admin.totpStep);
+  if (step === null || !(await useStep(admin, step))) throw new HttpError(428, "That code didn't work, or was already used. Type the newest code from your authenticator app.");
+  admin.totpStep = step;
 }
 
 /** True when this password is the admin's. Used to re-check before something drastic (Start over). */
@@ -225,6 +241,7 @@ export async function removeTeam(event: APIGatewayProxyEventV2, teamId: string):
   const admin = await requireAdmin(event);
   const body = parseBody<RemoveTeamRequest>(event);
   const reason = typeof body.reason === 'string' ? body.reason.trim().replace(/\s+/g, ' ') : '';
+  if (reason.length >= 3 && reason.length <= 200) await confirmWithCode(event, admin);
   if (reason.length < 3 || reason.length > 200) {
     throw new HttpError(400, 'Say why in a few words. The reason goes in the league log.');
   }
@@ -278,6 +295,7 @@ export async function renameTeam(event: APIGatewayProxyEventV2, teamId: string):
   const state = await loadLeagueState();
   const team = state?.league.teams.find((t) => t.teamId === teamId);
   if (!team) throw new HttpError(404, 'That team was not found.');
+  await confirmWithCode(event, admin);
   const l = keys.league(leagueId());
   try {
     await applyAction({ kind: 'admin', name: admin.name }, { type: 'renameTeam', payload: { teamId, teamName, reason } }, {

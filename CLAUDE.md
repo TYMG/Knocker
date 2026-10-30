@@ -257,6 +257,14 @@ The server runs the **same rules code** as the sample league, so the two can nev
   `./scripts/admin.sh reset-2fa "Name"`. Start over also needs the password typed again. The
   Texts page uses the main admin log-in. Tests issue mfa tokens directly; approval.test covers
   the log-in (`testing/twoStep.ts`).
+- **Hard changes need a fresh authenticator code (Matt, Oct 30):** every score change and every
+  team removal, withdrawal, rename or PIN reset. `ADMIN_CODE_ACTIONS` (correctScore, voidScore,
+  withdrawTeam) in shared/league/permissions.ts, plus the admin score, remove, rename and
+  reset-pin endpoints, call `confirmWithCode` (admin.ts): header `x-admin-code`, each code once
+  (`totpStep`), `adminCodes` limit 20 per 15 minutes per admin; without one the server answers
+  428. Web: `live/client.ts` asks through `ui/AdminCodeDialog.tsx` and resends. Running the night
+  (check-ins, lines, messages, minutes, open/close, pause) needs no code. Tests: league.test
+  `asAdmin()` sends a fresh code on every request; `asAdminNoCode()` doesn't.
 - **Phones are confirmed with a code before any text (Oct 30):** `api/src/phoneCheck.ts`.
   Saying yes to texts is the consent; a 6-digit code texted to the phone (keyed hash only, 10
   minutes, 5 tries, goes through the text caps, `phoneCodes` 6/h per address) sets

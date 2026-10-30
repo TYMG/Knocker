@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, type ReactNode } from 'react';
+import AdminCodeDialog from './ui/AdminCodeDialog';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { startLiveRefresh } from './live/sync';
@@ -117,6 +118,7 @@ export default function App() {
     <BrowserRouter>
       <FinishRoleSwitch />
       <LiveRefresh />
+      <AdminCodeDialog />
       <LiveLoading />
       <LiveReady>
       <Routes>

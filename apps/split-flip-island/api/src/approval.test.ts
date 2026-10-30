@@ -72,7 +72,8 @@ function addAdmin(name: string, password: string, tokenVersion = 1, twoStep = tr
 
 /** Lets the test admin's current code be used again (each code works once; tests log in a lot). */
 const freshCode = (name = 'Matt') => {
-  delete fake.table.get('ADMIN#sfi-s1', `ADMIN#${name.toLowerCase()}`)!.totpStep;
+  const item = fake.table.get('ADMIN#sfi-s1', `ADMIN#${name.toLowerCase()}`);
+  if (item) delete item.totpStep;
   return testCode();
 };
 
@@ -82,7 +83,12 @@ async function adminToken(name = 'Matt', password = 'correct horse battery') {
   return res.body.token as string;
 }
 
-const asAdmin = (token: string) => ({ headers: { 'x-admin-token': token } });
+// Every request also carries a fresh authenticator code, as the app sends for a hard change.
+const asAdmin = (token: string) => {
+  const headers: Record<string, string> = { 'x-admin-token': token };
+  Object.defineProperty(headers, 'x-admin-code', { enumerable: true, get: () => freshCode() });
+  return { headers };
+};
 const asTeam = (token: string) => ({ headers: { 'x-team-token': token } });
 // The league record, read and edited directly (as a test would set up a scene).
 const league = async () => (await loadLeagueState())!.league;

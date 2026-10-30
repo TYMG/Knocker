@@ -17,7 +17,7 @@ import type { STeam } from '../../shared/league/types.js';
 import { ddb, keys, leagueId, queryAll, s3, table } from './db.js';
 import { runLeagueClock } from './leagueClock.js';
 import { clearLoginStrikes, hashPin, issueToken, readAdminToken, requireTeam, takeLoginStrike, verifyPin } from './auth.js';
-import { requireAdmin } from './admin.js';
+import { confirmWithCode, requireAdmin } from './admin.js';
 import { applyAction, loadLeagueState, RuleRefused, type League } from './leagueStore.js';
 import { env, HttpError, nowIso, parseBody, photoUrl, text } from './util.js';
 
@@ -296,6 +296,7 @@ export async function adminEnterScore(event: APIGatewayProxyEventV2): Promise<{ 
       throw new HttpError(400, 'Add a photo of the score, or say there is none.');
     }
   }
+  await confirmWithCode(event, admin);
   const saved = await applyAction({ kind: 'admin', name: admin.name }, {
     type: 'adminEnterScore', payload: { teamId, machineId, score, reason, noPhoto, photo, thumb, photoSource: noPhoto ? undefined : 'camera' }
   });

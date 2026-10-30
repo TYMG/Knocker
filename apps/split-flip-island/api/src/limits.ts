@@ -18,6 +18,7 @@ export interface Limit { max: number; seconds: number }
 export const LIMITS = {
   login: { max: 20, seconds: 15 * 60 },            // per address: team and solo log-ins
   adminLogin: { max: 10, seconds: 15 * 60 },       // per address
+  adminCodes: { max: 20, seconds: 15 * 60 },       // per admin: codes typed to confirm a hard change
   signUp: { max: 5, seconds: 60 * 60 },            // per address: team sign-ups and joining the waitlist
   photoUpload: { max: 15, seconds: 60 * 60 },      // per address: sign-up photos (no account yet)
   scoreUpload: { max: 40, seconds: 60 * 60 },      // per team

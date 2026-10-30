@@ -25,6 +25,7 @@ vi.mock('./db.js', async (importOriginal) => {
 
 const { handler } = await import('./index.js');
 const { hashPassword } = await import('./auth.js');
+const { testTotp, testCode } = await import('./testing/twoStep.js');
 const { createLeagueState, loadLeagueState } = await import('./leagueStore.js');
 const { newLeague } = await import('../../shared/league/new.js');
 const { easternDate } = await import('../../shared/league/time.js');
@@ -65,12 +66,18 @@ async function signUp(teamName: string, extra: Record<string, unknown> = {}) {
   });
 }
 
-function addAdmin(name: string, password: string, tokenVersion = 1) {
-  fake.table.put({ PK: 'ADMIN#sfi-s1', SK: `ADMIN#${name.toLowerCase()}`, type: 'admin', name, passHash: hashPassword(password), tokenVersion, createdAt: '2026-10-06T00:00:00.000Z' });
+function addAdmin(name: string, password: string, tokenVersion = 1, twoStep = true) {
+  fake.table.put({ PK: 'ADMIN#sfi-s1', SK: `ADMIN#${name.toLowerCase()}`, type: 'admin', name, passHash: hashPassword(password), tokenVersion, createdAt: '2026-10-06T00:00:00.000Z', ...(twoStep ? { totp: testTotp() } : {}) });
 }
 
+/** Lets the test admin's current code be used again (each code works once; tests log in a lot). */
+const freshCode = (name = 'Matt') => {
+  delete fake.table.get('ADMIN#sfi-s1', `ADMIN#${name.toLowerCase()}`)!.totpStep;
+  return testCode();
+};
+
 async function adminToken(name = 'Matt', password = 'correct horse battery') {
-  const res = await call('POST', '/api/admin/login', { body: { name, password } });
+  const res = await call('POST', '/api/admin/login', { body: { name, password, code: freshCode(name) } });
   expect(res.status).toBe(200);
   return res.body.token as string;
 }
@@ -245,9 +252,48 @@ describe('admin log in', () => {
     expect((await call('POST', '/api/admin/login', { body: { name: 'Nobody', password: 'correct horse battery' } })).status).toBe(401);
     expect((await call('POST', '/api/admin/login', { body: { name: '', password: '' } })).status).toBe(401);
     expect((await call('POST', '/api/admin/login', { body: { name: { $ne: '' }, password: ['x'] } })).status).toBe(401);
-    const ok = await call('POST', '/api/admin/login', { body: { name: ' matt ', password: 'correct horse battery' } });
+    // The right password alone isn't enough: it asks for the code from the authenticator app.
+    const half = await call('POST', '/api/admin/login', { body: { name: ' matt ', password: 'correct horse battery' } });
+    expect(half.body).toEqual({ needsCode: true });
+    const ok = await call('POST', '/api/admin/login', { body: { name: ' matt ', password: 'correct horse battery', code: freshCode() } });
     expect(ok.status).toBe(200);
     expect(ok.body.admin).toEqual({ name: 'Matt' });
+  });
+
+  it('refuses a wrong code, and a code that was already used', async () => {
+    const body = { name: 'Matt', password: 'correct horse battery' };
+    expect((await call('POST', '/api/admin/login', { body: { ...body, code: '000000' } })).status).toBe(401);
+    expect((await call('POST', '/api/admin/login', { body: { ...body, code: testCode(5) } })).status).toBe(401); // too far ahead
+    const code = freshCode();
+    expect((await call('POST', '/api/admin/login', { body: { ...body, code } })).status).toBe(200);
+    expect((await call('POST', '/api/admin/login', { body: { ...body, code } })).status).toBe(401); // replayed
+    expect((await call('POST', '/api/admin/login', { body: { ...body, code: testCode(-1) } })).status).toBe(401); // older than one used
+  });
+
+  it('an admin with no authenticator gets a setup token, good only for adding one', async () => {
+    addAdmin('Jen', 'correct horse battery', 1, false);
+    const first = await call('POST', '/api/admin/login', { body: { name: 'Jen', password: 'correct horse battery' } });
+    expect(first.status).toBe(200);
+    expect(first.body.token).toBeUndefined();
+    const setup = asAdmin(first.body.setupToken);
+    expect((await call('GET', '/api/admin/sms', setup)).status).toBe(401);
+    expect((await call('GET', '/api/league', setup)).status).toBe(401);
+
+    const started = await call('POST', '/api/admin/2fa/start', setup);
+    expect(started.status).toBe(200);
+    expect(started.body.link).toMatch(/^otpauth:\/\/totp\/Split%20Flipper%20Island%3AJen\?secret=/);
+    const secret = started.body.key.replace(/ /g, '');
+    // Kept sealed: the secret itself never sits in the table.
+    expect(JSON.stringify(fake.table.get('ADMIN#sfi-s1', 'ADMIN#jen'))).not.toContain(secret);
+
+    expect((await call('POST', '/api/admin/2fa/confirm', { ...setup, body: { code: '123456' } })).status).toBe(401);
+    const done = await call('POST', '/api/admin/2fa/confirm', { ...setup, body: { code: testCode(0, secret) } });
+    expect(done.status).toBe(200);
+    expect((await call('GET', '/api/admin/sms', asAdmin(done.body.token))).status).toBe(200);
+    expect((await call('POST', '/api/admin/2fa/start', setup)).status).toBe(409); // can't swap it from the website
+
+    // From now on the password alone isn't enough.
+    expect((await call('POST', '/api/admin/login', { body: { name: 'Jen', password: 'correct horse battery' } })).body).toEqual({ needsCode: true });
   });
 
   it('locks an account for a while after ten wrong passwords', async () => {
@@ -268,7 +314,7 @@ describe('admin log in', () => {
     for (let i = 0; i < 10; i++) await call('POST', '/api/admin/login', { body: { name: 'Matt', password: `wrong ${i}` } });
     vi.useFakeTimers({ now: Date.now() + 16 * 60_000, toFake: ['Date'] });
     try {
-      expect((await call('POST', '/api/admin/login', { body: { name: 'Matt', password: 'correct horse battery' } })).status).toBe(200);
+      expect((await call('POST', '/api/admin/login', { body: { name: 'Matt', password: 'correct horse battery', code: freshCode() } })).status).toBe(200);
     } finally {
       vi.useRealTimers();
     }

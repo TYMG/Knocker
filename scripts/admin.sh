@@ -5,6 +5,7 @@
 #   ./scripts/admin.sh remove "Name"
 #   ./scripts/admin.sh owner "Name"      can start the whole league over from the app
 #   ./scripts/admin.sh not-owner "Name"
+#   ./scripts/admin.sh reset-2fa "Name"  lost phone: removes their authenticator app link
 #   ./scripts/admin.sh list
 set -euo pipefail
 export AWS_PROFILE="${AWS_PROFILE:-knckr}"

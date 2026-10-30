@@ -6,7 +6,7 @@ import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { CreateBackupCommand } from '@aws-sdk/client-dynamodb';
 import { BatchWriteCommand } from '@aws-sdk/lib-dynamodb';
 import { newLeague } from '../../shared/league/new.js';
-import { requireAdmin } from './admin.js';
+import { passwordMatches, requireAdmin } from './admin.js';
 import { ddb, keys, leagueId, queryAll, table } from './db.js';
 import { createLeagueState, loadLeagueState } from './leagueStore.js';
 import { HttpError, nowIso, parseBody, text } from './util.js';
@@ -70,9 +70,12 @@ export async function clearLeague(league = leagueId()): Promise<number> {
 export async function startOver(event: APIGatewayProxyEventV2): Promise<{ deleted: number }> {
   const admin = await requireAdmin(event);
   if (!admin.owner) throw new HttpError(403, 'Only the league owner can start the league over.');
-  if (text(parseBody<{ confirm?: string }>(event).confirm).trim().toUpperCase() !== START_OVER_WORDS) {
+  const body = parseBody<{ confirm?: string; password?: string }>(event);
+  if (text(body.confirm).trim().toUpperCase() !== START_OVER_WORDS) {
     throw new HttpError(400, `Type ${START_OVER_WORDS} to confirm.`);
   }
+  // The password again, so a phone left logged in can't wipe the league.
+  if (!passwordMatches(admin, body.password)) throw new HttpError(403, "That password isn't right. Nothing was deleted.");
   // A full backup of the table first, kept in AWS (DynamoDB backups), so a mistaken Start over
   // can be undone. If the backup can't be made, nothing is deleted.
   const backup = await backupTable(`before-start-over-${admin.name}`);

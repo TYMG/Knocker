@@ -23,11 +23,10 @@ import {
   SMS_SAMPLE, SMS_TEMPLATES, smsFitsOneSegment,
   type SmsStatusResponse, type SmsTemplate, type SmsTestResponse
 } from '../../../../shared/sms';
-import type { AdminAuthResponse } from '../../../../shared/types';
+import { tokens } from '../../live/client';
 
-const TOKEN_KEY = 'sfi-admin-token';
-const readToken = () => { try { return sessionStorage.getItem(TOKEN_KEY) ?? ''; } catch { return ''; } };
-const saveToken = (t: string) => { try { if (t) sessionStorage.setItem(TOKEN_KEY, t); else sessionStorage.removeItem(TOKEN_KEY); } catch { /* private window */ } };
+// The admin's own log-in on the live league (both steps), not a separate one for this page.
+const readToken = () => tokens.admin();
 
 async function call<T>(path: string, token: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api/${path}`, {
@@ -116,8 +115,6 @@ function Tonight() {
 /** The real server: sign in as admin, see the number's status, send a test to verified phones. */
 function RealTexts() {
   const [token, setToken] = useState(readToken);
-  const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
   const [status, setStatus] = useState<SmsStatusResponse | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<string>('');
@@ -131,21 +128,11 @@ function RealTexts() {
       .then((s) => { if (live) setStatus(s); })
       .catch((e: Error & { status?: number }) => {
         if (!live) return;
-        if (e.status === 401 || e.status === 403) { saveToken(''); setToken(''); setError('Signed out. Sign in again.'); }
+        if (e.status === 401 || e.status === 403) { setToken(''); setError('Signed out. Log in again as an admin.'); }
         else setError(e.message);
       });
     return () => { live = false; };
   }, [token]);
-
-  const signIn = async () => {
-    setBusy('login'); setError('');
-    try {
-      const r = await call<AdminAuthResponse>('admin/login', '', { name, password });
-      saveToken(r.token); setToken(r.token); setPassword('');
-    } catch (e) {
-      setError((e as Error).message);
-    } finally { setBusy(''); }
-  };
 
   const test = async (template: SmsTemplate) => {
     setBusy(template); setError(''); setSent('');
@@ -168,13 +155,8 @@ function RealTexts() {
         {!token ? (
           <Card variant="outlined" sx={{ p: 2 }}>
             <Typography variant="body2" color="textSecondary" sx={{ mb: 1.5 }}>
-              Sign in to the league server to check the texting number and send yourself a test. This only works on the deployed site.
+              Turn on the live league and log in as an admin to check the texting number and send yourself a test. This only works on the deployed site.
             </Typography>
-            <Stack spacing={1.5}>
-              <TextField label="Admin name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="username" />
-              <TextField label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
-              <Button variant="contained" disabled={!name || !password || busy === 'login'} onClick={signIn}>Sign in</Button>
-            </Stack>
           </Card>
         ) : !status ? (
           !error && <Typography color="textSecondary">Checking the texting number...</Typography>
@@ -203,7 +185,6 @@ function RealTexts() {
                 Test sends open up once the number is approved and at least one test phone is verified.
               </Typography>
             )}
-            <Button size="small" sx={{ mt: 1.5 }} onClick={() => { saveToken(''); setToken(''); setStatus(null); }}>Sign out of the server</Button>
           </Card>
         )}
       </Stack>

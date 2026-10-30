@@ -23,7 +23,8 @@ vi.mock('./db.js', async (importOriginal) => {
 });
 
 const { handler } = await import('./index.js');
-const { hashPassword, issueToken } = await import('./auth.js');
+const { hashPassword, issueToken, issueAdminToken } = await import('./auth.js');
+const { testTotp, testCode } = await import('./testing/twoStep.js');
 const { createLeagueState, applyAction } = await import('./leagueStore.js');
 const { newLeague } = await import('../../shared/league/new.js');
 const { encryptPayload, resetVapidCache, vapidAuthorization } = await import('./webpush.js');
@@ -39,9 +40,9 @@ async function call(method: string, path: string, opts: { body?: unknown; header
   return { status: out.statusCode!, body: JSON.parse(out.body as string) as Record<string, any> };
 }
 const asTeam = (teamId: string) => ({ headers: { 'x-team-token': issueToken(teamId, 'sfi-s1') } });
-async function asAdmin() {
-  const res = await call('POST', '/api/admin/login', { body: { name: 'Matt', password: 'correct horse battery' } });
-  return { headers: { 'x-admin-token': res.body.token as string } };
+// Logged in with both steps (the log-in itself is tested in approval.test.ts).
+async function asAdmin(name = 'Matt') {
+  return { headers: { 'x-admin-token': issueAdminToken(name, 'sfi-s1', 1) } };
 }
 const act = (type: string, payload: unknown, who: { headers: Record<string, string> }) => call('POST', '/api/league/action', { ...who, body: { type, payload } });
 
@@ -86,7 +87,7 @@ beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-11-05T23:20:00.000Z'));
   fake.table.items.clear();
-  fake.table.put({ PK: 'ADMIN#sfi-s1', SK: 'ADMIN#matt', type: 'admin', name: 'Matt', passHash: hashPassword('correct horse battery'), tokenVersion: 1, createdAt: '2026-10-06T00:00:00.000Z' });
+  fake.table.put({ PK: 'ADMIN#sfi-s1', SK: 'ADMIN#matt', type: 'admin', name: 'Matt', passHash: hashPassword('correct horse battery'), tokenVersion: 1, createdAt: '2026-10-06T00:00:00.000Z', totp: testTotp() });
   const league = newLeague({ firstNight: '2026-11-05', opensAt: '19:00', closesAt: '21:00', machines: [{ machineId: 'godzilla', name: 'Godzilla' }] }, '2026-11-01T12:00:00.000Z');
   const team = (teamId: string, teamName: string) => ({ teamId, teamName, players: ['Riley', 'Sam'] as [string, string], phone1: '', phone2: '', photo: '', status: 'approved' as const, createdAt: '2026-11-01T00:00:00.000Z', firstWeek: 1 });
   league.teams = [team('aaaa1111', 'Left & Right'), team('bbbb2222', 'Tilt Me Tender')];

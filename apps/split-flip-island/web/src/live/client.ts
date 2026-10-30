@@ -1,7 +1,7 @@
 // Talking to the league server. Used only when the "Live league" switch is on; the sample
 // league never sends anything. Tokens are kept on this phone: a team's for a week (the server's
 // own limit), an admin's until the browser is closed.
-import type { AuthResponse, AdminAuthResponse, UploadResponse, PresignedUpload, RegisterRequest } from '../../../shared/types';
+import type { AuthResponse, AdminAuthResponse, TwoStepSetup, UploadResponse, PresignedUpload, RegisterRequest } from '../../../shared/types';
 import type { SampleState } from '../sample/types';
 import { resizeImage } from '../lib/photos';
 
@@ -43,6 +43,14 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
   return data as T;
 }
 
+/** One call with a given admin token instead of the saved ones (the two-step setup). */
+async function callWith<T>(path: string, adminToken: string, body: unknown): Promise<T> {
+  const res = await fetch(`/api/${path}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-admin-token': adminToken }, body: JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new LiveError((data as { error?: string }).error ?? `The league server said ${res.status}.`, res.status);
+  return data as T;
+}
+
 /** teamToken: a solo player whose phone is now on a team. soloGone: they left the waitlist. */
 export interface LeagueResponse { version: number; league: SampleState; teamToken?: string; soloGone?: boolean }
 /** What GET /api/league says when there is no league yet. */
@@ -58,9 +66,20 @@ export const live = {
     void import('./push').then((p) => p.resendPush());
     return r;
   },
-  async adminLogIn(name: string, password: string) {
-    const r = await call<AdminAuthResponse>('admin/login', { name, password });
-    tokens.setAdmin(r.token);
+  /**
+   * Admin log-in, two steps. With the password alone the server answers needsCode (send it
+   * again with the 6-digit code) or setupToken (no authenticator yet: add one with the calls below).
+   */
+  async adminLogIn(name: string, password: string, code?: string) {
+    const r = await call<AdminAuthResponse>('admin/login', { name, password, ...(code ? { code } : {}) });
+    if (r.token) tokens.setAdmin(r.token);
+    return r;
+  },
+  /** A key for the admin's authenticator app. The setup token is held by the page, never saved. */
+  startTwoStep: (setupToken: string) => callWith<TwoStepSetup>('admin/2fa/start', setupToken, {}),
+  async confirmTwoStep(setupToken: string, code: string) {
+    const r = await callWith<AdminAuthResponse>('admin/2fa/confirm', setupToken, { code });
+    if (r.token) tokens.setAdmin(r.token);
     return r;
   },
   logOut: () => tokens.clear(),
@@ -138,7 +157,7 @@ export const live = {
   resetPin: (teamId: string) => call<{ pin: string }>(`admin/teams/${teamId}/reset-pin`, {}),
   renameTeam: (teamId: string, teamName: string, reason: string) => call<{ ok: true; teamName: string }>(`admin/teams/${teamId}/rename`, { teamName, reason }),
   setupLeague: (body: { firstNight: string; opensAt: string; closesAt: string; machines: string[]; teamCap: number }) => call<{ ok: true }>('admin/league/setup', body),
-  startOver: (confirm: string) => call<{ deleted: number }>('admin/league/start-over', { confirm })
+  startOver: (confirm: string, password: string) => call<{ deleted: number }>('admin/league/start-over', { confirm, password })
 };
 
 async function dataUrlToBlob(dataUrl: string): Promise<Blob> {

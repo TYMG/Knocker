@@ -7,6 +7,8 @@
 //   remove "Name"     delete the account; it stops working at once
 //   owner "Name"      make them an owner: the one who can start the whole league over in the app
 //   not-owner "Name"  take that away
+//   reset-2fa "Name"  remove their authenticator (lost phone); signs them out everywhere. At the
+//                     next log-in they add one again.
 //   list              show who has an admin account (and who is an owner)
 //
 // Passwords are typed at a hidden prompt, never passed on the command line or printed.
@@ -149,12 +151,28 @@ switch (command) {
     console.log(owner ? `${name} is now an owner: they can start the league over from the app.` : `${name} is no longer an owner.`);
     break;
   }
+  case 'reset-2fa': {
+    needName();
+    try {
+      await ddb.send(new UpdateCommand({
+        TableName, Key: { PK, SK: keys.admin(name) },
+        UpdateExpression: 'SET tokenVersion = :version REMOVE totp, totpPending, totpStep',
+        ConditionExpression: 'attribute_exists(PK)',
+        ExpressionAttributeValues: { ':version': Date.now() }
+      }));
+    } catch (err) {
+      if (missing(err)) fail(`There is no admin named ${name}.`);
+      throw err;
+    }
+    console.log(`Removed ${name}'s authenticator and signed them out. At their next log-in they set up a new one.`);
+    break;
+  }
   case 'list': {
     const out = await ddb.send(new QueryCommand({ TableName, KeyConditionExpression: 'PK = :pk', ExpressionAttributeValues: { ':pk': PK } }));
-    const admins = (out.Items ?? []).map((a) => `${a.name}${a.owner ? ' (owner)' : ''}  (added ${String(a.createdAt).slice(0, 10)})`);
+    const admins = (out.Items ?? []).map((a) => `${a.name}${a.owner ? ' (owner)' : ''}${a.totp ? '' : '  (no authenticator yet)'}  (added ${String(a.createdAt).slice(0, 10)})`);
     console.log(admins.length ? admins.join('\n') : 'No admins yet. Add one with: ./scripts/admin.sh add "Name"');
     break;
   }
   default:
-    fail('Usage: ./scripts/admin.sh add "Name" | password "Name" | remove "Name" | owner "Name" | not-owner "Name" | list');
+    fail('Usage: ./scripts/admin.sh add "Name" | password "Name" | remove "Name" | owner "Name" | not-owner "Name" | reset-2fa "Name" | list');
 }

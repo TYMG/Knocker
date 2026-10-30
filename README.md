@@ -67,6 +67,7 @@ server. Set it up and look after it from the app (**Admin → League setup**) or
 ./scripts/admin.sh password "Name"    # new password; signs them out everywhere
 ./scripts/admin.sh remove "Name"
 ./scripts/admin.sh owner "Name"       # can Start over from the app (not-owner "Name" undoes it)
+./scripts/admin.sh reset-2fa "Name"   # lost phone: removes their authenticator; they add a new one at next log-in
 ./scripts/admin.sh list
 
 ./scripts/demo-password.sh            # new random demo password, shown once; signs everyone out

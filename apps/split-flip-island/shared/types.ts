@@ -195,11 +195,28 @@ export interface AuditResponse {
 export interface AdminLoginRequest {
   name: string;
   password: string;
+  /** The 6-digit code from the admin's authenticator app (two-step log-in). */
+  code?: string;
 }
 
+/**
+ * The answer to an admin log-in. Exactly one of these comes back:
+ *   token + admin   logged in;
+ *   needsCode       the password is right; send it again with the 6-digit code;
+ *   setupToken      the password is right but this admin has no authenticator yet: use the
+ *                   setup token (only good for /api/admin/2fa/*) to add one.
+ */
 export interface AdminAuthResponse {
-  token: string;
-  admin: { name: string };
+  token?: string;
+  admin?: { name: string };
+  needsCode?: boolean;
+  setupToken?: string;
+}
+
+/** Adding an authenticator: the key to type into the app, and a link that opens the app with it. */
+export interface TwoStepSetup {
+  key: string;
+  link: string;
 }
 
 /** A team as admins see it. Phone numbers never leave the admin pages. */

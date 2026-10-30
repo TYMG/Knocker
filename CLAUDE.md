@@ -246,6 +246,14 @@ The server runs the **same rules code** as the sample league, so the two can nev
 - **Log-ins last a week (Oct 30):** team and solo tokens expire after 7 days (`TOKEN_DAYS`). A
   token header that doesn't verify (expired or tampered) gets 401 on GET /api/league, so the
   phone forgets it and asks for the PIN instead of quietly showing the visitor view.
+- **Admin two-step log-in (Oct 30):** password, then a 6-digit code from an authenticator app
+  (`api/src/totp.ts`, RFC 6238 SHA-1/30s/6; ±1 step; each code once via `totpStep`; the secret
+  sealed with AES-GCM keyed from TOKEN_SECRET). Admin tokens carry `mfa: true`; `requireAdmin`
+  needs it. An admin with no authenticator gets a 15-minute `setupToken` good only for
+  `POST /api/admin/2fa/start` (key + otpauth link, no QR) and `/confirm`. Lost phone:
+  `./scripts/admin.sh reset-2fa "Name"`. Start over also needs the password typed again. The
+  Texts page uses the main admin log-in. Tests issue mfa tokens directly; approval.test covers
+  the log-in (`testing/twoStep.ts`).
 - **Admin input checks in the rules** (Oct 29): message 1–280 characters; machine and location
   names up to 40 and no duplicates; night times HH:MM with opening before closing; add minutes
   1–60 at a time, 2 hours max, only while open; corrections and voids need a reason (up to 200).

@@ -30,7 +30,8 @@ vi.mock('./textsender.js', async (importOriginal) => {
 });
 
 const { handler } = await import('./index.js');
-const { hashPassword, issueToken } = await import('./auth.js');
+const { hashPassword, issueToken, issueAdminToken } = await import('./auth.js');
+const { testTotp, testCode } = await import('./testing/twoStep.js');
 const { createLeagueState, applyAction, loadLeagueState } = await import('./leagueStore.js');
 const { newLeague } = await import('../../shared/league/new.js');
 
@@ -47,9 +48,9 @@ async function call(method: string, path: string, opts: { body?: unknown; header
   return { status: out.statusCode!, body: JSON.parse(out.body as string) as Record<string, any> };
 }
 const asTeam = (teamId: string) => ({ headers: { 'x-team-token': issueToken(teamId, 'sfi-s1') } });
-async function asAdmin() {
-  const res = await call('POST', '/api/admin/login', { body: { name: 'Matt', password: 'correct horse battery' } });
-  return { headers: { 'x-admin-token': res.body.token as string } };
+// Logged in with both steps (the log-in itself is tested in approval.test.ts).
+async function asAdmin(name = 'Matt') {
+  return { headers: { 'x-admin-token': issueAdminToken(name, 'sfi-s1', 1) } };
 }
 const act = (type: string, payload: unknown, who: { headers: Record<string, string> }) => call('POST', '/api/league/action', { ...who, body: { type, payload } });
 
@@ -72,7 +73,7 @@ beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-11-05T23:20:00.000Z')); // 6:20 PM, before the night opens on its own
   fake.table.items.clear();
-  fake.table.put({ PK: 'ADMIN#sfi-s1', SK: 'ADMIN#matt', type: 'admin', name: 'Matt', passHash: hashPassword('correct horse battery'), tokenVersion: 1, createdAt: '2026-10-06T00:00:00.000Z' });
+  fake.table.put({ PK: 'ADMIN#sfi-s1', SK: 'ADMIN#matt', type: 'admin', name: 'Matt', passHash: hashPassword('correct horse battery'), tokenVersion: 1, createdAt: '2026-10-06T00:00:00.000Z', totp: testTotp() });
   await setUp();
 });
 afterEach(() => vi.useRealTimers());
@@ -152,7 +153,7 @@ describe('the league on the server', () => {
 
 describe('league setup, pause and start over', () => {
   const owner = async () => {
-    fake.table.put({ PK: 'ADMIN#sfi-s1', SK: 'ADMIN#matt', type: 'admin', name: 'Matt', passHash: hashPassword('correct horse battery'), tokenVersion: 1, createdAt: '2026-10-06T00:00:00.000Z', owner: true });
+    fake.table.put({ PK: 'ADMIN#sfi-s1', SK: 'ADMIN#matt', type: 'admin', name: 'Matt', passHash: hashPassword('correct horse battery'), tokenVersion: 1, createdAt: '2026-10-06T00:00:00.000Z', owner: true, totp: testTotp() });
     return asAdmin();
   };
   const setupBody = { firstNight: '2027-01-14', opensAt: '19:00', closesAt: '21:00', machines: ['Godzilla', 'Venom'], teamCap: 10 };
@@ -176,7 +177,9 @@ describe('league setup, pause and start over', () => {
     const me = await owner();
     expect((await call('GET', '/api/league', me)).body.league.adminIsOwner).toBe(true);
     expect((await call('POST', '/api/admin/league/start-over', { ...me, body: { confirm: 'start' } })).status).toBe(400);
-    const done = await call('POST', '/api/admin/league/start-over', { ...me, body: { confirm: 'start over' } });
+    expect((await call('POST', '/api/admin/league/start-over', { ...me, body: { confirm: 'start over', password: 'wrong password' } })).status).toBe(403); // the password again, too
+    expect(await loadLeagueState()).not.toBeNull();
+    const done = await call('POST', '/api/admin/league/start-over', { ...me, body: { confirm: 'start over', password: 'correct horse battery' } });
     expect(done.status).toBe(200);
     expect(done.body.deleted).toBeGreaterThan(0);
     expect(await loadLeagueState()).toBeNull();
@@ -191,7 +194,7 @@ describe('league setup, pause and start over', () => {
   it('sets up a season only when there is none, from the admin page', async () => {
     const me = await owner();
     expect((await call('POST', '/api/admin/league/setup', { ...me, body: setupBody })).status).toBe(409); // one exists
-    await call('POST', '/api/admin/league/start-over', { ...me, body: { confirm: 'START OVER' } });
+    await call('POST', '/api/admin/league/start-over', { ...me, body: { confirm: 'START OVER', password: 'correct horse battery' } });
     expect((await call('POST', '/api/admin/league/setup', { ...me, body: { ...setupBody, machines: [] } })).status).toBe(400);
     expect((await call('POST', '/api/admin/league/setup', { ...me, body: { ...setupBody, closesAt: '18:00' } })).status).toBe(400);
     expect((await call('POST', '/api/admin/league/setup', { body: setupBody })).status).toBe(401);
@@ -566,10 +569,9 @@ describe('security, phase 1', () => {
   });
 
   it('backs the table up before Start over', async () => {
-    fake.table.put({ PK: 'ADMIN#sfi-s1', SK: 'ADMIN#owner', type: 'admin', name: 'Owner', passHash: hashPassword('correct horse battery'), tokenVersion: 1, owner: true, createdAt: '2026-10-06T00:00:00.000Z' });
-    const login = await call('POST', '/api/admin/login', { body: { name: 'Owner', password: 'correct horse battery' } });
+    fake.table.put({ PK: 'ADMIN#sfi-s1', SK: 'ADMIN#owner', type: 'admin', name: 'Owner', passHash: hashPassword('correct horse battery'), tokenVersion: 1, owner: true, createdAt: '2026-10-06T00:00:00.000Z', totp: testTotp() });
     fake.table.backups.length = 0;
-    expect((await call('POST', '/api/admin/league/start-over', { headers: { 'x-admin-token': login.body.token }, body: { confirm: 'START OVER' } })).status).toBe(200);
+    expect((await call('POST', '/api/admin/league/start-over', { ...(await asAdmin('Owner')), body: { confirm: 'START OVER', password: 'correct horse battery' } })).status).toBe(200);
     expect(fake.table.backups).toHaveLength(1);
     expect(fake.table.backups[0]).toMatch(/^test-before-start-over-Owner-/);
   });

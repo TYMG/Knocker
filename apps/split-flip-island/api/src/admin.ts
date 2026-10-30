@@ -7,9 +7,10 @@
 // the league record (leagueStore.ts); their name claim and private item are deleted with them.
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { limitAddress } from './limits.js';
-import { GetCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
-import type { AdminAuthResponse, AdminLoginRequest, RemoveTeamRequest } from '../../shared/types.js';
+import type { AdminAuthResponse, AdminLoginRequest, RemoveTeamRequest, TwoStepSetup } from '../../shared/types.js';
+import { checkCode, newSecret, otpauthLink, seal, unseal } from './totp.js';
 import type { STeam } from '../../shared/league/types.js';
 import { clearLoginStrikes, hashPassword, issueAdminToken, readAdminToken, takeLoginStrike, verifyPassword } from './auth.js';
 import { ddb, keys, leagueId, s3, table } from './db.js';
@@ -22,6 +23,12 @@ export interface AdminItem {
   failures?: number; lastFailureAt?: number;
   /** The owner can start the whole league over (set with ./scripts/admin.sh owner "Name"). */
   owner?: boolean;
+  /** The authenticator secret, sealed (totp.ts). Cleared by ./scripts/admin.sh reset-2fa "Name". */
+  totp?: string;
+  /** A secret being added, until the first code from it is typed in. */
+  totpPending?: string;
+  /** The 30-second step of the last code used, so no code works twice. */
+  totpStep?: number;
 }
 
 const adminKey = (name: string) => ({ PK: keys.admins(leagueId()), SK: keys.admin(name) });
@@ -35,12 +42,65 @@ async function getAdmin(name: string): Promise<AdminItem | undefined> {
  * since the token was issued, so removing an admin or resetting a password takes effect at once.
  */
 export async function requireAdmin(event: APIGatewayProxyEventV2): Promise<AdminItem> {
+  const admin = await adminFromToken(event);
+  // Both steps, every time: a setup token (password only) can't do anything else.
+  if (!readAdminToken(event)!.mfa || !admin.totp) throw new HttpError(401, 'Log in as an admin to do that.');
+  return admin;
+}
+
+async function adminFromToken(event: APIGatewayProxyEventV2): Promise<AdminItem> {
   const denied = new HttpError(401, 'Log in as an admin to do that.');
   const token = readAdminToken(event);
   if (!token || token.leagueId !== leagueId()) throw denied;
   const admin = await getAdmin(token.name);
   if (!admin || admin.tokenVersion !== token.version) throw denied;
   return admin;
+}
+
+/** Saves the step of a code that was just used, unless another request used it first. */
+async function useStep(admin: AdminItem, step: number, extra = '', values: Record<string, unknown> = {}): Promise<boolean> {
+  try {
+    await ddb.send(new UpdateCommand({
+      TableName: table(), Key: adminKey(admin.name),
+      UpdateExpression: `SET totpStep = :step${extra}`,
+      ConditionExpression: 'attribute_not_exists(totpStep) OR totpStep < :step',
+      ExpressionAttributeValues: { ':step': step, ...values }
+    }));
+    return true;
+  } catch (err) {
+    if ((err as Error).name === 'ConditionalCheckFailedException') return false;
+    throw err;
+  }
+}
+
+/** True when this password is the admin's. Used to re-check before something drastic (Start over). */
+export const passwordMatches = (admin: AdminItem, password: unknown) => typeof password === 'string' && password.length <= 200 && verifyPassword(password, admin.passHash);
+
+// ---------- Two-step log-in: adding the authenticator ----------
+
+/** POST /api/admin/2fa/start: a new key for the admin's authenticator app. */
+export async function startTwoStep(event: APIGatewayProxyEventV2): Promise<TwoStepSetup> {
+  const admin = await adminFromToken(event);
+  if (admin.totp) throw new HttpError(409, 'This admin already has an authenticator. To replace it, run ./scripts/admin.sh reset-2fa.');
+  const secret = newSecret();
+  await ddb.send(new UpdateCommand({
+    TableName: table(), Key: adminKey(admin.name),
+    UpdateExpression: 'SET totpPending = :p', ExpressionAttributeValues: { ':p': seal(secret) }
+  }));
+  return { key: secret.replace(/(.{4})/g, '$1 ').trim(), link: otpauthLink(admin.name, secret) };
+}
+
+/** POST /api/admin/2fa/confirm {code}: the first code from the app turns two-step log-in on. */
+export async function confirmTwoStep(event: APIGatewayProxyEventV2): Promise<AdminAuthResponse> {
+  await limitAddress(event, 'adminLogin');
+  const admin = await adminFromToken(event);
+  if (admin.totp) throw new HttpError(409, 'This admin already has an authenticator.');
+  const secret = unseal(admin.totpPending);
+  if (!secret) throw new HttpError(409, 'Start again: get a new key first.');
+  const step = checkCode(secret, text(parseBody<{ code?: string }>(event).code), Date.now(), admin.totpStep);
+  if (step === null) throw new HttpError(401, "That code didn't work. Check the app shows Split Flipper Island and try the newest code.");
+  if (!(await useStep(admin, step, ', totp = :t REMOVE totpPending', { ':t': admin.totpPending }))) throw new HttpError(401, 'That code was already used. Wait for the next one.');
+  return { token: issueAdminToken(admin.name, leagueId(), admin.tokenVersion), admin: { name: admin.name } };
 }
 
 // ---------- POST /api/admin/login ----------
@@ -65,6 +125,12 @@ export async function adminLogin(event: APIGatewayProxyEventV2): Promise<AdminAu
   // (`./scripts/admin.sh password "Name"` also clears it, if someone keeps an admin locked out.)
   if (!(await takeLoginStrike(adminKey(name)))) throw new HttpError(429, 'Too many wrong passwords. Wait 15 minutes and try again.');
   if (!verifyPassword(password, admin.passHash)) throw wrong;
+  // Second step. No authenticator yet: a short setup token that can only add one.
+  if (!admin.totp) return { setupToken: issueAdminToken(admin.name, leagueId(), admin.tokenVersion, false) };
+  const code = text(body.code);
+  if (!code) return { needsCode: true };
+  const step = checkCode(unseal(admin.totp), code, Date.now(), admin.totpStep);
+  if (step === null || !(await useStep(admin, step))) throw new HttpError(401, "That code didn't work. Type the newest 6-digit code from your authenticator app.");
   await clearLoginStrikes(adminKey(name));
   return { token: issueAdminToken(admin.name, leagueId(), admin.tokenVersion), admin: { name: admin.name } };
 }

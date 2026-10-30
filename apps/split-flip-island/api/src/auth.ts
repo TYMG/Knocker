@@ -102,12 +102,18 @@ export interface AdminTokenPayload {
   /** Matches the account's tokenVersion; a password reset bumps it and ends old sessions. */
   version: number;
   exp: number;
+  /**
+   * True once the admin passed the second step (a code from their authenticator app). A token
+   * without it is a setup token: good only for adding the authenticator, for 15 minutes.
+   */
+  mfa?: boolean;
 }
 
 const signAdmin = (body: string) => sign(`admin:${body}`);
 
-export function issueAdminToken(name: string, leagueId: string, version: number): string {
-  const payload: AdminTokenPayload = { kind: 'admin', name, leagueId, version, exp: Date.now() + ADMIN_TOKEN_HOURS * 3_600_000 };
+export function issueAdminToken(name: string, leagueId: string, version: number, mfa = true): string {
+  const exp = Date.now() + (mfa ? ADMIN_TOKEN_HOURS * 3_600_000 : 15 * 60_000);
+  const payload: AdminTokenPayload = { kind: 'admin', name, leagueId, version, exp, ...(mfa ? { mfa: true } : {}) };
   const body = b64url(JSON.stringify(payload));
   return `${body}.${signAdmin(body)}`;
 }

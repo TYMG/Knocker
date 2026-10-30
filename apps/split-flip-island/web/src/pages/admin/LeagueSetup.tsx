@@ -94,16 +94,18 @@ function StartOver({ onSampleStartOver }: { onSampleStartOver: () => void }) {
   const liveOn = useAppSelector((s) => s.live.on);
   const dispatch = useAppDispatch();
   const [typed, setTyped] = useState('');
+  const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState('');
   // The sample league plays the owner; on the live league only the owner sees this.
   if (liveOn && !league.adminIsOwner) return null;
-  const ready = typed.trim().toUpperCase() === WORDS;
+  // On the live league the owner types their password again, so a phone left logged in can't wipe it.
+  const ready = typed.trim().toUpperCase() === WORDS && (!liveOn || password.length > 0);
   const go = () => {
     if (!ready) return;
     if (!liveOn) { setTyped(''); onSampleStartOver(); return; }
     setBusy(true); setFailed('');
-    live.startOver(typed)
+    live.startOver(typed, password)
       .then(async (r) => { await refreshLive(); dispatch(showToast(`Started over: ${r.deleted} records deleted. Set up the new season.`)); })
       .catch((err: Error) => setFailed(err.message))
       .finally(() => setBusy(false));
@@ -118,6 +120,9 @@ function StartOver({ onSampleStartOver }: { onSampleStartOver: () => void }) {
         </Typography>
         <Stack spacing={1.5}>
           <TextField label={`Type ${WORDS} to confirm`} value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
+          {liveOn && (
+            <TextField label="Your admin password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+          )}
           {failed && <Alert severity="error">{failed}</Alert>}
           <Button variant="contained" color="error" disabled={!ready || busy} onClick={go} sx={{ minHeight: 44 }}>
             {busy ? 'Deleting…' : 'Start over'}

@@ -269,6 +269,12 @@ The server runs the **same rules code** as the sample league, so the two can nev
   + 30 days, once (marker `RETENTION#DONE`): team private items lose phones and text settings
   (PIN kept), waitlist private items / SOLOPHONE# / SOLOTEAM# are deleted, and the PUSH# and
   RATE# partitions are emptied. Team names, scores, photos and the log stay.
+- **Firewall and texting spend (Oct 30):** `infra/waf.tf` (AWS WAF on CloudFront: per-address
+  rate limit `waf_rate_limit` 5000 per 5 minutes for a bar on one wifi address, AWS IP
+  reputation, common rules with the 8 KB body rule set to count, known bad inputs). Off until the
+  demo password comes off: `waf_enabled = true` then. `./scripts/sms-verify.sh spend-limit 30`
+  sets the $30/month texting ceiling (no Terraform resource for it; the sandbox maximum is $1,
+  so ask for $30 in the production access request first).
 - **Admin input checks in the rules** (Oct 29): message 1–280 characters; machine and location
   names up to 40 and no duplicates; night times HH:MM with opening before closing; add minutes
   1–60 at a time, 2 hours max, only while open; corrections and voids need a reason (up to 200).

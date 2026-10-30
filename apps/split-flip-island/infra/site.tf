@@ -56,6 +56,8 @@ resource "aws_cloudfront_distribution" "app" {
   default_root_object = "index.html"
   price_class         = "PriceClass_100"
   comment             = local.app_host
+  # The firewall (waf.tf), once it's turned on at launch.
+  web_acl_id = var.waf_enabled ? aws_wafv2_web_acl.site[0].arn : null
 
   origin {
     origin_id                = "site"

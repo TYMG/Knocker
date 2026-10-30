@@ -6,6 +6,9 @@
 #   ./scripts/sms-verify.sh status   shows the league number's status and the account tier
 #   ./scripts/sms-verify.sh log [hours]  shows what happened to recent texts (default: last 24
 #                                     hours): delivered, failed, blocked. Last 4 digits only.
+#   ./scripts/sms-verify.sh spend-limit [dollars]  sets the most texting can cost in a month
+#                                     (default 30, Matt Oct 30) and shows the limits. AWS stops
+#                                     sending once it's reached.
 #
 # The number is typed in at the prompt and only ever sent to AWS. Never put it in the repo.
 # Sending the code needs the league's toll-free number to be ACTIVE, which happens once its
@@ -78,10 +81,25 @@ add() {
   $SMS verify-destination-number --verified-destination-number-id "$id" --verification-code "$code" --query Status --output text | sed 's/^/Status: /'
 }
 
+# The monthly ceiling on texting spend. AWS refuses anything above the account's own maximum
+# ($1 a month in the sandbox); ask for $30 in the production access request, then run this.
+spend_limit() {
+  local dollars="${1:-30}"
+  case "$dollars" in ''|*[!0-9]*) echo "Give whole dollars, like: ./scripts/sms-verify.sh spend-limit 30"; exit 1 ;; esac
+  if ! $SMS set-text-spend-limit-override --monthly-limit "$dollars" --output text >/dev/null; then
+    echo "AWS didn't accept \$$dollars. The account's maximum is shown below; if it's lower, ask AWS to raise it (the production access request)."
+  else
+    echo "Texting is now capped at \$$dollars a month."
+  fi
+  $SMS describe-spend-limits --query "SpendLimits[?Name=='TEXT_MESSAGE_MONTHLY_SPEND_LIMIT'].[EnforcedLimit,MaxLimit,Overridden]" --output text |
+    awk '{ printf "Text spend limit: $%s a month (account maximum $%s, set by you: %s)\n", $1, $2, $3 }'
+}
+
 case "${1:-}" in
   add) add ;;
   list) list ;;
   status) status ;;
   log) log "${2:-24}" ;;
-  *) sed -n '2,12p' "$0"; exit 1 ;;
+  spend-limit) spend_limit "${2:-30}" ;;
+  *) sed -n '2,15p' "$0"; exit 1 ;;
 esac

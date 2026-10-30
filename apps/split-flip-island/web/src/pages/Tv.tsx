@@ -14,13 +14,17 @@
 //      and the page scrolls like any other.
 //   3. Open it as /tv?live on the bar's screen and it switches itself to the live league (no
 //      tapping needed), and stays there.
+//   4. On the live league the bar's screen (a laptop or iPad) is logged in as an admin (Matt,
+//      Oct 30): the league is only sent to admins and approved teams. Without that log-in the
+//      page says so and links to the admin log-in, which comes back here afterwards.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Link as RouterLink } from 'react-router';
+import { Link as RouterLink, useNavigate } from 'react-router';
+import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import { keyframes } from '@mui/material/styles';
-import { useLeague, useLiveOn } from '../hooks';
+import { useLeague, useLiveOn, useOutsider } from '../hooks';
 import { setLive } from '../live/sync';
 import { SAMPLE_BAR_HEIGHT } from '../layout/SampleBar';
 import { countedMachines, lineCount, linesView, location, machine as machineOf, machineBoard, nightStatus, tonightRows, weekLabel, type LineView, type TonightRow } from '../sample/league';
@@ -74,6 +78,24 @@ export default function Tv() {
   const hurry = left <= 300;
   const boardIndex = counted.length ? Math.floor(tick / ROTATE_SECONDS) % counted.length : 0;
   const secondsLeft = ROTATE_SECONDS - (tick % ROTATE_SECONDS);
+  const outsider = useOutsider();
+  const navigate = useNavigate();
+
+  if (outsider) {
+    return (
+      <Box className="dark" sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center', bgcolor: colors.black, color: colors.paleYellow, p: 3, textAlign: 'center' }}>
+        <Box sx={{ maxWidth: 520 }}>
+          <Box component="h1" sx={{ fontFamily: display, color: colors.lime, fontSize: '2rem', m: 0 }}>Bar TV</Box>
+          <Box component="p" sx={{ fontSize: '1.15rem', lineHeight: 1.5 }}>
+            Log this screen in as a league admin to show tonight's league. The log-in lasts 12 hours, so do it at the start of each league night.
+          </Box>
+          <Button variant="contained" color="secondary" size="large" onClick={() => navigate('/admin/login', { state: { next: '/tv?live' } })}>
+            Admin log in
+          </Button>
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box

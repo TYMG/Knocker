@@ -243,6 +243,9 @@ The server runs the **same rules code** as the sample league, so the two can nev
   their waitlist view. Nothing else. Web: `useOutsider()`; `MembersOnly` guard on standings,
   teams and machines offers "Try the demo" (`TryDemoButton`, `setLive(false)`); FrontDoor swaps
   the standings for the demo button; SignUp reads the counts. The demo (sample league) is unchanged.
+- **Bar TV on the live league (Matt, Oct 30):** the bar's screen (a laptop or iPad) is logged in
+  as an admin; no secret TV link. Without it, /tv shows an "Admin log in" button that returns to
+  /tv?live afterwards. Admin log-ins last 12 hours, so it's done each league night.
 - **Log-ins last a week (Oct 30):** team and solo tokens expire after 7 days (`TOKEN_DAYS`). A
   token header that doesn't verify (expired or tampered) gets 401 on GET /api/league, so the
   phone forgets it and asks for the PIN instead of quietly showing the visitor view.
